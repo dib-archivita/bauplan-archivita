@@ -240,21 +240,27 @@
       if (td.querySelector(':scope > .frozen-content')) return;
       const wrapper = document.createElement('div');
       wrapper.className = 'frozen-content';
-      wrapper.dataset.fci = String(opts.idx);  // 0..3 für task-row; "all" für section/kfw
+      wrapper.dataset.fci = String(opts.idx);
       wrapper.style.cssText = [
         'display:block',
         'position:sticky',
         // 'left' wird nachher via applyStickyLefts gesetzt
         'background:' + (opts.bg || '#fff'),
-        'z-index:' + (opts.z || 5),
         'min-height:100%',
+        'width:100%',
         'box-sizing:border-box',
         opts.shadow ? 'box-shadow:6px 0 12px -4px rgba(0,0,0,0.06)' : ''
       ].filter(Boolean).join(';');
       while (td.firstChild) wrapper.appendChild(td.firstChild);
       td.appendChild(wrapper);
+
+      // KRITISCH: z-index auf den TD legen (nicht den Wrapper).
+      // Tds sind eigene Stacking-Contexts (position:relative), die in DOM-Reihenfolge
+      // stacken. Td 5 (gantt-row-inner mit Bars) kommt NACH tds 1-4 im DOM und
+      // würde sich darüberlegen. Mit z-index auf tds 1-4 stacken sie OBEN.
       td.style.position = 'relative';
-      td.style.overflow = 'visible';   // Wrapper darf aus td "rausschauen" wenn sticky
+      td.style.zIndex = String(opts.z || 5);
+      td.style.overflow = 'visible';
     }
 
     // Task-Rows
