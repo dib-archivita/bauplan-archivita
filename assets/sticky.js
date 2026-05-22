@@ -1,32 +1,54 @@
 /**
- * sticky.js — Top-Bar Sticky-Stacking
+ * sticky.js — Top-Sticky-Header + KW/Monat-Spaltenkopf
  *
- * Iteriert ALLE Sticky-Kandidaten (.header, .summary, .tabs, .filter-bar)
- * in DOM-Reihenfolge und setzt `top:` kumulativ. So stacken sie sich beim
- * Scrollen exakt aufeinander, egal wie viele filter-bars (z.B. Gewerk +
- * Status) da sind. Danach kommt der gantt-table thead darunter sticky.
+ * Lösung für 2 Probleme:
+ *  (a) Header / Stats / Tabs / Filter sollen beim Scrollen oben kleben
+ *  (b) Tabellenkopf (Monat-Labels + KW-Labels + Aufgabe/Status/Gewerk/Firma)
+ *      soll auch oben kleben — geht aber NICHT mit normalem position:sticky,
+ *      weil .gantt-wrap overflow-x:auto hat (das bricht sticky für descendants).
  *
- * Re-Run bei Resize + Tab-Wechsel + Filter-Klick.
+ * (a) wird mit position:sticky + kumulativem top: gelöst (DOM-Reihenfolge).
+ * (b) wird mit einem CLONED header gelöst, der OBERHALB der .gantt-wrap eingefügt
+ *     wird (also außerhalb des Overflow-Containers). Der Clone wird per JS
+ *     horizontal synchron zur .gantt-wrap gescrollt.
  */
 (function () {
   'use strict';
 
   const STICKY_SELECTOR = '.header, .summary, .tabs, .filter-bar';
+  let cumulativeTop = 0;
+  let originalThead = null;
+  let cloneHeader = null;
+  let scrollSyncer = null;
 
   function injectBaseCSS() {
     if (document.getElementById('sticky-styles')) return;
     const s = document.createElement('style');
     s.id = 'sticky-styles';
     s.textContent = `
-      /* Tabellenkopf sticky-Default */
-      #main-gantt thead { position: sticky; z-index: 30;
-                          background: #fff;
-                          box-shadow: 0 1px 0 #e2e8f0; }
-      #main-gantt thead th { background: #fafbfc !important; }
-      /* gantt-wrap braucht overflow-x für horizontal-scroll, y muss sichtbar bleiben */
+      /* Original-thead wird verborgen sobald Clone aktiv ist —
+         bleibt aber als Layout-Anker für Spaltenbreiten erhalten */
+      #main-gantt.has-sticky-clone thead { visibility: hidden; }
+
+      /* Sticky Clone Container */
+      #gantt-sticky-header {
+        position: sticky;
+        z-index: 30;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        overflow: hidden;
+        will-change: transform;
+      }
+      #gantt-sticky-header .gsh-inner-table {
+        margin: 0; border-collapse: collapse;
+        will-change: transform;
+      }
+
+      /* gantt-wrap muss overflow-x:auto haben für horizontal scroll */
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
 
-      /* Mobile-Optimierungen für die Sticky-Bar */
+      /* Mobile-Optimierungen */
       @media (max-width: 760px) {
         .summary { padding: 10px 16px !important; gap: 6px !important; }
         .summary .card { padding: 6px 8px !important; flex: 1; min-width: 0; }
@@ -55,20 +77,14 @@
     document.head.appendChild(s);
   }
 
-  function applySticky() {
-    // Sammele die Elemente in DOM-Reihenfolge — Inline-Styles statt CSS-Vars
-    // damit jeder Filter-Bar etc. seinen EIGENEN top:-Wert bekommt.
+  function applyPageSticky() {
     const stickies = Array.from(document.querySelectorAll(STICKY_SELECTOR));
-    let cumulativeTop = 0;
+    cumulativeTop = 0;
     let zIndex = 50;
 
     stickies.forEach((el) => {
-      // Nicht alle Treffer sind im Hauptseiten-Layout — nur die innerhalb body, NICHT
-      // Inhalts-Tabs außerhalb des aktuellen Tabs.
-      // Wir filtern: Eltern .tab-content visible? Ansonsten ignorieren.
       const inHiddenTab = el.closest('.tab-content:not(.active)') !== null;
       if (inHiddenTab) {
-        // einfach nicht-sticky lassen
         el.style.position = '';
         el.style.top = '';
         el.style.zIndex = '';
@@ -83,34 +99,92 @@
       cumulativeTop += h;
     });
 
-    // gantt-table thead sticky direkt darunter
-    document.querySelectorAll('#main-gantt thead').forEach((thead) => {
-      thead.style.position = 'sticky';
-      thead.style.top = cumulativeTop + 'px';
-      thead.style.zIndex = '29';
-      thead.style.background = '#fff';
+    // Clone-Header positionieren
+    if (cloneHeader) {
+      cloneHeader.style.top = cumulativeTop + 'px';
+    }
+  }
+
+  function buildCloneHeader() {
+    const wrap = document.querySelector('.gantt-wrap');
+    const table = document.getElementById('main-gantt');
+    if (!wrap || !table) return;
+
+    originalThead = table.querySelector('thead');
+    if (!originalThead) return;
+
+    // Existing Clone weg
+    const oldClone = document.getElementById('gantt-sticky-header');
+    if (oldClone) oldClone.remove();
+
+    // Container
+    cloneHeader = document.createElement('div');
+    cloneHeader.id = 'gantt-sticky-header';
+
+    // Mini-Tabelle mit den gleichen colgroup + thead-Werten
+    const miniTable = document.createElement('table');
+    miniTable.className = 'gantt-table gsh-inner-table';
+    miniTable.style.width = (table.scrollWidth || 3768 + 340) + 'px';
+
+    // colgroup klonen
+    const cg = table.querySelector('colgroup');
+    if (cg) miniTable.appendChild(cg.cloneNode(true));
+
+    // thead klonen
+    const theadClone = originalThead.cloneNode(true);
+    miniTable.appendChild(theadClone);
+
+    cloneHeader.appendChild(miniTable);
+
+    // Vor .gantt-wrap einfügen (so dass es im Page-Sticky-Flow ist)
+    wrap.parentNode.insertBefore(cloneHeader, wrap);
+
+    // Original-thead optisch verstecken (Platz bleibt erhalten)
+    table.classList.add('has-sticky-clone');
+
+    // Horizontal-Scroll synchronisieren
+    if (scrollSyncer) wrap.removeEventListener('scroll', scrollSyncer);
+    scrollSyncer = () => {
+      const x = wrap.scrollLeft;
+      miniTable.style.transform = `translateX(${-x}px)`;
+    };
+    wrap.addEventListener('scroll', scrollSyncer, { passive: true });
+
+    // Sicherstellen, dass Clone gleiche Breite hat wie das Original-Table
+    // (Page-resize → original ändert sich → clone neu vermessen)
+    requestAnimationFrame(() => {
+      miniTable.style.width = table.scrollWidth + 'px';
     });
   }
 
   let resizeTimer = null;
   function scheduleApply(delay = 50) {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(applySticky, delay);
+    resizeTimer = setTimeout(() => {
+      applyPageSticky();
+      // Width des Mini-Tables an Original anpassen
+      if (cloneHeader) {
+        const table = document.getElementById('main-gantt');
+        const inner = cloneHeader.querySelector('.gsh-inner-table');
+        if (table && inner) inner.style.width = table.scrollWidth + 'px';
+      }
+    }, delay);
   }
 
   function init() {
     injectBaseCSS();
-    applySticky();
+    applyPageSticky();
+    buildCloneHeader();
+    applyPageSticky(); // nochmal, damit clone-header die richtige top hat
+
     window.addEventListener('resize', () => scheduleApply(100));
-    // Bei Tab-/Filter-Klicks Inhalte können sich ändern → re-measure
     document.addEventListener('click', () => scheduleApply(150), true);
-    // Nach allen Fonts geladen → re-measure
+
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => scheduleApply(30));
     }
-    // Sicherheits-Re-Run nach 500ms (für späten DOM-Aufbau durch sync.js / admin.js)
-    setTimeout(applySticky, 500);
-    setTimeout(applySticky, 1500);
+    setTimeout(() => { applyPageSticky(); scheduleApply(0); }, 500);
+    setTimeout(() => { applyPageSticky(); scheduleApply(0); }, 1500);
   }
 
   if (document.readyState === 'loading') {
