@@ -83,6 +83,9 @@ jobs:
           set mirror:set-permissions no
           set ftp:use-mlsd no
           open -u "$FTP_USER","$FTP_PASS" "$FTP_SERVER"
+          # Alte verirrte Ordner vom Server räumen (best-effort, Fehler ok)
+          rm -rf .git || true
+          rm -rf .github || true
           mirror --reverse --delete --no-perms --no-symlinks --parallel=1 --verbose ./ ./
           bye
           EOF

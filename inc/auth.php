@@ -140,7 +140,7 @@ function require_user(): array {
     return $u;
 }
 
-function session_destroy(): void {
+function app_session_destroy(): void {
     $token = $_COOKIE[SESSION_COOKIE] ?? '';
     if ($token !== '') {
         $hash = hash_token($token);
