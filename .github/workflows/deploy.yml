@@ -20,7 +20,7 @@ jobs:
           password:      ${{ secrets.FTP_PASS }}
           protocol:      ftps
           port:          21
-          server-dir:    /bauplan/
+          server-dir:    /
           local-dir:     ./
           dangerous-clean-slate: false
           log-level:     standard
