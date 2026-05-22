@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * setup.php — EINMALIG nach dem ersten Upload aufrufen.
  *
@@ -10,13 +11,37 @@
  * NACH ERFOLGREICHEM SETUP:  Diese Datei UMBENENNEN oder LÖSCHEN
  * (sonst kann jeder, der die URL kennt, Admin-Accounts triggern).
  */
-declare(strict_types=1);
+
+// Debug: alle Fehler anzeigen (temporär, bis Setup durch ist)
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+header('Content-Type: text/plain; charset=utf-8');
+
+echo "=== Bauzeitenplan Archivita — Setup (DEBUG) ===\n\n";
+echo "PHP Version: " . PHP_VERSION . "\n";
+echo "Skript-Pfad: " . __DIR__ . "\n";
+echo "Verzeichnis-Inhalt:\n  " . implode("\n  ", array_diff(scandir(__DIR__), ['.', '..'])) . "\n\n";
+
+// Prüfen, ob config.php existiert
+if (!file_exists(__DIR__ . '/config.php')) {
+    echo "✗ config.php FEHLT — Deploy hat sie nicht generiert.\n";
+    echo "  → Prüfe GitHub Actions: ist DB_PASSWORD/SMTP_PASSWORD/APP_SECRET als Secret hinterlegt?\n";
+    exit;
+}
+echo "✓ config.php vorhanden (" . filesize(__DIR__ . '/config.php') . " bytes)\n";
+
+// Prüfen, ob inc/ existiert
+if (!is_dir(__DIR__ . '/inc')) {
+    echo "✗ inc/ Ordner FEHLT.\n";
+    exit;
+}
+echo "✓ inc/ Ordner vorhanden (" . count(glob(__DIR__ . '/inc/*.php')) . " PHP-Dateien)\n\n";
+
 require_once __DIR__ . '/inc/db.php';
 require_once __DIR__ . '/inc/auth.php';
 require_once __DIR__ . '/inc/helpers.php';
 require_once __DIR__ . '/inc/mailer.php';
-
-header('Content-Type: text/plain; charset=utf-8');
 
 echo "=== Bauzeitenplan Archivita — Setup ===\n\n";
 
