@@ -7737,58 +7737,77 @@ window.togglePanel = function() {
 
 <script id="today-line-dynamic">
 (function(){
+  // Today-Line v3: nutzt das exakt-gleiche Koordinatensystem wie die Gantt-Bars.
+  // Bars sind <div class="gantt-bar" style="left:Xpx"> innerhalb der ersten task-row.
+  // Daher: Today-Line wird als position:absolute Kind des TABLE (nicht der wrap)
+  // bei left = (X-Offset der ersten task-row gantt-row-inner) + today_px gesetzt.
+  // Beim Horizontal-Scroll wandert sie mit dem Table-Content mit (richtige Bewegung).
+
+  var PX_PER_WEEK = 42;
+  var ORIGIN = new Date(2026, 4, 4); // 4. Mai 2026 = KW19 Mo
+  ORIGIN.setHours(0,0,0,0);
+
+  function todayPx() {
+    var t = new Date();
+    t.setHours(0,0,0,0);
+    return Math.round((t - ORIGIN) / 86400000) / 7 * PX_PER_WEEK;
+  }
+
+  function clearOldLines() {
+    document.querySelectorAll('.today-line, .today-line-row, #today-line-global, #today-line-gh')
+      .forEach(function(el){ el.remove(); });
+  }
+
   function updateTodayLine() {
-    // ORIGIN = 4. Mai 2026 (KW19 Montag = left:0 in der Timeline-Zelle)
-    var origin = new Date(2026, 4, 4);
-    var today = new Date();
-    today.setHours(0,0,0,0);
-    origin.setHours(0,0,0,0);
-    var days = Math.round((today - origin) / 86400000);
-    var px = (days / 7) * 42;
+    clearOldLines();
 
-    // Alte / falsch positionierte today-lines aus dem Header entfernen
-    document.querySelectorAll('#main-gantt thead .today-line').forEach(function(l){ l.remove(); });
-    // Ehemalige row-injizierte Linien entfernen (verursachten gestrichelten Look)
-    document.querySelectorAll('.today-line-row').forEach(function(l){ l.remove(); });
-
-    // EINE durchgehende Linie als direktes Kind der gantt-wrap rendern.
-    var wrap = document.querySelector('.gantt-wrap');
     var table = document.getElementById('main-gantt');
-    if (!wrap || !table) return;
-    if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+    if (!table) return;
+    // Referenz: erste echte task-row (haben 5 cells: 4 fix + gantt-row-inner)
+    var refRow = table.querySelector('tbody tr.task-row');
+    if (!refRow) return;
+    var refInner = refRow.querySelector('.gantt-row-inner');
+    if (!refInner) return;
 
-    // Offset des Timeline-Bereichs (relativ zur gantt-wrap) ermitteln
-    var anyRow = table.querySelector('tbody .gantt-row-inner');
-    if (!anyRow) return;
-    var wrapRect = wrap.getBoundingClientRect();
-    var rowRect  = anyRow.getBoundingClientRect();
-    var timelineLeft = (rowRect.left - wrapRect.left) + wrap.scrollLeft;
+    // Position der gantt-row-inner relativ zum TABLE (nicht zur viewport, nicht zur wrap)
+    var tRect = table.getBoundingClientRect();
+    var rRect = refInner.getBoundingClientRect();
+    var timelineX = rRect.left - tRect.left;  // Px-Offset im Tabellen-Content
 
-    var line = document.getElementById('today-line-global');
-    if (!line) {
-      line = document.createElement('div');
-      line.id = 'today-line-global';
-      line.className = 'today-line';
-      wrap.appendChild(line);
+    var px = todayPx();
+    var line = document.createElement('div');
+    line.id = 'today-line-global';
+    line.className = 'today-line';
+    line.style.cssText = [
+      'position:absolute',
+      'top:0',
+      'bottom:0',
+      'height:' + table.offsetHeight + 'px',
+      'left:' + (timelineX + px) + 'px',
+      'width:2px',
+      'background:#ef4444',
+      'z-index:25',
+      'pointer-events:none',
+      'box-shadow:0 0 8px rgba(239,68,68,0.5)'
+    ].join(';');
+
+    // table braucht position:relative damit absolutes Kind im Tabellen-Koordinatensystem ankert
+    if (getComputedStyle(table).position === 'static') {
+      table.style.position = 'relative';
     }
-    line.style.position = 'absolute';
-    line.style.top = '0';
-    line.style.bottom = '0';
-    line.style.height = table.offsetHeight + 'px';
-    line.style.left = (timelineLeft + px) + 'px';
-    line.style.zIndex = '25';
+    table.appendChild(line);
   }
-  // Bei Scroll im Gantt mit der Linie nicht "mitwandern" (sie ist innerhalb von gantt-wrap)
-  document.addEventListener('scroll', function(e){
-    if (e.target && e.target.classList && e.target.classList.contains('gantt-wrap')) updateTodayLine();
-  }, true);
-  window.addEventListener('resize', updateTodayLine);
+
+  // Resize / Tab-Wechsel: neu zeichnen
+  window.addEventListener('resize', function(){ setTimeout(updateTodayLine, 100); });
+  document.addEventListener('click', function(){ setTimeout(updateTodayLine, 200); }, true);
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updateTodayLine);
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateTodayLine, 200); });
   } else {
-    updateTodayLine();
+    setTimeout(updateTodayLine, 200);
   }
-  // Auch periodisch alle 5 Min aktualisieren
+  setTimeout(updateTodayLine, 1500);
   setInterval(updateTodayLine, 5 * 60 * 1000);
 })();
 </script>
