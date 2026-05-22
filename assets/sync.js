@@ -83,10 +83,10 @@
       .ub-name { font-weight: 700; color: #1e293b; }
       .ub-role { padding: 2px 9px; border-radius: 999px; font-size: 10px; font-weight: 700;
         letter-spacing: 0.04em; text-transform: uppercase; }
-      .role-admin { background: #fee2e2; color: #b91c1c; }
-      .role-architekt { background: #dbeafe; color: #1d4ed8; }
-      .role-worker { background: #fef3c7; color: #b45309; }
-      .role-viewer { background: #f1f5f9; color: #64748b; }
+      .ub-role.role-admin { background: #fee2e2; color: #b91c1c; }
+      .ub-role.role-architekt { background: #dbeafe; color: #1d4ed8; }
+      .ub-role.role-worker { background: #fef3c7; color: #b45309; }
+      .ub-role.role-viewer { background: #f1f5f9; color: #64748b; }
       .ub-logout { background: #1e293b; color: #fff; border: none; padding: 5px 13px;
         border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer;
         font-family: inherit; }
