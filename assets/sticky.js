@@ -105,6 +105,18 @@
     }
   }
 
+  function measureOriginalColumns(table) {
+    // Hole eine Referenz-Zeile aus dem tbody zum Messen
+    // (thead hat zusammengefasste cells, tbody hat alle Spalten)
+    const refRow = table.querySelector('tbody tr.task-row');
+    if (!refRow) return null;
+    const widths = [];
+    refRow.querySelectorAll('td').forEach(td => {
+      widths.push(td.getBoundingClientRect().width);
+    });
+    return widths;
+  }
+
   function buildCloneHeader() {
     const wrap = document.querySelector('.gantt-wrap');
     const table = document.getElementById('main-gantt');
@@ -117,22 +129,45 @@
     const oldClone = document.getElementById('gantt-sticky-header');
     if (oldClone) oldClone.remove();
 
+    // Spalten-Breiten aus dem Original messen
+    const colWidths = measureOriginalColumns(table);
+
     // Container
     cloneHeader = document.createElement('div');
     cloneHeader.id = 'gantt-sticky-header';
 
-    // Mini-Tabelle mit den gleichen colgroup + thead-Werten
+    // Mini-Tabelle mit fixiertem Layout + explizite Spaltenbreiten
     const miniTable = document.createElement('table');
     miniTable.className = 'gantt-table gsh-inner-table';
-    miniTable.style.width = (table.scrollWidth || 3768 + 340) + 'px';
+    miniTable.style.tableLayout = 'fixed';
+    miniTable.style.borderCollapse = 'collapse';
 
-    // colgroup klonen
-    const cg = table.querySelector('colgroup');
-    if (cg) miniTable.appendChild(cg.cloneNode(true));
+    // colgroup mit den GEMESSENEN Breiten (überschreibt das Auto-Layout)
+    const newCg = document.createElement('colgroup');
+    if (colWidths && colWidths.length) {
+      colWidths.forEach((w) => {
+        const c = document.createElement('col');
+        c.style.width = w + 'px';
+        newCg.appendChild(c);
+      });
+    } else {
+      // Fallback: original colgroup klonen
+      const cg = table.querySelector('colgroup');
+      if (cg) {
+        Array.from(cg.children).forEach(col => newCg.appendChild(col.cloneNode(true)));
+      }
+    }
+    miniTable.appendChild(newCg);
 
     // thead klonen
     const theadClone = originalThead.cloneNode(true);
     miniTable.appendChild(theadClone);
+
+    // Gesamtbreite = Summe der gemessenen Breiten (oder Fallback)
+    const totalWidth = colWidths
+      ? colWidths.reduce((a, b) => a + b, 0)
+      : table.scrollWidth;
+    miniTable.style.width = totalWidth + 'px';
 
     cloneHeader.appendChild(miniTable);
 
@@ -149,12 +184,25 @@
       miniTable.style.transform = `translateX(${-x}px)`;
     };
     wrap.addEventListener('scroll', scrollSyncer, { passive: true });
+  }
 
-    // Sicherstellen, dass Clone gleiche Breite hat wie das Original-Table
-    // (Page-resize → original ändert sich → clone neu vermessen)
-    requestAnimationFrame(() => {
-      miniTable.style.width = table.scrollWidth + 'px';
-    });
+  function remeasureClone() {
+    if (!cloneHeader) return;
+    const table = document.getElementById('main-gantt');
+    if (!table) return;
+    const colWidths = measureOriginalColumns(table);
+    if (!colWidths) return;
+    const inner = cloneHeader.querySelector('.gsh-inner-table');
+    if (!inner) return;
+
+    const cg = inner.querySelector('colgroup');
+    if (cg) {
+      const cols = cg.querySelectorAll('col');
+      colWidths.forEach((w, i) => {
+        if (cols[i]) cols[i].style.width = w + 'px';
+      });
+    }
+    inner.style.width = colWidths.reduce((a, b) => a + b, 0) + 'px';
   }
 
   let resizeTimer = null;
@@ -162,12 +210,7 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       applyPageSticky();
-      // Width des Mini-Tables an Original anpassen
-      if (cloneHeader) {
-        const table = document.getElementById('main-gantt');
-        const inner = cloneHeader.querySelector('.gsh-inner-table');
-        if (table && inner) inner.style.width = table.scrollWidth + 'px';
-      }
+      remeasureClone();
     }, delay);
   }
 
