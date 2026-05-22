@@ -1,44 +1,32 @@
 /**
- * sticky.js — Macht Header / Tabs / Filter / KW-Header beim Scrollen sticky.
+ * sticky.js — Top-Bar Sticky-Stacking
  *
- * Funktionsweise:
- *  - Misst nach DOM-Ready & beim Resize die Höhe von .header, .summary,
- *    .tabs und .filter-bar
- *  - Setzt CSS-Variablen mit den kumulativen Top-Offsets
- *  - Stellt für jedes Element + die gantt-table thead position:sticky her
- *  - Funktioniert mobile und desktop, ohne Hardcoded-Pixel
+ * Iteriert ALLE Sticky-Kandidaten (.header, .summary, .tabs, .filter-bar)
+ * in DOM-Reihenfolge und setzt `top:` kumulativ. So stacken sie sich beim
+ * Scrollen exakt aufeinander, egal wie viele filter-bars (z.B. Gewerk +
+ * Status) da sind. Danach kommt der gantt-table thead darunter sticky.
+ *
+ * Re-Run bei Resize + Tab-Wechsel + Filter-Klick.
  */
 (function () {
   'use strict';
 
-  function inject() {
+  const STICKY_SELECTOR = '.header, .summary, .tabs, .filter-bar';
+
+  function injectBaseCSS() {
     if (document.getElementById('sticky-styles')) return;
     const s = document.createElement('style');
     s.id = 'sticky-styles';
     s.textContent = `
-      .header,
-      .summary,
-      .tabs,
-      .filter-bar {
-        position: sticky !important;
-        z-index: 40;
-        background: #fff;
-      }
-      .header   { top: 0; z-index: 44; }
-      .summary  { top: var(--st-h, 60px); z-index: 43; }
-      .tabs     { top: var(--st-hs, 130px); z-index: 42; }
-      .filter-bar { top: var(--st-hst, 175px); z-index: 41;
-                    box-shadow: 0 1px 0 #e2e8f0; }
-
-      /* Tabellenkopf darunter sticky */
-      #main-gantt thead { position: sticky; top: var(--st-all, 220px); z-index: 39;
-                          background: #fff; box-shadow: 0 1px 0 #e2e8f0; }
+      /* Tabellenkopf sticky-Default */
+      #main-gantt thead { position: sticky; z-index: 30;
+                          background: #fff;
+                          box-shadow: 0 1px 0 #e2e8f0; }
       #main-gantt thead th { background: #fafbfc !important; }
-
-      /* gantt-wrap braucht overflow:auto damit horizontal scrollt — aber thead muss durch */
+      /* gantt-wrap braucht overflow-x für horizontal-scroll, y muss sichtbar bleiben */
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
 
-      /* Mobile: Stat-Cards kleiner */
+      /* Mobile-Optimierungen für die Sticky-Bar */
       @media (max-width: 760px) {
         .summary { padding: 10px 16px !important; gap: 6px !important; }
         .summary .card { padding: 6px 8px !important; flex: 1; min-width: 0; }
@@ -57,7 +45,6 @@
         .filter-bar .filter-btn,
         .filter-bar button { font-size: 10px !important; padding: 3px 9px !important; }
 
-        /* User-bar + Suchleiste kompakter */
         #user-bar { top: 6px !important; right: 8px !important; }
         #user-bar .ub-name { display: none; }
         #global-search { top: 38px !important; right: 8px !important;
@@ -68,33 +55,62 @@
     document.head.appendChild(s);
   }
 
-  function measure() {
-    const h = (sel) => {
-      const el = document.querySelector(sel);
-      return el ? el.getBoundingClientRect().height : 0;
-    };
-    const hH = h('.header');
-    const hS = h('.summary');
-    const hT = h('.tabs');
-    const hF = h('.filter-bar');
+  function applySticky() {
+    // Sammele die Elemente in DOM-Reihenfolge — Inline-Styles statt CSS-Vars
+    // damit jeder Filter-Bar etc. seinen EIGENEN top:-Wert bekommt.
+    const stickies = Array.from(document.querySelectorAll(STICKY_SELECTOR));
+    let cumulativeTop = 0;
+    let zIndex = 50;
 
-    const root = document.documentElement;
-    root.style.setProperty('--st-h',   hH + 'px');
-    root.style.setProperty('--st-hs',  (hH + hS) + 'px');
-    root.style.setProperty('--st-hst', (hH + hS + hT) + 'px');
-    root.style.setProperty('--st-all', (hH + hS + hT + hF) + 'px');
+    stickies.forEach((el) => {
+      // Nicht alle Treffer sind im Hauptseiten-Layout — nur die innerhalb body, NICHT
+      // Inhalts-Tabs außerhalb des aktuellen Tabs.
+      // Wir filtern: Eltern .tab-content visible? Ansonsten ignorieren.
+      const inHiddenTab = el.closest('.tab-content:not(.active)') !== null;
+      if (inHiddenTab) {
+        // einfach nicht-sticky lassen
+        el.style.position = '';
+        el.style.top = '';
+        el.style.zIndex = '';
+        return;
+      }
+      el.style.position = 'sticky';
+      el.style.top = cumulativeTop + 'px';
+      el.style.zIndex = String(zIndex--);
+      if (!el.style.background) el.style.background = '#fff';
+
+      const h = el.getBoundingClientRect().height;
+      cumulativeTop += h;
+    });
+
+    // gantt-table thead sticky direkt darunter
+    document.querySelectorAll('#main-gantt thead').forEach((thead) => {
+      thead.style.position = 'sticky';
+      thead.style.top = cumulativeTop + 'px';
+      thead.style.zIndex = '29';
+      thead.style.background = '#fff';
+    });
+  }
+
+  let resizeTimer = null;
+  function scheduleApply(delay = 50) {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applySticky, delay);
   }
 
   function init() {
-    inject();
-    measure();
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(measure, 80);
-    });
-    // Nach Tab-Wechsel / Filter-Klick neu messen (DOM könnte sich verändern)
-    document.addEventListener('click', () => setTimeout(measure, 100), true);
+    injectBaseCSS();
+    applySticky();
+    window.addEventListener('resize', () => scheduleApply(100));
+    // Bei Tab-/Filter-Klicks Inhalte können sich ändern → re-measure
+    document.addEventListener('click', () => scheduleApply(150), true);
+    // Nach allen Fonts geladen → re-measure
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => scheduleApply(30));
+    }
+    // Sicherheits-Re-Run nach 500ms (für späten DOM-Aufbau durch sync.js / admin.js)
+    setTimeout(applySticky, 500);
+    setTimeout(applySticky, 1500);
   }
 
   if (document.readyState === 'loading') {
