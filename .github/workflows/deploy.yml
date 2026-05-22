@@ -3,7 +3,7 @@ name: Deploy to webgo
 on:
   push:
     branches: [main]
-  workflow_dispatch:        # erlaubt manuellen Trigger im GitHub-UI
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,27 +12,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Sync per SFTP nach webgo
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server:        ${{ secrets.FTP_SERVER }}
-          username:      ${{ secrets.FTP_USER }}
-          password:      ${{ secrets.FTP_PASS }}
-          protocol:      ftps
-          port:          21
-          server-dir:    /
-          local-dir:     ./
-          dangerous-clean-slate: true
-          log-level:     standard
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.DS_Store
-            **/README.md
-            **/SETUP.md
-            **/config.php
-            **/.env
-            **/.gitignore
-            **/.github/**
-            **/schema.sql
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Deploy via lftp (FTPS)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USER:   ${{ secrets.FTP_USER }}
+          FTP_PASS:   ${{ secrets.FTP_PASS }}
+        run: |
+          set -e
+          lftp -c "
+          set ftp:ssl-force true;
+          set ftp:ssl-protect-data true;
+          set ssl:verify-certificate no;
+          set net:max-retries 3;
+          set net:timeout 20;
+          open -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_SERVER\";
+          mirror --reverse --delete --parallel=4 --verbose \
+            --exclude-glob .git \
+            --exclude-glob .git/* \
+            --exclude-glob .github \
+            --exclude-glob .github/* \
+            --exclude-glob .DS_Store \
+            --exclude-glob README.md \
+            --exclude-glob SETUP.md \
+            --exclude-glob config.php \
+            --exclude-glob .gitignore \
+            --exclude-glob schema.sql \
+            --exclude-glob node_modules \
+            ./ ./;
+          bye
+          "
