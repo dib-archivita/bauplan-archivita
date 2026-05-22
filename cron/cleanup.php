@@ -16,9 +16,9 @@
  *     /usr/bin/php /home/web111/htdocs/bauplan/cron/cleanup.php
  */
 declare(strict_types=1);
-require_once __DIR__ . '/../lib/db.php';
-require_once __DIR__ . '/../lib/helpers.php';
-require_once __DIR__ . '/../lib/mailer.php';
+require_once __DIR__ . '/../inc/db.php';
+require_once __DIR__ . '/../inc/helpers.php';
+require_once __DIR__ . '/../inc/mailer.php';
 
 $db = db();
 echo "[" . date('c') . "] Cleanup-Lauf gestartet\n";

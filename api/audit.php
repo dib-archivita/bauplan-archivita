@@ -9,9 +9,9 @@
  *   POST {action: "delete_old"}   Sofort löschen, was außerhalb Retention liegt
  */
 declare(strict_types=1);
-require_once __DIR__ . '/../lib/db.php';
-require_once __DIR__ . '/../lib/auth.php';
-require_once __DIR__ . '/../lib/helpers.php';
+require_once __DIR__ . '/../inc/db.php';
+require_once __DIR__ . '/../inc/auth.php';
+require_once __DIR__ . '/../inc/helpers.php';
 
 $u = require_user();
 if ($u['role'] !== ROLE_ADMIN) json_error('Nur Admin', 403);

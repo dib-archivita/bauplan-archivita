@@ -12,41 +12,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install lftp
-        run: sudo apt-get update && sudo apt-get install -y lftp
+      - name: Clean up build dir (remove .git, drop server-side excludes)
+        run: |
+          rm -rf .git .github
+          rm -f README.md SETUP.md schema.sql config.php config.example.php
+          rm -f .DS_Store .gitignore
+          echo "==== Wird hochgeladen: ===="
+          find . -type f | sort
 
-      - name: Deploy via lftp (FTPS, no chmod, passive)
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Upload via lftp (FTPS, no-perms, mkdir-parents)
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USER:   ${{ secrets.FTP_USER }}
           FTP_PASS:   ${{ secrets.FTP_PASS }}
         run: |
           set -e
-          lftp -c "
-          set ftp:ssl-force true;
-          set ftp:ssl-protect-data true;
-          set ssl:verify-certificate no;
-          set ftp:passive-mode true;
-          set net:max-retries 3;
-          set net:timeout 30;
-          set net:reconnect-interval-base 5;
-          set mirror:set-permissions no;
-          open -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_SERVER\";
-          mirror --reverse \
-                 --delete \
-                 --no-perms \
-                 --no-symlinks \
-                 --ignore-time \
-                 --parallel=2 \
-                 --verbose \
-                 --exclude-glob '.git*' \
-                 --exclude-glob '.github*' \
-                 --exclude-glob '.DS_Store' \
-                 --exclude-glob 'README.md' \
-                 --exclude-glob 'SETUP.md' \
-                 --exclude-glob 'config.php' \
-                 --exclude-glob 'schema.sql' \
-                 --exclude-glob 'node_modules' \
-                 ./ /;
+          lftp <<EOF
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate no
+          set ftp:passive-mode true
+          set net:max-retries 3
+          set net:timeout 30
+          set net:reconnect-interval-base 5
+          set mirror:set-permissions no
+          set mirror:use-pget-n 0
+          set ftp:use-mlsd no
+          open -u "$FTP_USER","$FTP_PASS" "$FTP_SERVER"
+          mirror --reverse --delete --no-perms --no-symlinks --parallel=1 --verbose ./ ./
           bye
-          "
+          EOF
