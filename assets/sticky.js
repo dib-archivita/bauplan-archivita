@@ -219,90 +219,64 @@
     });
   }
 
-  // Frozen-Cols via Wrapper-Div + Transform.
-  // Hintergrund: `transform` auf <td> ist in Browsern unzuverlässig wegen display:table-cell.
-  // Lösung: Wrappe den td-Inhalt in einen <div>, transformiere den Div (funktioniert garantiert).
-  let frozenWrappers = [];
-  let frozenScrollHandler = null;
-
-  function setupFrozenCols() {
+  // ALTERNATIVE: position:sticky auf td ist in mehreren Browsern unzuverlässig.
+  // Daher: per JS bei JEDEM Scroll die ersten 4 td via transform zurückschieben,
+  // damit sie OPTISCH stehen bleiben.
+  function setupTransformBasedStickyCols() {
     const wrap = document.querySelector('.gantt-wrap');
     const table = document.getElementById('main-gantt');
     if (!wrap || !table) return;
 
-    // Beim Re-Run alte Wrapper finden (Marker: data-frozen="1")
-    // Wenn schon initialisiert → nur erneut Transform anwenden, nicht neu wrappen
-    if (table.dataset.frozenInit === '1') {
-      if (frozenScrollHandler) frozenScrollHandler();
-      return;
-    }
-    table.dataset.frozenInit = '1';
+    // Sammle alle relevanten Cells einmalig + setze background/zIndex
+    const stickyCells = [];
 
-    frozenWrappers = [];
-
-    function wrapCell(td, opts) {
-      if (td.querySelector(':scope > .frozen-content')) return; // schon gewrappt
-      const wrapper = document.createElement('div');
-      wrapper.className = 'frozen-content';
-      wrapper.style.cssText = [
-        'display:block',
-        'position:relative',
-        'background:' + (opts.bg || '#fff'),
-        'z-index:' + (opts.z || 5),
-        'will-change:transform',
-        'min-height:100%',
-        'box-sizing:border-box',
-        opts.shadow ? 'box-shadow:6px 0 12px -4px rgba(0,0,0,0.06)' : ''
-      ].filter(Boolean).join(';');
-      // Move all td children into wrapper
-      while (td.firstChild) {
-        wrapper.appendChild(td.firstChild);
-      }
-      td.appendChild(wrapper);
-      // td selbst muss position:relative haben + background damit Wrapper sich darüber stapeln kann
-      td.style.position = 'relative';
-      frozenWrappers.push(wrapper);
-    }
-
-    // Task-Rows: erste 4 cells
     table.querySelectorAll('tbody tr.task-row').forEach((row) => {
       const tds = row.children;
       for (let i = 0; i < 4 && i < tds.length; i++) {
-        wrapCell(tds[i], {
-          bg: '#fff',
-          z: 5,
-          shadow: (i === 3),
-        });
+        const td = tds[i];
+        td.style.setProperty('background', td.style.background || td.style.backgroundColor || '#fff', 'important');
+        td.style.setProperty('position', 'relative', 'important');
+        td.style.setProperty('z-index', '5', 'important');
+        td.style.setProperty('will-change', 'transform');
+        if (i === 3) {
+          td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
+        }
+        stickyCells.push(td);
       }
     });
 
-    // Section-Rows: erste cell (colspan)
+    // Section + KFW-Header-Rows: erste cell (mit colspan)
     table.querySelectorAll('tbody tr.section-row > td:first-child').forEach((td) => {
-      wrapCell(td, { bg: '#f8fafc', z: 6, shadow: true });
+      td.style.setProperty('position', 'relative', 'important');
+      td.style.setProperty('z-index', '6', 'important');
+      td.style.setProperty('background', '#f8fafc', 'important');
+      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
+      td.style.setProperty('will-change', 'transform');
+      stickyCells.push(td);
     });
-
-    // KFW-Header-Rows: erste cell (colspan). Hintergrund vom row übernehmen.
     table.querySelectorAll('tbody tr.kfw-header-row > td:first-child').forEach((td) => {
-      const row = td.parentElement;
-      const rowBg = getComputedStyle(row).backgroundColor || '#1e293b';
-      wrapCell(td, { bg: rowBg, z: 6, shadow: true });
+      td.style.setProperty('position', 'relative', 'important');
+      td.style.setProperty('z-index', '6', 'important');
+      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
+      td.style.setProperty('will-change', 'transform');
+      stickyCells.push(td);
     });
 
-    // Scroll-Handler
+    // Scroll-Handler: translateX nach rechts, um die Cells "im Viewport zu halten"
     let rafId = null;
-    frozenScrollHandler = () => {
+    function syncSticky() {
       rafId = null;
       const x = wrap.scrollLeft;
-      const t = 'translateX(' + x + 'px)';
-      for (let i = 0; i < frozenWrappers.length; i++) {
-        frozenWrappers[i].style.transform = t;
-      }
-    };
+      stickyCells.forEach((td) => {
+        td.style.transform = 'translateX(' + x + 'px)';
+      });
+    }
     wrap.addEventListener('scroll', () => {
-      if (rafId == null) rafId = requestAnimationFrame(frozenScrollHandler);
+      if (rafId == null) rafId = requestAnimationFrame(syncSticky);
     }, { passive: true });
 
-    frozenScrollHandler();
+    // Initial-Sync (falls Page schon gescrollt ist)
+    syncSticky();
   }
 
   let resizeTimer = null;
@@ -311,7 +285,7 @@
     resizeTimer = setTimeout(() => {
       applyPageSticky();
       remeasureClone();
-      setupFrozenCols();
+      setupTransformBasedStickyCols();
     }, delay);
   }
 
@@ -319,7 +293,7 @@
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
-    setupFrozenCols();
+    setupTransformBasedStickyCols();
     applyPageSticky();
 
     window.addEventListener('resize', () => scheduleApply(100));
