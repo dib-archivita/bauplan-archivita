@@ -69,35 +69,43 @@
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
 
       /* ══════ LEFT-STICKY: erste 4 Spalten in Task-Rows ══════ */
+      /* !important nötig wegen Existenz von tr.task-row td:nth-child(3) { position:relative } */
       #main-gantt tbody tr.task-row > td:nth-child(1),
       #main-gantt tbody tr.task-row > td:nth-child(2),
       #main-gantt tbody tr.task-row > td:nth-child(3),
       #main-gantt tbody tr.task-row > td:nth-child(4) {
-        position: sticky;
-        z-index: 5;
-        background: #fff;
+        position: sticky !important;
+        z-index: 5 !important;
+        background: #fff !important;
       }
-      #main-gantt tbody tr.task-row > td:nth-child(1) { left: 0; }
-      #main-gantt tbody tr.task-row > td:nth-child(2) { left: var(--c1w, 280px); }
-      #main-gantt tbody tr.task-row > td:nth-child(3) { left: var(--c12w, 340px); }
+      #main-gantt tbody tr.task-row > td:nth-child(1) { left: 0 !important; }
+      #main-gantt tbody tr.task-row > td:nth-child(2) { left: var(--c1w, 280px) !important; }
+      #main-gantt tbody tr.task-row > td:nth-child(3) { left: var(--c12w, 340px) !important; }
       #main-gantt tbody tr.task-row > td:nth-child(4) {
-        left: var(--c123w, 440px);
+        left: var(--c123w, 440px) !important;
         box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
       }
       #main-gantt tbody tr.task-row:hover > td:nth-child(-n+4) {
-        background: #fafbfc;
+        background: #fafbfc !important;
       }
 
-      /* Section/KFW-Header-Rows mit colspan=5: erste cell sticky-left */
+      /* Section/KFW-Header-Rows mit colspan: erste cell sticky-left */
       #main-gantt tbody tr.section-row > td:first-child,
       #main-gantt tbody tr.kfw-header-row > td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 6;
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 6 !important;
         box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
       }
-      #main-gantt tbody tr.section-row > td:first-child { background: #f8fafc; }
-      #main-gantt tbody tr.kfw-header-row > td:first-child { background: inherit; }
+      #main-gantt tbody tr.section-row > td:first-child { background: #f8fafc !important; }
+      /* kfw-header-row hat eigene dark backgrounds via .kfw-a/-b/-c — preserve */
+      #main-gantt tbody tr.kfw-header-row.kfw-a > td:first-child { background: #2563eb !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row.kfw-b > td:first-child { background: #7c3aed !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row.kfw-c > td:first-child { background: #ea580c !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="16a34a"] > td:first-child { background: #16a34a !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="d97706"] > td:first-child { background: #d97706 !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="7c3aed"] > td:first-child { background: #7c3aed !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="94a3b8"] > td:first-child { background: #94a3b8 !important; color: #fff !important; }
 
       /* Mobile-Optimierungen */
       @media (max-width: 760px) {
