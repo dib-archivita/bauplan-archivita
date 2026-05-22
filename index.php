@@ -7788,5 +7788,6 @@ window.togglePanel = function() {
 <script src="assets/sync.js"></script>
 <script src="assets/admin.js"></script>
 <script src="assets/search.js"></script>
+<script src="assets/sticky.js"></script>
 </body>
 </html>
