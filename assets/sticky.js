@@ -21,7 +21,9 @@
   let scrollSyncer = null;
 
   function injectBaseCSS() {
-    if (document.getElementById('sticky-styles')) return;
+    // ALWAYS replace — sonst werden gecachte/alte Styles nicht überschrieben
+    const old = document.getElementById('sticky-styles');
+    if (old) old.remove();
     const s = document.createElement('style');
     s.id = 'sticky-styles';
     s.textContent = `
@@ -244,10 +246,44 @@
     const colWidths = measureColumnWidths(table);
     setColumnCSSVars(colWidths);
     if (!colWidths) return;
-    // Fixed-cols neue Breiten geben
     const fixedCells = cloneHeader.querySelectorAll('.gsh-th');
     fixedCells.forEach((th, i) => {
       if (colWidths[i] != null) th.style.width = colWidths[i] + 'px';
+    });
+  }
+
+  // Bombensichere Variante: inline-styles direkt auf jeden td schreiben.
+  // Umgeht alle CSS-Spezifitäts-Probleme.
+  function applyLeftStickyInline() {
+    const table = document.getElementById('main-gantt');
+    if (!table) return;
+    const colWidths = measureColumnWidths(table);
+    if (!colWidths) return;
+    const cum = [0, colWidths[0], colWidths[0] + colWidths[1], colWidths[0] + colWidths[1] + colWidths[2]];
+
+    table.querySelectorAll('tbody tr.task-row').forEach((row) => {
+      const tds = row.children;
+      for (let i = 0; i < 4 && i < tds.length; i++) {
+        const td = tds[i];
+        td.style.setProperty('position', 'sticky', 'important');
+        td.style.setProperty('left', cum[i] + 'px', 'important');
+        td.style.setProperty('z-index', '5', 'important');
+        // Hintergrund nur setzen, wenn nicht schon explizit
+        if (!td.style.background && !td.style.backgroundColor) {
+          td.style.setProperty('background', '#fff', 'important');
+        }
+        if (i === 3) {
+          td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
+        }
+      }
+    });
+
+    // Section + KFW Rows: erste td hat colspan, sticky-left:0
+    table.querySelectorAll('tbody tr.section-row > td:first-child, tbody tr.kfw-header-row > td:first-child').forEach((td) => {
+      td.style.setProperty('position', 'sticky', 'important');
+      td.style.setProperty('left', '0', 'important');
+      td.style.setProperty('z-index', '6', 'important');
+      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
     });
   }
 
@@ -257,6 +293,7 @@
     resizeTimer = setTimeout(() => {
       applyPageSticky();
       remeasureClone();
+      applyLeftStickyInline();
     }, delay);
   }
 
@@ -264,6 +301,7 @@
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
+    applyLeftStickyInline();
     applyPageSticky();
 
     window.addEventListener('resize', () => scheduleApply(100));
