@@ -70,11 +70,44 @@
       /* gantt-wrap: horizontaler Scroll, vertikal sichtbar */
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
 
-      /* Left-Sticky: wird per JS (transform-based) erledigt, kein CSS hier nötig.
-         Hover-State trotzdem unterstützen, damit die fixierten Cells mit dem Rest highlighten. */
-      #main-gantt tbody tr.task-row:hover > td:nth-child(-n+4) {
-        background-color: #fafbfc !important;
+      /* ══════ LEFT-STICKY: erste 4 Spalten in Task-Rows ══════ */
+      /* !important nötig wegen Existenz von tr.task-row td:nth-child(3) { position:relative } */
+      #main-gantt tbody tr.task-row > td:nth-child(1),
+      #main-gantt tbody tr.task-row > td:nth-child(2),
+      #main-gantt tbody tr.task-row > td:nth-child(3),
+      #main-gantt tbody tr.task-row > td:nth-child(4) {
+        position: sticky !important;
+        z-index: 5 !important;
+        background: #fff !important;
       }
+      #main-gantt tbody tr.task-row > td:nth-child(1) { left: 0 !important; }
+      #main-gantt tbody tr.task-row > td:nth-child(2) { left: var(--c1w, 280px) !important; }
+      #main-gantt tbody tr.task-row > td:nth-child(3) { left: var(--c12w, 340px) !important; }
+      #main-gantt tbody tr.task-row > td:nth-child(4) {
+        left: var(--c123w, 440px) !important;
+        box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
+      }
+      #main-gantt tbody tr.task-row:hover > td:nth-child(-n+4) {
+        background: #fafbfc !important;
+      }
+
+      /* Section/KFW-Header-Rows mit colspan: erste cell sticky-left */
+      #main-gantt tbody tr.section-row > td:first-child,
+      #main-gantt tbody tr.kfw-header-row > td:first-child {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 6 !important;
+        box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
+      }
+      #main-gantt tbody tr.section-row > td:first-child { background: #f8fafc !important; }
+      /* kfw-header-row hat eigene dark backgrounds via .kfw-a/-b/-c — preserve */
+      #main-gantt tbody tr.kfw-header-row.kfw-a > td:first-child { background: #2563eb !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row.kfw-b > td:first-child { background: #7c3aed !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row.kfw-c > td:first-child { background: #ea580c !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="16a34a"] > td:first-child { background: #16a34a !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="d97706"] > td:first-child { background: #d97706 !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="7c3aed"] > td:first-child { background: #7c3aed !important; color: #fff !important; }
+      #main-gantt tbody tr.kfw-header-row[style*="94a3b8"] > td:first-child { background: #94a3b8 !important; color: #fff !important; }
 
       /* Mobile-Optimierungen */
       @media (max-width: 760px) {
@@ -219,64 +252,39 @@
     });
   }
 
-  // ALTERNATIVE: position:sticky auf td ist in mehreren Browsern unzuverlässig.
-  // Daher: per JS bei JEDEM Scroll die ersten 4 td via transform zurückschieben,
-  // damit sie OPTISCH stehen bleiben.
-  function setupTransformBasedStickyCols() {
-    const wrap = document.querySelector('.gantt-wrap');
+  // Bombensichere Variante: inline-styles direkt auf jeden td schreiben.
+  // Umgeht alle CSS-Spezifitäts-Probleme.
+  function applyLeftStickyInline() {
     const table = document.getElementById('main-gantt');
-    if (!wrap || !table) return;
-
-    // Sammle alle relevanten Cells einmalig + setze background/zIndex
-    const stickyCells = [];
+    if (!table) return;
+    const colWidths = measureColumnWidths(table);
+    if (!colWidths) return;
+    const cum = [0, colWidths[0], colWidths[0] + colWidths[1], colWidths[0] + colWidths[1] + colWidths[2]];
 
     table.querySelectorAll('tbody tr.task-row').forEach((row) => {
       const tds = row.children;
       for (let i = 0; i < 4 && i < tds.length; i++) {
         const td = tds[i];
-        td.style.setProperty('background', td.style.background || td.style.backgroundColor || '#fff', 'important');
-        td.style.setProperty('position', 'relative', 'important');
+        td.style.setProperty('position', 'sticky', 'important');
+        td.style.setProperty('left', cum[i] + 'px', 'important');
         td.style.setProperty('z-index', '5', 'important');
-        td.style.setProperty('will-change', 'transform');
+        // Hintergrund nur setzen, wenn nicht schon explizit
+        if (!td.style.background && !td.style.backgroundColor) {
+          td.style.setProperty('background', '#fff', 'important');
+        }
         if (i === 3) {
           td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
         }
-        stickyCells.push(td);
       }
     });
 
-    // Section + KFW-Header-Rows: erste cell (mit colspan)
-    table.querySelectorAll('tbody tr.section-row > td:first-child').forEach((td) => {
-      td.style.setProperty('position', 'relative', 'important');
-      td.style.setProperty('z-index', '6', 'important');
-      td.style.setProperty('background', '#f8fafc', 'important');
-      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
-      td.style.setProperty('will-change', 'transform');
-      stickyCells.push(td);
-    });
-    table.querySelectorAll('tbody tr.kfw-header-row > td:first-child').forEach((td) => {
-      td.style.setProperty('position', 'relative', 'important');
+    // Section + KFW Rows: erste td hat colspan, sticky-left:0
+    table.querySelectorAll('tbody tr.section-row > td:first-child, tbody tr.kfw-header-row > td:first-child').forEach((td) => {
+      td.style.setProperty('position', 'sticky', 'important');
+      td.style.setProperty('left', '0', 'important');
       td.style.setProperty('z-index', '6', 'important');
       td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
-      td.style.setProperty('will-change', 'transform');
-      stickyCells.push(td);
     });
-
-    // Scroll-Handler: translateX nach rechts, um die Cells "im Viewport zu halten"
-    let rafId = null;
-    function syncSticky() {
-      rafId = null;
-      const x = wrap.scrollLeft;
-      stickyCells.forEach((td) => {
-        td.style.transform = 'translateX(' + x + 'px)';
-      });
-    }
-    wrap.addEventListener('scroll', () => {
-      if (rafId == null) rafId = requestAnimationFrame(syncSticky);
-    }, { passive: true });
-
-    // Initial-Sync (falls Page schon gescrollt ist)
-    syncSticky();
   }
 
   let resizeTimer = null;
@@ -285,7 +293,7 @@
     resizeTimer = setTimeout(() => {
       applyPageSticky();
       remeasureClone();
-      setupTransformBasedStickyCols();
+      applyLeftStickyInline();
     }, delay);
   }
 
@@ -293,7 +301,7 @@
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
-    setupTransformBasedStickyCols();
+    applyLeftStickyInline();
     applyPageSticky();
 
     window.addEventListener('resize', () => scheduleApply(100));
