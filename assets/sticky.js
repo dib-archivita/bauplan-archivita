@@ -219,87 +219,90 @@
     });
   }
 
-  // Frozen-Cols via Wrapper-Div + CSS position:sticky (NICHT transform).
-  // position:sticky läuft synchron mit dem nativen Scroll → kein Jitter.
-  // Wir wickeln den td-Inhalt in ein <div>, das die Sticky-Eigenschaft trägt
-  // (sticky direkt auf <td> ist in Browsern wegen display:table-cell unzuverlässig).
+  // Frozen-Cols via Wrapper-Div + Transform.
+  // Hintergrund: `transform` auf <td> ist in Browsern unzuverlässig wegen display:table-cell.
+  // Lösung: Wrappe den td-Inhalt in einen <div>, transformiere den Div (funktioniert garantiert).
+  let frozenWrappers = [];
+  let frozenScrollHandler = null;
+
   function setupFrozenCols() {
     const wrap = document.querySelector('.gantt-wrap');
     const table = document.getElementById('main-gantt');
     if (!wrap || !table) return;
 
+    // Beim Re-Run alte Wrapper finden (Marker: data-frozen="1")
+    // Wenn schon initialisiert → nur erneut Transform anwenden, nicht neu wrappen
     if (table.dataset.frozenInit === '1') {
-      // schon initialisiert → nur Sticky-Lefts neu setzen (Spaltenbreiten könnten sich geändert haben)
-      const colWidths = measureColumnWidths(table);
-      if (colWidths) applyStickyLefts(colWidths);
+      if (frozenScrollHandler) frozenScrollHandler();
       return;
     }
     table.dataset.frozenInit = '1';
 
+    frozenWrappers = [];
+
     function wrapCell(td, opts) {
-      if (td.querySelector(':scope > .frozen-content')) return;
+      if (td.querySelector(':scope > .frozen-content')) return; // schon gewrappt
       const wrapper = document.createElement('div');
       wrapper.className = 'frozen-content';
-      wrapper.dataset.fci = String(opts.idx);  // 0..3 für task-row; "all" für section/kfw
       wrapper.style.cssText = [
         'display:block',
-        'position:sticky',
-        // 'left' wird nachher via applyStickyLefts gesetzt
+        'position:relative',
         'background:' + (opts.bg || '#fff'),
         'z-index:' + (opts.z || 5),
+        'will-change:transform',
         'min-height:100%',
         'box-sizing:border-box',
         opts.shadow ? 'box-shadow:6px 0 12px -4px rgba(0,0,0,0.06)' : ''
       ].filter(Boolean).join(';');
-      while (td.firstChild) wrapper.appendChild(td.firstChild);
+      // Move all td children into wrapper
+      while (td.firstChild) {
+        wrapper.appendChild(td.firstChild);
+      }
       td.appendChild(wrapper);
+      // td selbst muss position:relative haben + background damit Wrapper sich darüber stapeln kann
       td.style.position = 'relative';
-      td.style.overflow = 'visible';   // Wrapper darf aus td "rausschauen" wenn sticky
+      frozenWrappers.push(wrapper);
     }
 
-    // Task-Rows
+    // Task-Rows: erste 4 cells
     table.querySelectorAll('tbody tr.task-row').forEach((row) => {
       const tds = row.children;
       for (let i = 0; i < 4 && i < tds.length; i++) {
-        wrapCell(tds[i], { bg: '#fff', z: 5, shadow: (i === 3), idx: i });
+        wrapCell(tds[i], {
+          bg: '#fff',
+          z: 5,
+          shadow: (i === 3),
+        });
       }
     });
 
-    // Section-Rows
+    // Section-Rows: erste cell (colspan)
     table.querySelectorAll('tbody tr.section-row > td:first-child').forEach((td) => {
-      wrapCell(td, { bg: '#f8fafc', z: 6, shadow: true, idx: 'sec' });
+      wrapCell(td, { bg: '#f8fafc', z: 6, shadow: true });
     });
 
-    // KFW-Rows (Hintergrund vom row übernehmen)
+    // KFW-Header-Rows: erste cell (colspan). Hintergrund vom row übernehmen.
     table.querySelectorAll('tbody tr.kfw-header-row > td:first-child').forEach((td) => {
-      const rowBg = getComputedStyle(td.parentElement).backgroundColor || '#1e293b';
-      wrapCell(td, { bg: rowBg, z: 6, shadow: true, idx: 'kfw' });
+      const row = td.parentElement;
+      const rowBg = getComputedStyle(row).backgroundColor || '#1e293b';
+      wrapCell(td, { bg: rowBg, z: 6, shadow: true });
     });
 
-    const colWidths = measureColumnWidths(table);
-    if (colWidths) applyStickyLefts(colWidths);
-  }
-
-  function applyStickyLefts(colWidths) {
-    // Cumulative left-Werte pro Spalte
-    const lefts = [
-      0,
-      colWidths[0],
-      colWidths[0] + colWidths[1],
-      colWidths[0] + colWidths[1] + colWidths[2],
-    ];
-
-    document.querySelectorAll('.frozen-content').forEach((w) => {
-      const idx = w.dataset.fci;
-      if (idx === 'sec' || idx === 'kfw') {
-        w.style.left = '0';
-      } else {
-        const i = parseInt(idx, 10);
-        if (!isNaN(i) && lefts[i] != null) {
-          w.style.left = lefts[i] + 'px';
-        }
+    // Scroll-Handler
+    let rafId = null;
+    frozenScrollHandler = () => {
+      rafId = null;
+      const x = wrap.scrollLeft;
+      const t = 'translateX(' + x + 'px)';
+      for (let i = 0; i < frozenWrappers.length; i++) {
+        frozenWrappers[i].style.transform = t;
       }
-    });
+    };
+    wrap.addEventListener('scroll', () => {
+      if (rafId == null) rafId = requestAnimationFrame(frozenScrollHandler);
+    }, { passive: true });
+
+    frozenScrollHandler();
   }
 
   let resizeTimer = null;
