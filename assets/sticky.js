@@ -219,64 +219,90 @@
     });
   }
 
-  // ALTERNATIVE: position:sticky auf td ist in mehreren Browsern unzuverlässig.
-  // Daher: per JS bei JEDEM Scroll die ersten 4 td via transform zurückschieben,
-  // damit sie OPTISCH stehen bleiben.
-  function setupTransformBasedStickyCols() {
+  // Frozen-Cols via Wrapper-Div + Transform.
+  // Hintergrund: `transform` auf <td> ist in Browsern unzuverlässig wegen display:table-cell.
+  // Lösung: Wrappe den td-Inhalt in einen <div>, transformiere den Div (funktioniert garantiert).
+  let frozenWrappers = [];
+  let frozenScrollHandler = null;
+
+  function setupFrozenCols() {
     const wrap = document.querySelector('.gantt-wrap');
     const table = document.getElementById('main-gantt');
     if (!wrap || !table) return;
 
-    // Sammle alle relevanten Cells einmalig + setze background/zIndex
-    const stickyCells = [];
+    // Beim Re-Run alte Wrapper finden (Marker: data-frozen="1")
+    // Wenn schon initialisiert → nur erneut Transform anwenden, nicht neu wrappen
+    if (table.dataset.frozenInit === '1') {
+      if (frozenScrollHandler) frozenScrollHandler();
+      return;
+    }
+    table.dataset.frozenInit = '1';
 
+    frozenWrappers = [];
+
+    function wrapCell(td, opts) {
+      if (td.querySelector(':scope > .frozen-content')) return; // schon gewrappt
+      const wrapper = document.createElement('div');
+      wrapper.className = 'frozen-content';
+      wrapper.style.cssText = [
+        'display:block',
+        'position:relative',
+        'background:' + (opts.bg || '#fff'),
+        'z-index:' + (opts.z || 5),
+        'will-change:transform',
+        'min-height:100%',
+        'box-sizing:border-box',
+        opts.shadow ? 'box-shadow:6px 0 12px -4px rgba(0,0,0,0.06)' : ''
+      ].filter(Boolean).join(';');
+      // Move all td children into wrapper
+      while (td.firstChild) {
+        wrapper.appendChild(td.firstChild);
+      }
+      td.appendChild(wrapper);
+      // td selbst muss position:relative haben + background damit Wrapper sich darüber stapeln kann
+      td.style.position = 'relative';
+      frozenWrappers.push(wrapper);
+    }
+
+    // Task-Rows: erste 4 cells
     table.querySelectorAll('tbody tr.task-row').forEach((row) => {
       const tds = row.children;
       for (let i = 0; i < 4 && i < tds.length; i++) {
-        const td = tds[i];
-        td.style.setProperty('background', td.style.background || td.style.backgroundColor || '#fff', 'important');
-        td.style.setProperty('position', 'relative', 'important');
-        td.style.setProperty('z-index', '5', 'important');
-        td.style.setProperty('will-change', 'transform');
-        if (i === 3) {
-          td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
-        }
-        stickyCells.push(td);
+        wrapCell(tds[i], {
+          bg: '#fff',
+          z: 5,
+          shadow: (i === 3),
+        });
       }
     });
 
-    // Section + KFW-Header-Rows: erste cell (mit colspan)
+    // Section-Rows: erste cell (colspan)
     table.querySelectorAll('tbody tr.section-row > td:first-child').forEach((td) => {
-      td.style.setProperty('position', 'relative', 'important');
-      td.style.setProperty('z-index', '6', 'important');
-      td.style.setProperty('background', '#f8fafc', 'important');
-      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
-      td.style.setProperty('will-change', 'transform');
-      stickyCells.push(td);
-    });
-    table.querySelectorAll('tbody tr.kfw-header-row > td:first-child').forEach((td) => {
-      td.style.setProperty('position', 'relative', 'important');
-      td.style.setProperty('z-index', '6', 'important');
-      td.style.setProperty('box-shadow', '6px 0 12px -4px rgba(0,0,0,0.06)', 'important');
-      td.style.setProperty('will-change', 'transform');
-      stickyCells.push(td);
+      wrapCell(td, { bg: '#f8fafc', z: 6, shadow: true });
     });
 
-    // Scroll-Handler: translateX nach rechts, um die Cells "im Viewport zu halten"
+    // KFW-Header-Rows: erste cell (colspan). Hintergrund vom row übernehmen.
+    table.querySelectorAll('tbody tr.kfw-header-row > td:first-child').forEach((td) => {
+      const row = td.parentElement;
+      const rowBg = getComputedStyle(row).backgroundColor || '#1e293b';
+      wrapCell(td, { bg: rowBg, z: 6, shadow: true });
+    });
+
+    // Scroll-Handler
     let rafId = null;
-    function syncSticky() {
+    frozenScrollHandler = () => {
       rafId = null;
       const x = wrap.scrollLeft;
-      stickyCells.forEach((td) => {
-        td.style.transform = 'translateX(' + x + 'px)';
-      });
-    }
+      const t = 'translateX(' + x + 'px)';
+      for (let i = 0; i < frozenWrappers.length; i++) {
+        frozenWrappers[i].style.transform = t;
+      }
+    };
     wrap.addEventListener('scroll', () => {
-      if (rafId == null) rafId = requestAnimationFrame(syncSticky);
+      if (rafId == null) rafId = requestAnimationFrame(frozenScrollHandler);
     }, { passive: true });
 
-    // Initial-Sync (falls Page schon gescrollt ist)
-    syncSticky();
+    frozenScrollHandler();
   }
 
   let resizeTimer = null;
@@ -285,7 +311,7 @@
     resizeTimer = setTimeout(() => {
       applyPageSticky();
       remeasureClone();
-      setupTransformBasedStickyCols();
+      setupFrozenCols();
     }, delay);
   }
 
@@ -293,7 +319,7 @@
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
-    setupTransformBasedStickyCols();
+    setupFrozenCols();
     applyPageSticky();
 
     window.addEventListener('resize', () => scheduleApply(100));
