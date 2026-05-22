@@ -208,7 +208,8 @@ CREATE TABLE IF NOT EXISTS settings (
 
 INSERT INTO settings (key_str, value_str) VALUES
   ('schema_version', '1'),
-  ('migrated_from_localstorage', '0')
+  ('migrated_from_localstorage', '0'),
+  ('audit_retention_days', '365')
 ON DUPLICATE KEY UPDATE value_str = VALUES(value_str);
 
 -- ---------------------------------------------------------------------

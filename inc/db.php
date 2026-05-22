@@ -14,14 +14,16 @@ function db(): PDO {
         'mysql:host=%s;dbname=%s;charset=%s',
         DB_HOST, DB_NAME, DB_CHARSET
     );
+    // PDO::MYSQL_ATTR_INIT_COMMAND ist seit PHP 8.5 deprecated.
+    // Init-SQL daher nach erfolgreichem Connect manuell absetzen.
     $opts = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
-        PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone='+01:00', NAMES utf8mb4",
     ];
     try {
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $opts);
+        $pdo->exec("SET time_zone='+01:00', NAMES utf8mb4");
     } catch (PDOException $e) {
         http_response_code(500);
         if (DEBUG_MODE) {

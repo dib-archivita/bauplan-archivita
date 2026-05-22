@@ -1260,14 +1260,14 @@ window.addEventListener('load', function() {
         <tr class="task-row" data-status="priorität" data-gewerk="Sanitär" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-10">
           
           <td class="task-name-cell">Installation Regen + Schmutzwasserleitung</td>
-          <td><span class="status-badge status-prio">Prioriät</span>
+          <td><span class="status-badge status-prio">Priorität</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:3768px"></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Tiefbau" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-11">
           
           <td class="task-name-cell">Hof asphaltieren</td>
-          <td><span class="status-badge status-prio">Prioriät</span>
+          <td><span class="status-badge status-prio">Priorität</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f5f5f4;color:#78716c;border:1px solid #78716c40">Tiefbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:3768px"></div></td>
         </tr>

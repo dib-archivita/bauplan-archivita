@@ -13,7 +13,7 @@
  *
  * Webgo-Cron-Setup:
  *   KIS → Cronjobs → täglich z.B. 04:00 → Befehl:
- *     /usr/bin/php /home/web111/htdocs/bauplan/cron/cleanup.php
+ *     /usr/bin/php /home/www/bauplan/cron/cleanup.php
  */
 declare(strict_types=1);
 require_once __DIR__ . '/../inc/db.php';
