@@ -1,22 +1,23 @@
 /**
- * sticky.js — Top + Left Sticky (Excel-Style Frozen Cols)
+ * sticky.js — Top-Sticky-Header + KW/Monat-Spaltenkopf
  *
- *  TOP: Header / Stats / Tabs / Filter + KW/Monat-Spaltenkopf
- *  LEFT: Aufgabe / Status / Gewerk / Firma bleiben beim Horizontal-Scroll stehen
+ * Lösung für 2 Probleme:
+ *  (a) Header / Stats / Tabs / Filter sollen beim Scrollen oben kleben
+ *  (b) Tabellenkopf (Monat-Labels + KW-Labels + Aufgabe/Status/Gewerk/Firma)
+ *      soll auch oben kleben — geht aber NICHT mit normalem position:sticky,
+ *      weil .gantt-wrap overflow-x:auto hat (das bricht sticky für descendants).
  *
- *  Da .gantt-wrap overflow-x:auto hat, kann thead nicht naiv sticky-top sein.
- *  → Clone-Pattern: thead wird außerhalb als 2-teiliger Flex-Container nachgebaut
- *    (Fixed-Cols + scrollbare Timeline). Timeline wird per JS mit Haupt-Scroll
- *    synchronisiert.
- *
- *  Für tbody werden die ersten 4 td von task-rows mit position:sticky left:X
- *  versehen. Sticky-context = .gantt-wrap (overflow-x:auto). Funktioniert dort.
+ * (a) wird mit position:sticky + kumulativem top: gelöst (DOM-Reihenfolge).
+ * (b) wird mit einem CLONED header gelöst, der OBERHALB der .gantt-wrap eingefügt
+ *     wird (also außerhalb des Overflow-Containers). Der Clone wird per JS
+ *     horizontal synchron zur .gantt-wrap gescrollt.
  */
 (function () {
   'use strict';
 
   const STICKY_SELECTOR = '.header, .summary, .tabs, .filter-bar';
   let cumulativeTop = 0;
+  let originalThead = null;
   let cloneHeader = null;
   let scrollSyncer = null;
 
@@ -25,79 +26,27 @@
     const s = document.createElement('style');
     s.id = 'sticky-styles';
     s.textContent = `
-      /* Originale thead unsichtbar (Platz bleibt) */
+      /* Original-thead wird verborgen sobald Clone aktiv ist —
+         bleibt aber als Layout-Anker für Spaltenbreiten erhalten */
       #main-gantt.has-sticky-clone thead { visibility: hidden; }
 
-      /* Sticky-Clone Container */
+      /* Sticky Clone Container */
       #gantt-sticky-header {
         position: sticky;
         z-index: 30;
         background: #fff;
         border-bottom: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(0,0,0,.04);
-        display: flex;
-        align-items: stretch;
-      }
-      #gantt-sticky-header .gsh-fixed {
-        flex: none;
-        display: flex;
-        z-index: 2;
-        background: #fff;
-        box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
-      }
-      #gantt-sticky-header .gsh-th {
-        background: #fafbfc;
-        border-bottom: 1px solid #e2e8f0;
-        font-weight: 700;
-        font-size: 11px;
-        color: #475569;
-        letter-spacing: 0.02em;
-        padding: 8px 10px;
-        display: flex;
-        align-items: center;
-      }
-      #gantt-sticky-header .gsh-scroll {
-        flex: 1;
         overflow: hidden;
-        position: relative;
+        will-change: transform;
       }
-      #gantt-sticky-header .gsh-timeline {
+      #gantt-sticky-header .gsh-inner-table {
+        margin: 0; border-collapse: collapse;
         will-change: transform;
       }
 
-      /* gantt-wrap: horizontaler Scroll, vertikal sichtbar */
+      /* gantt-wrap muss overflow-x:auto haben für horizontal scroll */
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
-
-      /* ══════ LEFT-STICKY: erste 4 Spalten in Task-Rows ══════ */
-      #main-gantt tbody tr.task-row > td:nth-child(1),
-      #main-gantt tbody tr.task-row > td:nth-child(2),
-      #main-gantt tbody tr.task-row > td:nth-child(3),
-      #main-gantt tbody tr.task-row > td:nth-child(4) {
-        position: sticky;
-        z-index: 5;
-        background: #fff;
-      }
-      #main-gantt tbody tr.task-row > td:nth-child(1) { left: 0; }
-      #main-gantt tbody tr.task-row > td:nth-child(2) { left: var(--c1w, 280px); }
-      #main-gantt tbody tr.task-row > td:nth-child(3) { left: var(--c12w, 340px); }
-      #main-gantt tbody tr.task-row > td:nth-child(4) {
-        left: var(--c123w, 440px);
-        box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
-      }
-      #main-gantt tbody tr.task-row:hover > td:nth-child(-n+4) {
-        background: #fafbfc;
-      }
-
-      /* Section/KFW-Header-Rows mit colspan=5: erste cell sticky-left */
-      #main-gantt tbody tr.section-row > td:first-child,
-      #main-gantt tbody tr.kfw-header-row > td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 6;
-        box-shadow: 6px 0 12px -4px rgba(0,0,0,0.06);
-      }
-      #main-gantt tbody tr.section-row > td:first-child { background: #f8fafc; }
-      #main-gantt tbody tr.kfw-header-row > td:first-child { background: inherit; }
 
       /* Mobile-Optimierungen */
       @media (max-width: 760px) {
@@ -136,36 +85,36 @@
     stickies.forEach((el) => {
       const inHiddenTab = el.closest('.tab-content:not(.active)') !== null;
       if (inHiddenTab) {
-        el.style.position = ''; el.style.top = ''; el.style.zIndex = '';
+        el.style.position = '';
+        el.style.top = '';
+        el.style.zIndex = '';
         return;
       }
       el.style.position = 'sticky';
       el.style.top = cumulativeTop + 'px';
       el.style.zIndex = String(zIndex--);
       if (!el.style.background) el.style.background = '#fff';
-      cumulativeTop += el.getBoundingClientRect().height;
+
+      const h = el.getBoundingClientRect().height;
+      cumulativeTop += h;
     });
 
-    if (cloneHeader) cloneHeader.style.top = cumulativeTop + 'px';
+    // Clone-Header positionieren
+    if (cloneHeader) {
+      cloneHeader.style.top = cumulativeTop + 'px';
+    }
   }
 
-  function measureColumnWidths(table) {
+  function measureOriginalColumns(table) {
+    // Hole eine Referenz-Zeile aus dem tbody zum Messen
+    // (thead hat zusammengefasste cells, tbody hat alle Spalten)
     const refRow = table.querySelector('tbody tr.task-row');
     if (!refRow) return null;
     const widths = [];
-    refRow.querySelectorAll('td').forEach((td) => {
+    refRow.querySelectorAll('td').forEach(td => {
       widths.push(td.getBoundingClientRect().width);
     });
     return widths;
-  }
-
-  function setColumnCSSVars(colWidths) {
-    if (!colWidths || colWidths.length < 4) return;
-    const root = document.documentElement;
-    root.style.setProperty('--c1w',   colWidths[0] + 'px');
-    root.style.setProperty('--c12w',  (colWidths[0] + colWidths[1]) + 'px');
-    root.style.setProperty('--c123w', (colWidths[0] + colWidths[1] + colWidths[2]) + 'px');
-    root.style.setProperty('--c1234w',(colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]) + 'px');
   }
 
   function buildCloneHeader() {
@@ -173,74 +122,87 @@
     const table = document.getElementById('main-gantt');
     if (!wrap || !table) return;
 
-    const colWidths = measureColumnWidths(table);
-    setColumnCSSVars(colWidths);
+    originalThead = table.querySelector('thead');
+    if (!originalThead) return;
 
-    // Existing entfernen
+    // Existing Clone weg
     const oldClone = document.getElementById('gantt-sticky-header');
     if (oldClone) oldClone.remove();
+
+    // Spalten-Breiten aus dem Original messen
+    const colWidths = measureOriginalColumns(table);
 
     // Container
     cloneHeader = document.createElement('div');
     cloneHeader.id = 'gantt-sticky-header';
 
-    // ─── Linker Teil: 4 fixe Spalten ───
-    const fixed = document.createElement('div');
-    fixed.className = 'gsh-fixed';
-    const labels = ['Aufgabe', 'Status', 'Gewerk', 'Firma'];
-    labels.forEach((label, i) => {
-      const th = document.createElement('div');
-      th.className = 'gsh-th';
-      th.textContent = label;
-      const w = colWidths ? colWidths[i] : [280, 60, 100, 100][i];
-      th.style.width = w + 'px';
-      fixed.appendChild(th);
-    });
-    cloneHeader.appendChild(fixed);
+    // Mini-Tabelle mit fixiertem Layout + explizite Spaltenbreiten
+    const miniTable = document.createElement('table');
+    miniTable.className = 'gantt-table gsh-inner-table';
+    miniTable.style.tableLayout = 'fixed';
+    miniTable.style.borderCollapse = 'collapse';
 
-    // ─── Rechter Teil: Scrollbare Timeline ───
-    const scrollBox = document.createElement('div');
-    scrollBox.className = 'gsh-scroll';
-    const timelineInner = document.createElement('div');
-    timelineInner.className = 'gsh-timeline';
-
-    // Originale Timeline-Header + KW-Header klonen
-    const originalThead = table.querySelector('thead');
-    if (originalThead) {
-      const timelineHeader = originalThead.querySelector('.gantt-timeline-header');
-      const kwHeader = originalThead.querySelector('.gantt-kw-header');
-      if (timelineHeader) timelineInner.appendChild(timelineHeader.cloneNode(true));
-      if (kwHeader) timelineInner.appendChild(kwHeader.cloneNode(true));
-      // Breite setzen
-      const tlWidth = (timelineHeader && timelineHeader.offsetWidth) || 3768;
-      timelineInner.style.width = tlWidth + 'px';
+    // colgroup mit den GEMESSENEN Breiten (überschreibt das Auto-Layout)
+    const newCg = document.createElement('colgroup');
+    if (colWidths && colWidths.length) {
+      colWidths.forEach((w) => {
+        const c = document.createElement('col');
+        c.style.width = w + 'px';
+        newCg.appendChild(c);
+      });
+    } else {
+      // Fallback: original colgroup klonen
+      const cg = table.querySelector('colgroup');
+      if (cg) {
+        Array.from(cg.children).forEach(col => newCg.appendChild(col.cloneNode(true)));
+      }
     }
-    scrollBox.appendChild(timelineInner);
-    cloneHeader.appendChild(scrollBox);
+    miniTable.appendChild(newCg);
 
-    // Vor .gantt-wrap einfügen
+    // thead klonen
+    const theadClone = originalThead.cloneNode(true);
+    miniTable.appendChild(theadClone);
+
+    // Gesamtbreite = Summe der gemessenen Breiten (oder Fallback)
+    const totalWidth = colWidths
+      ? colWidths.reduce((a, b) => a + b, 0)
+      : table.scrollWidth;
+    miniTable.style.width = totalWidth + 'px';
+
+    cloneHeader.appendChild(miniTable);
+
+    // Vor .gantt-wrap einfügen (so dass es im Page-Sticky-Flow ist)
     wrap.parentNode.insertBefore(cloneHeader, wrap);
+
+    // Original-thead optisch verstecken (Platz bleibt erhalten)
     table.classList.add('has-sticky-clone');
 
-    // Scroll-Sync: nur das Timeline-Inner verschieben (Fixed-Cols bleiben stehen)
+    // Horizontal-Scroll synchronisieren
     if (scrollSyncer) wrap.removeEventListener('scroll', scrollSyncer);
     scrollSyncer = () => {
-      timelineInner.style.transform = `translateX(${-wrap.scrollLeft}px)`;
+      const x = wrap.scrollLeft;
+      miniTable.style.transform = `translateX(${-x}px)`;
     };
     wrap.addEventListener('scroll', scrollSyncer, { passive: true });
   }
 
   function remeasureClone() {
+    if (!cloneHeader) return;
     const table = document.getElementById('main-gantt');
-    if (!table || !cloneHeader) return;
-    const colWidths = measureColumnWidths(table);
-    setColumnCSSVars(colWidths);
+    if (!table) return;
+    const colWidths = measureOriginalColumns(table);
     if (!colWidths) return;
-    // Fixed-cols neue Breiten geben
-    const fixedCells = cloneHeader.querySelectorAll('.gsh-th');
-    fixedCells.forEach((th, i) => {
-      if (colWidths[i] != null) th.style.width = colWidths[i] + 'px';
-    });
+    const inner = cloneHeader.querySelector('.gsh-inner-table');
+    if (!inner) return;
+
+    const cg = inner.querySelector('colgroup');
+    if (cg) {
+      const cols = cg.querySelectorAll('col');
+      colWidths.forEach((w, i) => {
+        if (cols[i]) cols[i].style.width = w + 'px';
+      });
+    }
+    inner.style.width = colWidths.reduce((a, b) => a + b, 0) + 'px';
   }
 
   let resizeTimer = null;
@@ -256,7 +218,7 @@
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
-    applyPageSticky();
+    applyPageSticky(); // nochmal, damit clone-header die richtige top hat
 
     window.addEventListener('resize', () => scheduleApply(100));
     document.addEventListener('click', () => scheduleApply(150), true);
