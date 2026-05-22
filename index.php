@@ -1581,6 +1581,482 @@ window.addEventListener('load', function() {
             
                 
         
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Vordach 1.OG
+            <span class="progress-pill">0/3 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-100">
+          <td class="task-name-cell">UK Sandwich</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-101">
+          <td class="task-name-cell">Sandwichpaneel 60 mm</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-102">
+          <td class="task-name-cell">Flüssigkunststoff</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Dach Kaltwassersatz
+            <span class="progress-pill">0/3 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-103" title="Material klären">
+          <td class="task-name-cell">Dämmung <span style="color:#94a3b8;font-size:10px">· Material klären</span></td>
+          <td><span class="status-badge status-delayed">Material fehlt</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-104">
+          <td class="task-name-cell">Flüssigkunststoff</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-105">
+          <td class="task-name-cell">Wanne</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Dach Brückenbau
+            <span class="progress-pill">0/2 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-106">
+          <td class="task-name-cell">Rinnen</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-107" title="Bestellen">
+          <td class="task-name-cell">Regenrohr <span style="color:#94a3b8;font-size:10px">· Bestellen</span></td>
+          <td><span class="status-badge status-delayed">verzögert</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Dach TH Nord
+            <span class="progress-pill">0/6 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="priorität" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-108" title="Wann? Kran?">
+          <td class="task-name-cell">Decke öffnen für Abbruch (Aufzug) <span style="color:#94a3b8;font-size:10px">· Wann? Kran?</span></td>
+          <td><span class="status-badge status-prio">Priorität</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-109" title="Unterkonstruktion planen">
+          <td class="task-name-cell">Sandwich + UK <span style="color:#94a3b8;font-size:10px">· Unterkonstruktion planen</span></td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-110">
+          <td class="task-name-cell">Rinnen</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-111" title="Bestellen">
+          <td class="task-name-cell">Regenrohr <span style="color:#94a3b8;font-size:10px">· Bestellen</span></td>
+          <td><span class="status-badge status-delayed">verzögert</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-112">
+          <td class="task-name-cell">Kantteile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-113">
+          <td class="task-name-cell">ABS</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Ostseite — EG P.R.-Fassade
+            <span class="progress-pill">0/6 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-114">
+          <td class="task-name-cell">Holzkonstruktion</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-115">
+          <td class="task-name-cell">Raico-Profile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-116">
+          <td class="task-name-cell">Glasscheiben</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Sonstige" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-117">
+          <td class="task-name-cell">Jalousien</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Sonstige</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-118">
+          <td class="task-name-cell">Türe</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-119">
+          <td class="task-name-cell">Lamellenfenster</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Ostseite — 1.OG
+            <span class="progress-pill">0/8 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-120">
+          <td class="task-name-cell">Fenster versetzen 1.+2.OG</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="priorität" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-121" title="Prüfen">
+          <td class="task-name-cell">Fensterbänke <span style="color:#94a3b8;font-size:10px">· Prüfen</span></td>
+          <td><span class="status-badge status-prio">Priorität</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Maler/Gipser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-122">
+          <td class="task-name-cell">WDVS</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">Maler/Gipser</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-123">
+          <td class="task-name-cell">Regenrohr</td>
+          <td><span class="status-badge status-delayed">Material fehlt</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Sonstige" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-124">
+          <td class="task-name-cell">Jalousien 1.+2.OG (Farbe?)</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Sonstige</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="priorität" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-125" title="Besprechen / Planen">
+          <td class="task-name-cell">Beleuchtung <span style="color:#94a3b8;font-size:10px">· Besprechen / Planen</span></td>
+          <td><span class="status-badge status-prio">Priorität</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#b45309;border:1px solid #b4530940">Elektro</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-126">
+          <td class="task-name-cell">Kante Süd-Ost</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-127">
+          <td class="task-name-cell">Kante Nord-Ost</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> 4.OG Erweiterung Terrasse
+            <span class="progress-pill">0/4 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-128">
+          <td class="task-name-cell">Terrassenplatte 45×90×2</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0e7ff;color:#4f46e5;border:1px solid #4f46e540">Bodenbelag</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-129">
+          <td class="task-name-cell">Stelzlager</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0e7ff;color:#4f46e5;border:1px solid #4f46e540">Bodenbelag</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-130">
+          <td class="task-name-cell">UK für Geländer</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-131">
+          <td class="task-name-cell">Glasgeländer</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Westseite — TH Nord
+            <span class="progress-pill">0/3 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-132">
+          <td class="task-name-cell">Sandwich + UK</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-133">
+          <td class="task-name-cell">Kantteile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-134">
+          <td class="task-name-cell">Fenster + Lamellenfenster</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Südseite
+            <span class="progress-pill">0/3 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-135">
+          <td class="task-name-cell">Fenster 3.OG</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-136">
+          <td class="task-name-cell">Sandwich + UK (TH Nord)</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-137">
+          <td class="task-name-cell">Kantteile (TH Nord)</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Nordseite — Eingang TH Nord
+            <span class="progress-pill">0/6 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-138">
+          <td class="task-name-cell">Holzkonstruktion</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-139">
+          <td class="task-name-cell">Raico-Profile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-140">
+          <td class="task-name-cell">Glasscheiben</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-141">
+          <td class="task-name-cell">Türe — Dormakaba</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-142">
+          <td class="task-name-cell">Rosenfelder</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-143">
+          <td class="task-name-cell">Fundamente + Bodenplatte</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Nordseite — Fassade
+            <span class="progress-pill">0/4 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="priorität" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-144" title="Besprechen / Planen">
+          <td class="task-name-cell">Beleuchtung <span style="color:#94a3b8;font-size:10px">· Besprechen / Planen</span></td>
+          <td><span class="status-badge status-prio">Priorität</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#b45309;border:1px solid #b4530940">Elektro</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Maler/Gipser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-145">
+          <td class="task-name-cell">WDVS 4.OG</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">Maler/Gipser</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-146">
+          <td class="task-name-cell">Sandwich + UK</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-147">
+          <td class="task-name-cell">Kantteile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Nordseite — TH Nord 4.OG W 5.3
+            <span class="progress-pill">0/4 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-148">
+          <td class="task-name-cell">Fenster 4.OG W 5.3</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-149">
+          <td class="task-name-cell">Sandwich + UK</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-150">
+          <td class="task-name-cell">Kantteile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-151">
+          <td class="task-name-cell">P.R.-Fassade</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="section-row">
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Brückenbau — 1.OG untere Decke
+            <span class="progress-pill">0/3 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-152">
+          <td class="task-name-cell">Sandwich + UK</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-153">
+          <td class="task-name-cell">Dämmung 60 mm</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-154">
+          <td class="task-name-cell">Kantteile</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+        </tr>
                         <tr class="kfw-header-row" style="background:#94a3b8">
           <td class="task-name-cell" colspan="5">
             🏗️ PHASE 1 — W 5.2 + W 5.1 + T 5.1 · 4.OG · 364.98 m²
