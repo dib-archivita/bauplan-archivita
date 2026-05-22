@@ -15,7 +15,7 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy via lftp (FTPS)
+      - name: Deploy via lftp (FTPS, no chmod, passive)
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USER:   ${{ secrets.FTP_USER }}
@@ -26,21 +26,27 @@ jobs:
           set ftp:ssl-force true;
           set ftp:ssl-protect-data true;
           set ssl:verify-certificate no;
+          set ftp:passive-mode true;
           set net:max-retries 3;
-          set net:timeout 20;
+          set net:timeout 30;
+          set net:reconnect-interval-base 5;
+          set mirror:set-permissions no;
           open -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_SERVER\";
-          mirror --reverse --delete --parallel=4 --verbose \
-            --exclude-glob .git \
-            --exclude-glob .git/* \
-            --exclude-glob .github \
-            --exclude-glob .github/* \
-            --exclude-glob .DS_Store \
-            --exclude-glob README.md \
-            --exclude-glob SETUP.md \
-            --exclude-glob config.php \
-            --exclude-glob .gitignore \
-            --exclude-glob schema.sql \
-            --exclude-glob node_modules \
-            ./ ./;
+          mirror --reverse \
+                 --delete \
+                 --no-perms \
+                 --no-symlinks \
+                 --ignore-time \
+                 --parallel=2 \
+                 --verbose \
+                 --exclude-glob '.git*' \
+                 --exclude-glob '.github*' \
+                 --exclude-glob '.DS_Store' \
+                 --exclude-glob 'README.md' \
+                 --exclude-glob 'SETUP.md' \
+                 --exclude-glob 'config.php' \
+                 --exclude-glob 'schema.sql' \
+                 --exclude-glob 'node_modules' \
+                 ./ /;
           bye
           "
