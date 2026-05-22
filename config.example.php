@@ -35,7 +35,7 @@ const MAIL_FROM_NAME  = 'Bauzeitenplan Archivita';
 // =====================================================================
 //  APP
 // =====================================================================
-const APP_URL  = 'https://bauplan.crossfit-hauptwerk.de';
+const APP_URL  = 'https://plan.crossfit-hauptwerk.de';
 const APP_NAME = 'Bauzeitenplan Archivita';
 
 // Sicherheits-Geheimnis (für Token-Signierung). EINMAL setzen, dann nie ändern.

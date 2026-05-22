@@ -7,7 +7,7 @@ und Einrichten** auf webgo. Dauer: ca. **20–30 Min**.
 
 ## 0. Voraussetzungen (sollte alles erledigt sein)
 
-- ✅ Subdomain `bauplan.crossfit-hauptwerk.de` angelegt, SSL aktiv
+- ✅ Subdomain `plan.crossfit-hauptwerk.de` angelegt, SSL aktiv
 - ✅ MySQL-Datenbank `web111_db3` angelegt, User `web111_3` + Passwort
 - ✅ E-Mail-Postfach `bauplan@dashauptwerk.de` angelegt, Postfachname `web111p19`
 - ✅ PHP-Version auf 8.5 (oder 8.4) eingestellt
@@ -146,7 +146,7 @@ assets/
 Im Browser aufrufen:
 
 ```
-https://bauplan.crossfit-hauptwerk.de/setup.php
+https://plan.crossfit-hauptwerk.de/setup.php
 ```
 
 Du solltest eine Textausgabe sehen:
@@ -188,7 +188,7 @@ Für tägliches Aufräumen (alte Sessions/Tokens, Audit-Warnmail):
 
 ## 8. Test-Durchlauf
 
-1. **Login** auf `https://bauplan.crossfit-hauptwerk.de`
+1. **Login** auf `https://plan.crossfit-hauptwerk.de`
    → leitet auf `/login.html` um
 2. **Mail eingeben** (`dib@archivita.de`) → Login-Link anfordern
 3. **Mail prüfen** (Posteingang oder Spam) → Link klicken

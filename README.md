@@ -2,7 +2,7 @@
 
 Multi-User-Dashboard für die Baustelle Wilhelm-Binder-Str. 15, VS-Villingen.
 
-- **Live**: https://bauplan.crossfit-hauptwerk.de
+- **Live**: https://plan.crossfit-hauptwerk.de
 - **Hosting**: webgo SSD Business
 - **Backend**: PHP 8.5 + MySQL
 - **Auth**: Magic-Link via Email
