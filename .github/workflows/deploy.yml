@@ -12,10 +12,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Clean up build dir (remove .git, drop server-side excludes)
+      - name: Generate config.php from Secrets
+        env:
+          DB_PASSWORD:      ${{ secrets.DB_PASSWORD }}
+          SMTP_PASSWORD:    ${{ secrets.SMTP_PASSWORD }}
+          APP_SECRET:       ${{ secrets.APP_SECRET }}
+          FIRST_ADMIN_EMAIL: ${{ secrets.FIRST_ADMIN_EMAIL || 'dib@archivita.de' }}
+          FIRST_ADMIN_NAME:  ${{ secrets.FIRST_ADMIN_NAME || 'DIB Admin' }}
+        run: |
+          cat > config.php <<PHPEOF
+          <?php
+          // AUTO-GENERATED — do not edit manually. Values come from GitHub Secrets.
+          const DB_HOST = 'localhost';
+          const DB_NAME = 'web111_db3';
+          const DB_USER = 'web111_3';
+          const DB_PASS = '${DB_PASSWORD}';
+          const DB_CHARSET = 'utf8mb4';
+
+          const SMTP_HOST   = 's305.goserver.host';
+          const SMTP_PORT   = 587;
+          const SMTP_SECURE = 'tls';
+          const SMTP_USER   = 'web111p19';
+          const SMTP_PASS   = '${SMTP_PASSWORD}';
+          const MAIL_FROM      = 'bauplan@dashauptwerk.de';
+          const MAIL_FROM_NAME = 'Bauzeitenplan Archivita';
+
+          const APP_URL  = 'https://plan.crossfit-hauptwerk.de';
+          const APP_NAME = 'Bauzeitenplan Archivita';
+          const APP_SECRET = '${APP_SECRET}';
+
+          const FIRST_ADMIN_EMAIL = '${FIRST_ADMIN_EMAIL}';
+          const FIRST_ADMIN_NAME  = '${FIRST_ADMIN_NAME}';
+
+          const SESSION_DAYS   = 30;
+          const TOKEN_MINUTES  = 15;
+          const RATE_LIMIT_MAX = 3;
+          const RATE_LIMIT_WINDOW_MIN = 60;
+
+          const AUDIT_RETENTION_DEFAULT_DAYS = 365;
+          const DEBUG_MODE = false;
+          PHPEOF
+          echo "✓ config.php generated ($(wc -l < config.php) lines)"
+
+      - name: Clean up build dir
         run: |
           rm -rf .git .github
-          rm -f README.md SETUP.md schema.sql config.php config.example.php
+          rm -f README.md SETUP.md schema.sql config.example.php
           rm -f .DS_Store .gitignore
           echo "==== Wird hochgeladen: ===="
           find . -type f | sort
@@ -23,7 +65,7 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
-      - name: Upload via lftp (FTPS, no-perms, mkdir-parents)
+      - name: Upload via lftp (FTPS)
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USER:   ${{ secrets.FTP_USER }}
@@ -39,7 +81,6 @@ jobs:
           set net:timeout 30
           set net:reconnect-interval-base 5
           set mirror:set-permissions no
-          set mirror:use-pget-n 0
           set ftp:use-mlsd no
           open -u "$FTP_USER","$FTP_PASS" "$FTP_SERVER"
           mirror --reverse --delete --no-perms --no-symlinks --parallel=1 --verbose ./ ./
