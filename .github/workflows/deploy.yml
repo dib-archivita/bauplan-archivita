@@ -1,0 +1,38 @@
+name: Deploy to webgo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # erlaubt manuellen Trigger im GitHub-UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync per SFTP nach webgo
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:        ${{ secrets.FTP_SERVER }}
+          username:      ${{ secrets.FTP_USER }}
+          password:      ${{ secrets.FTP_PASS }}
+          protocol:      ftps
+          port:          21
+          server-dir:    /bauplan/
+          local-dir:     ./
+          dangerous-clean-slate: false
+          log-level:     standard
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+            **/README.md
+            **/SETUP.md
+            **/config.php
+            **/.env
+            **/.gitignore
+            **/.github/**
+            **/schema.sql

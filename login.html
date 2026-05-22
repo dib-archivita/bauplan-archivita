@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bauzeitenplan Archivita — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f5f6fa 0%, #e0e7ff 100%);
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    color: #1e293b;
+    padding: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+    border: 1px solid #e8e9ed;
+  }
+  .logo {
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .sub {
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 28px;
+    font-weight: 500;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  input[type=email] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type=email]:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+  }
+  button {
+    width: 100%;
+    margin-top: 18px;
+    padding: 13px 16px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.10s;
+    font-family: inherit;
+    letter-spacing: -0.01em;
+  }
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+  }
+  button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .msg {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+  }
+  .msg.success {
+    display: block;
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+  }
+  .msg.error {
+    display: block;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+  }
+  .foot {
+    margin-top: 28px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 11px;
+  }
+  .stand {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🏗️</div>
+    <h1>Bauzeitenplan Archivita</h1>
+    <div class="sub">Wilhelm-Binder-Straße 15 · VS-Villingen</div>
+
+    <form id="login-form" novalidate>
+      <label for="email">E-Mail-Adresse</label>
+      <input type="email" id="email" name="email" required autocomplete="email"
+             placeholder="vorname@firma.de" autofocus>
+      <button type="submit" id="submit-btn">Login-Link anfordern</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="foot">
+      Du bekommst eine E-Mail mit einem Link.<br>
+      Der Link ist 15 Minuten gültig.
+    </div>
+  </div>
+
+<script>
+(function() {
+  const form = document.getElementById('login-form');
+  const emailInput = document.getElementById('email');
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('msg');
+
+  // Fehler aus URL-Param anzeigen
+  const urlParams = new URLSearchParams(location.search);
+  const err = urlParams.get('err');
+  if (err === 'expired') {
+    showMsg('Der Login-Link ist abgelaufen oder wurde bereits benutzt. Fordere bitte einen neuen an.', 'error');
+  } else if (err === 'invalid') {
+    showMsg('Ungültiger Login-Link.', 'error');
+  } else if (urlParams.get('logged_out') === '1') {
+    showMsg('Du wurdest abgemeldet.', 'success');
+  }
+
+  function showMsg(text, type) {
+    msg.textContent = text;
+    msg.className = 'msg ' + type;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showMsg('Bitte eine gültige E-Mail-Adresse eingeben.', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Sende…';
+    msg.className = 'msg';
+
+    try {
+      const res = await fetch('api/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg('✓ Falls die Adresse registriert ist, wurde ein Login-Link verschickt. Bitte schau in dein E-Mail-Postfach (auch Spam).', 'success');
+        form.style.display = 'none';
+      } else if (res.status === 429) {
+        showMsg('Zu viele Login-Versuche. Bitte warte ein paar Minuten.', 'error');
+      } else {
+        showMsg(data.error || 'Unbekannter Fehler. Bitte später erneut versuchen.', 'error');
+      }
+    } catch (e) {
+      showMsg('Netzwerkfehler. Bitte später erneut versuchen.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Login-Link anfordern';
+    }
+  });
+})();
+</script>
+</body>
+</html>

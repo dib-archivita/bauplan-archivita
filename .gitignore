@@ -1,0 +1,41 @@
+# ============================================================
+# .gitignore — was NICHT zu GitHub hochgeladen werden darf
+# ============================================================
+
+# Echte Konfiguration mit Passwörtern — bleibt nur lokal + auf webgo
+config.php
+
+# Lokale Editor- und OS-Müll-Dateien
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.~*
+
+# PHP-Logs
+*.log
+error_log
+debug_log
+
+# Temporäre Dateien
+*.tmp
+*.bak
+*.orig
+
+# Sicherheits-Schlüssel falls jemals lokal abgelegt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# DB-Dumps
+*.sql.gz
+*.dump
+backup_*.sql
+
+# Composer (falls wir später Dependencies einführen)
+/vendor/
+composer.lock

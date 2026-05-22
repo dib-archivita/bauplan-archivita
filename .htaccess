@@ -1,0 +1,40 @@
+# =====================================================================
+# Bauzeitenplan Archivita — Apache-Config
+# =====================================================================
+
+# config.php + schema.sql + .env vor Browserzugriff schützen
+<FilesMatch "(config\.php|config\.example\.php|schema\.sql|\.env|\.gitignore|composer\.json|composer\.lock)$">
+    Require all denied
+</FilesMatch>
+
+# .git, lib/, vendor/ — falls vorhanden, blocken
+RedirectMatch 403 ^/?\.git/
+RedirectMatch 403 ^/?lib/.*\.php\.bak$
+
+# HTTPS erzwingen (zur Sicherheit, falls SSL-Redirect von webgo ausfällt)
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# PHP-Sessions: Cookies nur über HTTPS + httpOnly + SameSite=Lax
+<IfModule mod_php.c>
+    php_value session.cookie_secure 1
+    php_value session.cookie_httponly 1
+    php_value session.cookie_samesite "Lax"
+    php_value session.use_strict_mode 1
+</IfModule>
+
+# Default-Doc: Login bzw. Dashboard
+DirectoryIndex index.html index.php login.html
+
+# 404 / 500 Fallback
+ErrorDocument 404 /404.html
