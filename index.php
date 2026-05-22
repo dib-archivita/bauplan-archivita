@@ -7747,10 +7747,25 @@ window.togglePanel = function() {
   var ORIGIN = new Date(2026, 4, 4); // 4. Mai 2026 = KW19 Mo
   ORIGIN.setHours(0,0,0,0);
 
+  // Berechnet Heute-Position. SNAP auf Montag der aktuellen ISO-Woche,
+  // damit die Linie immer exakt auf einer KW-Grenze sitzt.
   function todayPx() {
     var t = new Date();
     t.setHours(0,0,0,0);
-    return Math.round((t - ORIGIN) / 86400000) / 7 * PX_PER_WEEK;
+    var dow = t.getDay();              // 0=So, 1=Mo, ..., 6=Sa
+    var offsetToMon = (dow === 0) ? -6 : (1 - dow);
+    t.setDate(t.getDate() + offsetToMon);   // jetzt = Montag dieser Woche
+    var days = Math.round((t - ORIGIN) / 86400000);
+    return (days / 7) * PX_PER_WEEK;
+  }
+  function todayKW() {
+    var t = new Date();
+    t.setHours(0,0,0,0);
+    var dow = t.getDay();
+    var offsetToMon = (dow === 0) ? -6 : (1 - dow);
+    t.setDate(t.getDate() + offsetToMon);
+    var days = Math.round((t - ORIGIN) / 86400000);
+    return 19 + Math.round(days / 7);  // ORIGIN_KW = 19
   }
 
   function clearOldLines() {
@@ -7775,6 +7790,7 @@ window.togglePanel = function() {
     var timelineX = rRect.left - tRect.left;  // Px-Offset im Tabellen-Content
 
     var px = todayPx();
+    var kw = todayKW();
     var line = document.createElement('div');
     line.id = 'today-line-global';
     line.className = 'today-line';
@@ -7790,6 +7806,24 @@ window.togglePanel = function() {
       'pointer-events:none',
       'box-shadow:0 0 8px rgba(239,68,68,0.5)'
     ].join(';');
+
+    // Heute-Label oben an die Linie
+    var label = document.createElement('div');
+    label.textContent = 'HEUTE · KW' + kw;
+    label.style.cssText = [
+      'position:absolute',
+      'top:-2px',
+      'left:4px',
+      'background:#ef4444',
+      'color:#fff',
+      'font-size:9px',
+      'font-weight:700',
+      'padding:2px 6px',
+      'border-radius:4px',
+      'white-space:nowrap',
+      'letter-spacing:0.04em'
+    ].join(';');
+    line.appendChild(label);
 
     // table braucht position:relative damit absolutes Kind im Tabellen-Koordinatensystem ankert
     if (getComputedStyle(table).position === 'static') {
