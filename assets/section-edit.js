@@ -1,0 +1,471 @@
+/**
+ * section-edit.js — Sections + KFW-Banner editierbar + "+" Buttons + Counter
+ *
+ *  ✏️  Section-Namen (▶ Stromversorgung) per Klick editierbar
+ *  ✏️  KFW-Banner-Namen (OHG Haustechnik) per Klick editierbar
+ *  ➕  "+ Aufgabe" Button pro Section
+ *  ➕  "+ Bereich" Button pro KFW-Banner
+ *  📊  Counter "X/Y ✓" wird automatisch aktualisiert
+ *  💾  Persistierung in localStorage (Sync via API kommt später)
+ *
+ *  Worker / Viewer können NICHT editieren — nur Admin + Architekt.
+ */
+(function () {
+  'use strict';
+
+  const STORAGE_KEY = 'section-edit-v1';
+
+  function loadOverrides() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveOverrides(o) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  let overrides = loadOverrides();
+
+  // Rolle vom Body lesen (von sync.js gesetzt)
+  function isEditor() {
+    return document.body.classList.contains('role-admin')
+        || document.body.classList.contains('role-architekt');
+  }
+
+  // ═════════ Style ═════════
+  function injectCSS() {
+    if (document.getElementById('section-edit-styles')) return;
+    const s = document.createElement('style');
+    s.id = 'section-edit-styles';
+    s.textContent = `
+      /* Editierbarkeit visualisieren */
+      .section-name .editable-text,
+      .kfw-header-row .editable-text {
+        cursor: text;
+        border-radius: 4px;
+        padding: 2px 6px;
+        margin: -2px -6px;
+        transition: background 0.12s;
+      }
+      .section-name .editable-text:hover,
+      .kfw-header-row .editable-text:hover {
+        background: rgba(37, 99, 235, 0.10);
+      }
+      .section-name .editable-text:focus,
+      .kfw-header-row .editable-text:focus {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+        background: #fff;
+        color: #1e293b;
+      }
+      .kfw-header-row .editable-text:focus { background: #fff; }
+
+      /* "+" Buttons */
+      .se-add-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 12px;
+        padding: 3px 10px;
+        border: 1px dashed #94a3b8;
+        background: transparent;
+        color: #64748b;
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.12s;
+        line-height: 1;
+      }
+      .se-add-btn:hover {
+        border-color: #2563eb;
+        color: #2563eb;
+        background: #eff6ff;
+      }
+      .kfw-header-row .se-add-btn {
+        border-color: rgba(255,255,255,0.5);
+        color: rgba(255,255,255,0.95);
+      }
+      .kfw-header-row .se-add-btn:hover {
+        border-color: #fff;
+        color: #fff;
+        background: rgba(255,255,255,0.15);
+      }
+
+      /* Delete-Section Button (klein, daneben) */
+      .se-del-btn {
+        margin-left: 6px;
+        padding: 2px 6px;
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 11px;
+        cursor: pointer;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.15s, background 0.12s;
+      }
+      .section-row:hover .se-del-btn,
+      .kfw-header-row:hover .se-del-btn {
+        opacity: 0.7;
+      }
+      .se-del-btn:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+        opacity: 1 !important;
+      }
+
+      /* Nicht-Editor sieht keine + Buttons / Edit-Hover */
+      body.role-worker .se-add-btn,
+      body.role-viewer .se-add-btn,
+      body.role-worker .se-del-btn,
+      body.role-viewer .se-del-btn { display: none !important; }
+
+      /* Counter-Pill rückwirkend ansprechbar */
+      .progress-pill { transition: background 0.2s; }
+      .progress-pill.full {
+        background: #d1fae5;
+        color: #065f46;
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  // ═════════ Inline-Edit aktivieren ═════════
+  function makeEditableText(host, key, type) {
+    if (host.querySelector(':scope > .editable-text')) return;
+
+    // Original-Text als Editable umschließen, OHNE die Badges/Buttons mitzunehmen
+    // Wir packen die TEXT-Nodes des Host in einen Span.
+    const textNodes = [];
+    for (const node of Array.from(host.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+        textNodes.push(node);
+      }
+    }
+    if (!textNodes.length) return;
+
+    const span = document.createElement('span');
+    span.className = 'editable-text';
+    if (isEditor()) span.contentEditable = 'true';
+    span.dataset.editKey = key;
+    span.dataset.editType = type;
+    span.textContent = textNodes.map(n => n.textContent.trim()).join(' ');
+    // Override anwenden falls vorhanden
+    if (overrides[key]) span.textContent = overrides[key];
+
+    // Original-Text-Nodes entfernen
+    textNodes.forEach(n => n.remove());
+
+    // Span einfügen — nach .section-arrow / .kfw-badge falls vorhanden
+    const arrow = host.querySelector('.section-arrow');
+    const badge = host.querySelector('.kfw-badge');
+    if (arrow) {
+      arrow.insertAdjacentElement('afterend', span);
+      // Leerzeichen davor
+      span.insertAdjacentText('beforebegin', ' ');
+    } else if (badge) {
+      badge.insertAdjacentElement('afterend', span);
+      span.insertAdjacentText('beforebegin', ' ');
+    } else {
+      host.insertBefore(span, host.firstChild);
+    }
+
+    // Save-Logik
+    span.addEventListener('blur', () => {
+      const newVal = span.textContent.trim();
+      if (newVal && newVal !== overrides[key]) {
+        overrides[key] = newVal;
+        saveOverrides(overrides);
+      }
+    });
+    span.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        span.blur();
+      }
+      if (e.key === 'Escape') {
+        span.textContent = overrides[key] || textNodes.map(n => n.textContent.trim()).join(' ');
+        span.blur();
+      }
+    });
+  }
+
+  // ═════════ "+ Aufgabe" Button pro Section ═════════
+  function addAddTaskButton(sectionRow) {
+    if (sectionRow.querySelector('.se-add-btn')) return;
+    const host = sectionRow.querySelector('.section-name');
+    if (!host) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'se-add-btn se-add-task';
+    btn.innerHTML = '+ Aufgabe';
+    btn.title = 'Neue Aufgabe in diesem Abschnitt';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addNewTaskAfter(sectionRow);
+    });
+    host.appendChild(btn);
+
+    // Delete-Section-Button
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'se-del-btn';
+    delBtn.innerHTML = '✕';
+    delBtn.title = 'Abschnitt löschen';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSection(sectionRow);
+    });
+    host.appendChild(delBtn);
+  }
+
+  // ═════════ "+ Bereich" Button pro KFW-Banner ═════════
+  function addAddSectionButton(kfwRow) {
+    if (kfwRow.querySelector('.se-add-btn')) return;
+    const host = kfwRow.querySelector('.task-name-cell');
+    if (!host) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'se-add-btn se-add-section';
+    btn.innerHTML = '+ Bereich';
+    btn.title = 'Neuen Abschnitt in diesem KfW-Block';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addNewSectionInKfw(kfwRow);
+    });
+    host.appendChild(btn);
+  }
+
+  // ═════════ Neue Task einfügen ═════════
+  let nextTid = 1000;
+  function generateTid() {
+    return 'custom-' + Date.now() + '-' + (nextTid++);
+  }
+
+  function addNewTaskAfter(sectionRow) {
+    const tid = generateTid();
+    const tableWidth = 3768;
+    const row = document.createElement('tr');
+    row.className = 'task-row';
+    row.setAttribute('data-status', 'geplant');
+    row.setAttribute('data-gewerk', '');
+    row.setAttribute('data-phase', 'haustechnik');
+    row.setAttribute('data-unit', '');
+    row.setAttribute('data-task-type', 'other');
+    row.setAttribute('data-tid', tid);
+    row.setAttribute('data-custom', '1');
+    row.innerHTML = `
+      <td class="task-name-cell" contenteditable="${isEditor() ? 'true' : 'false'}">Neue Aufgabe</td>
+      <td><span class="status-badge status-planned">—</span></td>
+      <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">
+        <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">+ Gewerk</span>
+      </td>
+      <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px" contenteditable="${isEditor() ? 'true' : 'false'}">—</td>
+      <td><div class="gantt-row-inner" style="width:${tableWidth}px"></div></td>
+    `;
+    // Nach LETZTER bestehender task-row dieses Sections einfügen (sonst direkt nach section-row)
+    let insertAfter = sectionRow;
+    let next = sectionRow.nextElementSibling;
+    while (next && next.classList.contains('task-row')) {
+      insertAfter = next;
+      next = next.nextElementSibling;
+    }
+    insertAfter.insertAdjacentElement('afterend', row);
+
+    // Focus auf Aufgaben-Name
+    const nameCell = row.querySelector('.task-name-cell');
+    if (nameCell && isEditor()) {
+      nameCell.focus();
+      // Text markieren
+      const range = document.createRange();
+      range.selectNodeContents(nameCell);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    // Counter updaten
+    updateSectionCounter(sectionRow);
+    updateHeaderStats();
+  }
+
+  // ═════════ Neue Section in KFW einfügen ═════════
+  function addNewSectionInKfw(kfwRow) {
+    const row = document.createElement('tr');
+    row.className = 'section-row';
+    row.innerHTML = `
+      <td class="section-name" colspan="4">
+        <span class="section-arrow">▶</span> Neuer Bereich
+        <span class="progress-pill">0/0 ✓</span>
+      </td>
+      <td><div class="gantt-row-inner" style="width:3768px"></div></td>
+    `;
+    // Am Ende des KFW-Blocks einfügen (vor nächster kfw-header-row oder am Ende)
+    let insertAfter = kfwRow;
+    let next = kfwRow.nextElementSibling;
+    while (next && !next.classList.contains('kfw-header-row')) {
+      insertAfter = next;
+      next = next.nextElementSibling;
+    }
+    insertAfter.insertAdjacentElement('afterend', row);
+
+    // Editable + Add-Buttons hinzufügen
+    makeEditableText(row.querySelector('.section-name'), 'section-' + generateTid(), 'section');
+    addAddTaskButton(row);
+
+    // Focus auf Name
+    const editText = row.querySelector('.editable-text');
+    if (editText && isEditor()) {
+      editText.focus();
+      const range = document.createRange();
+      range.selectNodeContents(editText);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+
+  // ═════════ Section löschen ═════════
+  function deleteSection(sectionRow) {
+    const taskCount = countTasksInSection(sectionRow);
+    if (taskCount > 0) {
+      if (!confirm(`Diesen Abschnitt mit ${taskCount} Aufgabe(n) löschen?`)) return;
+    } else {
+      if (!confirm('Diesen Abschnitt löschen?')) return;
+    }
+    // Alle nachfolgenden task-rows bis nächste section-row / kfw-header-row entfernen
+    let next = sectionRow.nextElementSibling;
+    while (next && !next.classList.contains('section-row') && !next.classList.contains('kfw-header-row')) {
+      const toRemove = next;
+      next = next.nextElementSibling;
+      toRemove.remove();
+    }
+    sectionRow.remove();
+    updateHeaderStats();
+  }
+
+  // ═════════ Counter X/Y berechnen ═════════
+  function countTasksInSection(sectionRow) {
+    let total = 0;
+    let next = sectionRow.nextElementSibling;
+    while (next && !next.classList.contains('section-row') && !next.classList.contains('kfw-header-row')) {
+      if (next.classList.contains('task-row')) total++;
+      next = next.nextElementSibling;
+    }
+    return total;
+  }
+  function countDoneInSection(sectionRow) {
+    let done = 0;
+    let next = sectionRow.nextElementSibling;
+    while (next && !next.classList.contains('section-row') && !next.classList.contains('kfw-header-row')) {
+      if (next.classList.contains('task-row')) {
+        const status = next.getAttribute('data-status') || '';
+        if (status === 'fertig' || /^fortschritt_100/.test(status)) done++;
+      }
+      next = next.nextElementSibling;
+    }
+    return done;
+  }
+  function updateSectionCounter(sectionRow) {
+    const total = countTasksInSection(sectionRow);
+    const done = countDoneInSection(sectionRow);
+    const pill = sectionRow.querySelector('.progress-pill');
+    if (!pill) return;
+    pill.textContent = `${done}/${total} ✓`;
+    pill.classList.toggle('full', total > 0 && done === total);
+  }
+  function updateAllSectionCounters() {
+    document.querySelectorAll('tr.section-row').forEach(updateSectionCounter);
+  }
+
+  // ═════════ Stat-Cards oben updaten ═════════
+  function updateHeaderStats() {
+    const tasks = Array.from(document.querySelectorAll('tr.task-row'));
+    const total = tasks.length;
+    let done = 0, wip = 0, delayed = 0, planned = 0;
+    tasks.forEach(t => {
+      const s = t.getAttribute('data-status') || '';
+      if (s === 'fertig' || /^fortschritt_100/.test(s)) done++;
+      else if (s === 'verzögert') delayed++;
+      else if (s === 'laufend' || /^fortschritt_\d/.test(s)) wip++;
+      else planned++;
+    });
+    // Stat-Card-Nummer suchen und updaten (basiert auf Header-Struktur)
+    document.querySelectorAll('.card').forEach(card => {
+      const lbl = (card.querySelector('.lbl')?.textContent || '').toLowerCase();
+      const numEl = card.querySelector('.num');
+      if (!numEl) return;
+      if (lbl.includes('abgeschlossen')) numEl.textContent = done;
+      else if (lbl.includes('arbeit'))    numEl.textContent = wip;
+      else if (lbl.includes('geplant'))   numEl.textContent = planned;
+      else if (lbl.includes('verzögert'))  numEl.textContent = delayed;
+    });
+    // Tab-Counter (z.B. "Hauptzeitplan (401 Aufgaben)")
+    document.querySelectorAll('.tab').forEach(tab => {
+      const txt = tab.textContent;
+      const m = txt.match(/\((\d+)\s*Aufgaben?\)/);
+      if (m) tab.innerHTML = tab.innerHTML.replace(/\(\d+\s*Aufgaben?\)/, `(${total} Aufgaben)`);
+    });
+    updateAllSectionCounters();
+  }
+
+  // ═════════ Init ═════════
+  function activate() {
+    injectCSS();
+
+    document.querySelectorAll('tr.section-row').forEach((row) => {
+      const host = row.querySelector('.section-name');
+      if (host) {
+        // unique key: position innerhalb tbody als fallback
+        const idx = Array.from(row.parentNode.children).indexOf(row);
+        const key = 'section-idx-' + idx;
+        makeEditableText(host, key, 'section');
+        addAddTaskButton(row);
+      }
+    });
+
+    document.querySelectorAll('tr.kfw-header-row').forEach((row) => {
+      const host = row.querySelector('.task-name-cell');
+      if (host) {
+        const idx = Array.from(row.parentNode.children).indexOf(row);
+        const key = 'kfw-idx-' + idx;
+        makeEditableText(host, key, 'kfw');
+        addAddSectionButton(row);
+      }
+    });
+
+    // Counter erstmalig aktualisieren
+    updateHeaderStats();
+
+    // Status-Klicks beobachten → Counter neu berechnen
+    document.addEventListener('click', (e) => {
+      const statusBadge = e.target.closest('.status-badge');
+      if (statusBadge) {
+        // Status-Change passiert vom bestehenden Code → kurz warten, dann counter neu
+        setTimeout(updateHeaderStats, 80);
+      }
+    }, true);
+
+    // MutationObserver auf data-status changes (für externe Status-Updates)
+    const mo = new MutationObserver((muts) => {
+      let hit = false;
+      for (const m of muts) {
+        if (m.type === 'attributes' && m.attributeName === 'data-status') { hit = true; break; }
+      }
+      if (hit) {
+        clearTimeout(activate._t);
+        activate._t = setTimeout(updateHeaderStats, 100);
+      }
+    });
+    document.querySelectorAll('tr.task-row').forEach(t =>
+      mo.observe(t, { attributes: true, attributeFilter: ['data-status'] })
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', activate);
+  } else {
+    activate();
+  }
+})();

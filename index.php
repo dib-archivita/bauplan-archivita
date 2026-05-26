@@ -7852,5 +7852,6 @@ window.togglePanel = function() {
 <script src="assets/sticky.js"></script>
 <script src="assets/mobile.js"></script>
 <script src="assets/bar-labels.js"></script>
+<script src="assets/section-edit.js"></script>
 </body>
 </html>
