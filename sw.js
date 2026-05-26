@@ -7,19 +7,20 @@
  *  - API-Endpoints: Network-only (kein Cache, damit Daten aktuell bleiben)
  *  - Cache wird bei jeder Version-Bump geleert
  */
-const CACHE_NAME = 'bauplan-v7';        // bei JEDER deployten Änderung anpassen
+const CACHE_NAME = 'bauplan-v8';        // bei JEDER deployten Änderung anpassen
 const STATIC_ASSETS = [
   '/',
   '/login.html',
 ];
 
 self.addEventListener('install', (e) => {
+  // skipWaiting MUSS sofort kommen, damit der neue SW den alten ablöst
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.all(STATIC_ASSETS.map((u) => cache.add(u).catch(() => null)))
     )
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
@@ -29,6 +30,12 @@ self.addEventListener('activate', (e) => {
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+     .then(() => {
+        // Alle offenen Tabs benachrichtigen, dass eine neue Version aktiv ist
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(c => c.postMessage({ type: 'sw-updated', version: CACHE_NAME }));
+        });
+     })
   );
 });
 
