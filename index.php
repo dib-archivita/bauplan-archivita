@@ -7857,6 +7857,8 @@ window.togglePanel = function() {
 <script src="assets/mobile.js"></script>
 <script src="assets/bar-labels.js"></script>
 <script src="assets/section-edit.js"></script>
+<script src="assets/changes.js"></script>
+<script src="assets/history-modal.js"></script>
 <script>
 (function () {
   // Live-Update für "Stand DD.MM.YYYY, HH:MM Uhr" jede Minute

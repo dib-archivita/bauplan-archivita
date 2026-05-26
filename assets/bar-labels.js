@@ -127,6 +127,14 @@
         font-style: italic;
         font-size: 11px;
       }
+      #bar-tooltip .bt-history {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #334155;
+        color: #cbd5e1;
+        font-size: 11px;
+        line-height: 1.4;
+      }
 
       /* Bar selbst beim Hover hervorheben */
       .gantt-bar:hover {
@@ -250,6 +258,17 @@
     }
     if (m.notiz) {
       html += `<div class="bt-notiz">📝 ${escapeHtml(m.notiz)}</div>`;
+    }
+
+    // Letzte Änderung anzeigen (aus changes.js)
+    const row = bar.closest('tr.task-row');
+    const tid = row ? row.getAttribute('data-tid') : null;
+    if (tid && window.TaskHistory) {
+      const last = window.TaskHistory.getLast(tid);
+      if (last) {
+        const ago = window.TaskHistory.formatTimestamp(last.ts);
+        html += `<div class="bt-history">✏️ ${escapeHtml(last.field)} geändert ${escapeHtml(ago)}<br><span style="color:#94a3b8;font-size:10px">von ${escapeHtml(last.user)}</span></div>`;
+      }
     }
 
     tt.innerHTML = html;
