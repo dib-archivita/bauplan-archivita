@@ -448,45 +448,47 @@
       }
     }
 
-    // Text-Edit-Undo für Aufgabe-Name + Firma-Cell + Notiz
-    [
-      row.querySelector('.task-name-cell'),
-      row.querySelector('.task-firma-cell'),
-      row.children[3], // 4. cell = Firma fallback
-    ].filter(Boolean).forEach((cell) => {
-      if (!cell || cell.dataset.seUndoBound === '1') return;
-      if (!cell.isContentEditable && cell.getAttribute('contenteditable') !== 'true') return;
-      cell.dataset.seUndoBound = '1';
+    // Text-Edit-Undo wird global delegiert (siehe bindGlobalTextUndo) — nichts mehr hier.
+  }
 
-      // Vor dem Editieren Original-Text merken (Focus snapshots)
-      let preEdit = '';
-      cell.addEventListener('focus', () => {
-        preEdit = (cell.textContent || '').trim();
-        // Nicht den Delete-Button mit-snapshoten
-        const del = cell.querySelector(':scope > .se-row-del');
-        if (del) preEdit = preEdit.replace(/✕$/, '').trim();
-      });
-      cell.addEventListener('blur', () => {
-        // Delete-Button vom text trennen
-        let newVal = (cell.textContent || '').trim();
-        const del = cell.querySelector(':scope > .se-row-del');
-        if (del) newVal = newVal.replace(/✕$/, '').trim();
-        if (newVal !== preEdit) {
-          const oldVal = preEdit;
-          // Snapshot des kompletten innerHTML (incl. del-btn falls vorhanden)
-          // Einfacher: textContent setzen, del-Button wieder anhängen
-          pushUndo({
-            label: 'Text geändert',
-            undo: () => {
-              // Inhalt zurücksetzen ohne den Delete-Button zu verlieren
-              const del2 = cell.querySelector(':scope > .se-row-del');
-              cell.textContent = oldVal;
-              if (del2) cell.appendChild(del2);
-            },
-          });
-        }
-      });
-    });
+  // ═════════ Global delegierter Text-Edit-Undo ═════════
+  // Wir benutzen ein einziges Capture-Phase focus/blur-Listener-Paar,
+  // weil sync.js & andere Scripts contentEditable LATER setzen.
+  const PRE_EDIT_KEY = '__se_pre';
+  function bindGlobalTextUndo() {
+    document.addEventListener('focusin', (e) => {
+      const t = e.target;
+      if (!t || !t.isContentEditable) return;
+      // Nur in task-row Cells (Aufgabe / Firma) tracken
+      const row = t.closest && t.closest('tr.task-row');
+      if (!row) return;
+      // Snapshot vom Klartext (ohne Delete-Button-Symbol)
+      let val = (t.textContent || '').trim();
+      val = val.replace(/✕\s*$/, '').trim();
+      t[PRE_EDIT_KEY] = val;
+    }, true);
+
+    document.addEventListener('focusout', (e) => {
+      const t = e.target;
+      if (!t || !(PRE_EDIT_KEY in t)) return;
+      const row = t.closest && t.closest('tr.task-row');
+      if (!row) { delete t[PRE_EDIT_KEY]; return; }
+      let newVal = (t.textContent || '').trim();
+      newVal = newVal.replace(/✕\s*$/, '').trim();
+      const oldVal = t[PRE_EDIT_KEY];
+      delete t[PRE_EDIT_KEY];
+      if (newVal !== oldVal) {
+        pushUndo({
+          label: 'Aufgabentext geändert',
+          undo: () => {
+            // Delete-Button retten
+            const del = t.querySelector(':scope > .se-row-del');
+            t.textContent = oldVal;
+            if (del) t.appendChild(del);
+          },
+        });
+      }
+    }, true);
   }
 
   function deleteTaskRow(row) {
@@ -756,8 +758,10 @@
       updateUndoFab();
     }
 
-    // Task-Row Delete-Buttons + Text-Edit-Undo
+    // Task-Row Delete-Buttons
     document.querySelectorAll('tr.task-row').forEach(addTaskRowEditing);
+    // Globaler Text-Edit-Undo (capture-phase, da contentEditable async gesetzt wird)
+    bindGlobalTextUndo();
 
     // Status-Klicks beobachten → Counter neu berechnen
     document.addEventListener('click', (e) => {
