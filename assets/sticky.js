@@ -48,6 +48,26 @@
       /* gantt-wrap muss overflow-x:auto haben für horizontal scroll */
       .gantt-wrap { overflow-x: auto; overflow-y: visible; }
 
+      /* Two-Pane: linke pinned-pane + rechte scroll-wrap */
+      .gantt-flex { display: flex; position: relative; align-items: stretch; }
+
+      /* Pinned-Tabelle teilt sich Styling mit Original */
+      #pinned-pane .pinned-table { font-size: 11.5px; }
+      #pinned-pane thead th { padding: 10px 12px !important; background: #fafbfc !important; font-size: 10.5px !important; text-transform: uppercase; font-weight: 700; color: #475569; }
+      #pinned-pane td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
+      #pinned-pane tr.section-row td { background: #f8fafc; font-weight: 700; }
+      #pinned-pane tr.kfw-header-row td { color: #fff; font-weight: 700; padding: 9px 12px; }
+      #pinned-pane tr.kfw-header-row.kfw-a td { background: #2563eb; }
+      #pinned-pane tr.kfw-header-row.kfw-b td { background: #7c3aed; }
+      #pinned-pane tr.kfw-header-row.kfw-c td { background: #ea580c; }
+
+      /* Hauptzeitplan: erste 4 Spalten ausblenden wenn pinned-pane aktiv */
+      #main-gantt.has-pinned > colgroup > col:nth-child(-n+4) { width: 0 !important; }
+      #main-gantt.has-pinned > thead > tr > th:nth-child(-n+4) { display: none; }
+      #main-gantt.has-pinned > tbody > tr.task-row > td:nth-child(-n+4) { display: none; }
+      #main-gantt.has-pinned > tbody > tr.section-row > td.section-name { display: none; }
+      #main-gantt.has-pinned > tbody > tr.kfw-header-row > td:first-child { display: none; }
+
       /* Mobile-Optimierungen */
       @media (max-width: 760px) {
         .summary { padding: 10px 16px !important; gap: 6px !important; }
@@ -214,11 +234,133 @@
     }, delay);
   }
 
+  /**
+   * Frozen-Cols via Two-Pane Layout (Linear / Airtable Pattern).
+   *
+   * Statt position:sticky auf td (unzuverlässig) machen wir eine sauber
+   * getrennte Layout-Struktur:
+   *
+   *   .gantt-flex (flex container)
+   *     ├─ .pinned-pane  (linke Pane, flex:none, sticky-left zum Viewport)
+   *     │     Clone der ersten 4 Spalten als eigene Tabelle
+   *     │     Kein horizontaler Scroll
+   *     └─ .gantt-wrap   (rechte Pane, flex:1, overflow-x:auto)
+   *           Bestehende Haupt-Tabelle mit allen Spalten
+   *           Erste 4 Spalten werden CSS-versteckt (visibility:hidden, Platz bleibt)
+   *
+   * Beide Panes scrollen vertikal mit der Seite (kein eigener vertical scroll).
+   * Row-Höhen müssen identisch sein — wir messen das Original und setzen
+   * die Pin-Pane row-Heights via inline style.
+   */
+  let pinnedPane = null;
+  let pinnedSyncObserver = null;
+
+  function buildFrozenCols() {
+    const wrap = document.querySelector('.gantt-wrap');
+    const table = document.getElementById('main-gantt');
+    if (!wrap || !table) return;
+
+    // Existing pane entfernen
+    const oldPane = document.getElementById('pinned-pane');
+    if (oldPane) oldPane.remove();
+    table.classList.remove('has-pinned');
+
+    // Wrap das gantt-wrap nicht doppelt ein
+    let flex = wrap.parentElement;
+    if (!flex.classList.contains('gantt-flex')) {
+      flex = document.createElement('div');
+      flex.className = 'gantt-flex';
+      flex.style.cssText = 'display:flex;position:relative;align-items:stretch';
+      wrap.parentNode.insertBefore(flex, wrap);
+      flex.appendChild(wrap);
+    }
+
+    // Spaltenbreiten aus Original messen
+    const colWidths = measureOriginalColumns(table);
+    if (!colWidths) return;
+    const totalPinnedWidth = colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3];
+
+    // Pinned-Pane (linke Tabelle = Clone der ersten 4 cols)
+    pinnedPane = document.createElement('div');
+    pinnedPane.id = 'pinned-pane';
+    pinnedPane.style.cssText = [
+      'flex:none',
+      'width:' + totalPinnedWidth + 'px',
+      'background:#fff',
+      'position:relative',
+      'z-index:10',
+      'box-shadow:6px 0 12px -4px rgba(0,0,0,0.08)',
+      'overflow:hidden'   // verhindert dass cloned content rauslappt
+    ].join(';');
+
+    const pinnedTable = document.createElement('table');
+    pinnedTable.className = 'gantt-table pinned-table';
+    pinnedTable.style.cssText = 'width:100%;table-layout:fixed;border-collapse:collapse;margin:0';
+    // colgroup mit den ersten 4 Breiten
+    const newCg = document.createElement('colgroup');
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement('col');
+      c.style.width = colWidths[i] + 'px';
+      newCg.appendChild(c);
+    }
+    pinnedTable.appendChild(newCg);
+
+    // Kein thead in der pinned-table — die sticky-clone-header oben übernimmt das schon.
+
+    // Body: für jede Row im Original eine entsprechende Row im Clone
+    const newTbody = document.createElement('tbody');
+    const origTbody = table.querySelector('tbody');
+    if (origTbody) {
+      Array.from(origTbody.children).forEach((origRow) => {
+        const newRow = document.createElement('tr');
+        // Klassen + data-attribute übernehmen für Sync (z.B. data-tid)
+        newRow.className = origRow.className;
+        Array.from(origRow.attributes).forEach(attr => {
+          if (attr.name !== 'style') newRow.setAttribute(attr.name, attr.value);
+        });
+        // Höhe vom Original einfrieren (für vertikale Alignment-Synchronität)
+        const rowHeight = origRow.getBoundingClientRect().height;
+        newRow.style.height = rowHeight + 'px';
+
+        const origCells = origRow.children;
+        if (origRow.classList.contains('kfw-header-row') || origRow.classList.contains('section-row')) {
+          // Diese Rows haben colspan-cell als erstes
+          if (origCells[0]) {
+            const newCell = origCells[0].cloneNode(true);
+            // Setze colspan auf 4 (oder weniger), da pinned-table nur 4 cols hat
+            newCell.setAttribute('colspan', '4');
+            newRow.appendChild(newCell);
+          }
+        } else {
+          // task-row: erste 4 cells klonen
+          for (let i = 0; i < 4 && i < origCells.length; i++) {
+            newRow.appendChild(origCells[i].cloneNode(true));
+          }
+        }
+        newTbody.appendChild(newRow);
+      });
+    }
+    pinnedTable.appendChild(newTbody);
+    pinnedPane.appendChild(pinnedTable);
+    flex.insertBefore(pinnedPane, wrap);
+
+    // Im Hauptzeitplan die ersten 4 Spalten visuell ausblenden
+    // (Platz bleibt erhalten damit Layout stimmt, aber Inhalt ist hidden
+    //  damit nichts doppelt sichtbar ist)
+    table.classList.add('has-pinned');
+
+    // Sticky-Verhalten: pinned-pane stickt links zum gantt-flex
+    // pinned-pane ist NICHT in einer overflow-Box → kann am body scrollen vertikal
+    pinnedPane.style.position = 'sticky';
+    pinnedPane.style.left = '0';
+  }
+
   function init() {
     injectBaseCSS();
     applyPageSticky();
     buildCloneHeader();
-    applyPageSticky(); // nochmal, damit clone-header die richtige top hat
+    buildFrozenCols();      // NEU: Two-Pane Layout (linke Pin-Pane + rechte Scroll-Pane)
+    applyPageSticky();
 
     window.addEventListener('resize', () => scheduleApply(100));
     document.addEventListener('click', () => scheduleApply(150), true);
