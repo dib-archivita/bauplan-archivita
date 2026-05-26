@@ -260,14 +260,16 @@
       html += `<div class="bt-notiz">📝 ${escapeHtml(m.notiz)}</div>`;
     }
 
-    // Letzte Änderung anzeigen (aus changes.js)
-    const row = bar.closest('tr.task-row');
-    const tid = row ? row.getAttribute('data-tid') : null;
-    if (tid && window.TaskHistory) {
-      const last = window.TaskHistory.getLast(tid);
-      if (last) {
-        const ago = window.TaskHistory.formatTimestamp(last.ts);
-        html += `<div class="bt-history">✏️ ${escapeHtml(last.field)} geändert ${escapeHtml(ago)}<br><span style="color:#94a3b8;font-size:10px">von ${escapeHtml(last.user)}</span></div>`;
+    // Letzte Änderung anzeigen (aus changes.js) — NUR für Admins
+    if (document.body.classList.contains('role-admin')) {
+      const row = bar.closest('tr.task-row');
+      const tid = row ? row.getAttribute('data-tid') : null;
+      if (tid && window.TaskHistory) {
+        const last = window.TaskHistory.getLast(tid);
+        if (last) {
+          const ago = window.TaskHistory.formatTimestamp(last.ts);
+          html += `<div class="bt-history">✏️ ${escapeHtml(last.field)} geändert ${escapeHtml(ago)}<br><span style="color:#94a3b8;font-size:10px">von ${escapeHtml(last.user)}</span></div>`;
+        }
       }
     }
 

@@ -100,7 +100,7 @@
         font-size: 13px;
       }
 
-      /* History-Trigger-Button im task-row */
+      /* History-Trigger-Button im task-row — NUR für Admins sichtbar */
       .se-history-btn {
         margin-left: 6px;
         padding: 2px 6px;
@@ -113,13 +113,15 @@
         opacity: 0;
         transition: opacity 0.15s, background 0.12s, color 0.12s;
         line-height: 1;
+        display: none;        /* default versteckt */
       }
-      tr.task-row:hover .se-history-btn { opacity: 1; }
+      body.role-admin .se-history-btn { display: inline-block; }
+      body.role-admin tr.task-row:hover .se-history-btn { opacity: 1; }
       .se-history-btn:hover {
         background: #dbeafe;
         color: #2563eb;
       }
-      .se-history-btn.has-history { color: #64748b; opacity: 1; }
+      body.role-admin .se-history-btn.has-history { color: #64748b; opacity: 1; }
     `;
     document.head.appendChild(s);
   }
@@ -146,6 +148,8 @@
   }
 
   function openModal(tid, taskName) {
+    // Nur Admins dürfen den Verlauf sehen
+    if (!document.body.classList.contains('role-admin')) return;
     buildModal();
     const m = document.getElementById('task-history-modal');
     m.querySelector('#thm-title').textContent = taskName || 'Verlauf';
