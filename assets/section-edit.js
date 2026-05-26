@@ -286,6 +286,9 @@
     }
     insertAfter.insertAdjacentElement('afterend', row);
 
+    // Edit-Bindings + Delete-Button für die neue Row
+    addTaskRowEditing(row);
+
     // Focus auf Aufgaben-Name
     const nameCell = row.querySelector('.task-name-cell');
     if (nameCell && isEditor()) {
@@ -359,6 +362,15 @@
   function pushUndo(action) {
     undoStack.push(action);
     if (undoStack.length > MAX_UNDO) undoStack.shift();
+    updateUndoFab();
+  }
+  function updateUndoFab() {
+    const fab = document.getElementById('se-undo-fab');
+    if (!fab) return;
+    const countEl = fab.querySelector('.fab-count');
+    if (countEl) countEl.textContent = undoStack.length;
+    fab.style.opacity = undoStack.length === 0 ? '0.4' : '1';
+    fab.style.cursor = undoStack.length === 0 ? 'not-allowed' : 'pointer';
   }
   function performUndo() {
     if (!undoStack.length) {
@@ -370,9 +382,131 @@
       action.undo();
       showToast(action.label ? '↶ ' + action.label : '↶ Rückgängig', 'ok');
       updateHeaderStats();
+      updateUndoFab();
     } catch (e) {
       showToast('Rückgängig fehlgeschlagen: ' + e.message, 'warn');
     }
+  }
+
+  // ═════════ Task-Row: Delete-Button + Text-Edit-Undo ═════════
+  function addTaskRowEditing(row) {
+    if (row.dataset.seInit === '1') return;
+    row.dataset.seInit = '1';
+
+    if (isEditor()) {
+      // Delete-Button als kleines ✕ rechts in der task-name-cell
+      const nameCell = row.querySelector('.task-name-cell');
+      if (nameCell && !nameCell.querySelector(':scope > .se-row-del')) {
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'se-row-del';
+        delBtn.innerHTML = '✕';
+        delBtn.title = 'Aufgabe löschen';
+        delBtn.style.cssText = [
+          'float:right',
+          'margin-left:8px',
+          'background:transparent',
+          'border:none',
+          'color:#cbd5e1',
+          'cursor:pointer',
+          'padding:2px 6px',
+          'border-radius:4px',
+          'font-size:11px',
+          'opacity:0',
+          'transition:opacity 0.15s,background 0.12s,color 0.12s',
+          'line-height:1'
+        ].join(';');
+        delBtn.addEventListener('mouseenter', () => {
+          delBtn.style.background = '#fee2e2';
+          delBtn.style.color = '#b91c1c';
+        });
+        delBtn.addEventListener('mouseleave', () => {
+          delBtn.style.background = 'transparent';
+          delBtn.style.color = '#cbd5e1';
+        });
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          deleteTaskRow(row);
+        });
+        nameCell.appendChild(delBtn);
+        // Show on row hover
+        row.addEventListener('mouseenter', () => { delBtn.style.opacity = '1'; });
+        row.addEventListener('mouseleave', () => { delBtn.style.opacity = '0'; });
+      }
+    }
+
+    // Text-Edit-Undo für Aufgabe-Name + Firma-Cell + Notiz
+    [
+      row.querySelector('.task-name-cell'),
+      row.querySelector('.task-firma-cell'),
+      row.children[3], // 4. cell = Firma fallback
+    ].filter(Boolean).forEach((cell) => {
+      if (!cell || cell.dataset.seUndoBound === '1') return;
+      if (!cell.isContentEditable && cell.getAttribute('contenteditable') !== 'true') return;
+      cell.dataset.seUndoBound = '1';
+
+      // Vor dem Editieren Original-Text merken (Focus snapshots)
+      let preEdit = '';
+      cell.addEventListener('focus', () => {
+        preEdit = (cell.textContent || '').trim();
+        // Nicht den Delete-Button mit-snapshoten
+        const del = cell.querySelector(':scope > .se-row-del');
+        if (del) preEdit = preEdit.replace(/✕$/, '').trim();
+      });
+      cell.addEventListener('blur', () => {
+        // Delete-Button vom text trennen
+        let newVal = (cell.textContent || '').trim();
+        const del = cell.querySelector(':scope > .se-row-del');
+        if (del) newVal = newVal.replace(/✕$/, '').trim();
+        if (newVal !== preEdit) {
+          const oldVal = preEdit;
+          // Snapshot des kompletten innerHTML (incl. del-btn falls vorhanden)
+          // Einfacher: textContent setzen, del-Button wieder anhängen
+          pushUndo({
+            label: 'Text geändert',
+            undo: () => {
+              // Inhalt zurücksetzen ohne den Delete-Button zu verlieren
+              const del2 = cell.querySelector(':scope > .se-row-del');
+              cell.textContent = oldVal;
+              if (del2) cell.appendChild(del2);
+            },
+          });
+        }
+      });
+    });
+  }
+
+  function deleteTaskRow(row) {
+    const taskName = (row.querySelector('.task-name-cell')?.textContent || '').replace(/✕$/, '').trim() || 'Aufgabe';
+    if (!confirm(`Aufgabe "${taskName.slice(0,50)}" löschen?\n\nMit ⌘Z / Ctrl+Z rückgängig machbar.`)) return;
+
+    const parent = row.parentNode;
+    const anchor = row.nextSibling;
+    // Section finden für Counter-Update
+    let sec = row.previousElementSibling;
+    while (sec && !sec.classList.contains('section-row') && !sec.classList.contains('kfw-header-row')) {
+      sec = sec.previousElementSibling;
+    }
+    const sectionForCount = (sec && sec.classList.contains('section-row')) ? sec : null;
+
+    row.remove();
+    if (sectionForCount) updateSectionCounter(sectionForCount);
+    updateHeaderStats();
+
+    pushUndo({
+      label: `Aufgabe "${taskName.slice(0,30)}" gelöscht`,
+      undo: () => {
+        if (anchor && anchor.parentNode === parent) {
+          parent.insertBefore(row, anchor);
+        } else {
+          parent.appendChild(row);
+        }
+        if (sectionForCount) updateSectionCounter(sectionForCount);
+      },
+    });
+
+    showToast(`Aufgabe gelöscht — ⌘Z zum Rückgängig`, 'ok', 6000);
   }
 
   // ═════════ Section löschen (mit Undo-Tracking) ═════════
@@ -571,12 +705,12 @@
       }
     });
 
-    // Floating Undo-Button oben rechts
+    // Floating Undo-Button (dauerhaft sichtbar)
     if (isEditor() && !document.getElementById('se-undo-fab')) {
       const fab = document.createElement('button');
       fab.id = 'se-undo-fab';
-      fab.textContent = '↶ Rückgängig (⌘Z)';
-      fab.title = 'Letzte Aktion rückgängig machen';
+      fab.title = 'Letzte Aktion rückgängig machen (⌘Z / Ctrl+Z)';
+      fab.innerHTML = '<span style="font-size:14px;line-height:1">↶</span><span class="fab-label">Rückgängig</span><span class="fab-count" style="background:#e2e8f0;color:#475569;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;min-width:18px;text-align:center">0</span>';
       fab.style.cssText = [
         'position:fixed',
         'bottom:24px',
@@ -585,20 +719,33 @@
         'background:#fff',
         'color:#1e293b',
         'border:1px solid #e2e8f0',
-        'padding:8px 14px',
+        'padding:8px 14px 8px 12px',
         'border-radius:999px',
         'font-family:Inter,sans-serif',
         'font-size:12px',
         'font-weight:700',
         'cursor:pointer',
         'box-shadow:0 4px 14px rgba(15,23,42,0.10)',
-        'opacity:0.85'
+        'display:flex',
+        'align-items:center',
+        'gap:6px',
+        'transition:all 0.12s'
       ].join(';');
-      fab.addEventListener('mouseenter', () => { fab.style.opacity = '1'; });
-      fab.addEventListener('mouseleave', () => { fab.style.opacity = '0.85'; });
+      fab.addEventListener('mouseenter', () => {
+        fab.style.transform = 'translateY(-1px)';
+        fab.style.boxShadow = '0 6px 18px rgba(15,23,42,0.16)';
+      });
+      fab.addEventListener('mouseleave', () => {
+        fab.style.transform = '';
+        fab.style.boxShadow = '0 4px 14px rgba(15,23,42,0.10)';
+      });
       fab.addEventListener('click', performUndo);
       document.body.appendChild(fab);
+      updateUndoFab();
     }
+
+    // Task-Row Delete-Buttons + Text-Edit-Undo
+    document.querySelectorAll('tr.task-row').forEach(addTaskRowEditing);
 
     // Status-Klicks beobachten → Counter neu berechnen
     document.addEventListener('click', (e) => {
