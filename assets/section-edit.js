@@ -23,10 +23,16 @@
   }
   let overrides = loadOverrides();
 
-  // Rolle vom Body lesen (von sync.js gesetzt)
+  // Rolle vom Body lesen (von sync.js gesetzt — kann verzögert kommen)
   function isEditor() {
     return document.body.classList.contains('role-admin')
         || document.body.classList.contains('role-architekt');
+  }
+  // Optimistisch: solange noch keine Rolle gesetzt ist (frühe Phase), nehmen wir
+  // an, dass Editor erlaubt — die Buttons werden via CSS gehidet wenn role-worker/viewer
+  function isEditorOptimistic() {
+    return !document.body.classList.contains('role-worker')
+        && !document.body.classList.contains('role-viewer');
   }
 
   // ═════════ Style ═════════
@@ -113,11 +119,17 @@
         opacity: 1 !important;
       }
 
-      /* Nicht-Editor sieht keine + Buttons / Edit-Hover */
+      /* Nicht-Editor sieht keine + Buttons / Edit-Hover / Undo-FAB */
       body.role-worker .se-add-btn,
       body.role-viewer .se-add-btn,
       body.role-worker .se-del-btn,
-      body.role-viewer .se-del-btn { display: none !important; }
+      body.role-viewer .se-del-btn,
+      body.role-worker .se-row-del,
+      body.role-viewer .se-row-del,
+      body.role-worker #se-undo-fab,
+      body.role-viewer #se-undo-fab { display: none !important; }
+      body.role-worker .editable-text,
+      body.role-viewer .editable-text { pointer-events: none; }
 
       /* Counter-Pill rückwirkend ansprechbar */
       .progress-pill { transition: background 0.2s; }
@@ -145,7 +157,7 @@
 
     const span = document.createElement('span');
     span.className = 'editable-text';
-    if (isEditor()) span.contentEditable = 'true';
+    if (isEditorOptimistic()) span.contentEditable = 'true';
     span.dataset.editKey = key;
     span.dataset.editType = type;
     span.textContent = textNodes.map(n => n.textContent.trim()).join(' ');
@@ -269,12 +281,12 @@
     row.setAttribute('data-tid', tid);
     row.setAttribute('data-custom', '1');
     row.innerHTML = `
-      <td class="task-name-cell" contenteditable="${isEditor() ? 'true' : 'false'}">Neue Aufgabe</td>
+      <td class="task-name-cell" contenteditable="${isEditorOptimistic() ? 'true' : 'false'}">Neue Aufgabe</td>
       <td><span class="status-badge status-planned">—</span></td>
       <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">
         <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">+ Gewerk</span>
       </td>
-      <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px" contenteditable="${isEditor() ? 'true' : 'false'}">—</td>
+      <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px" contenteditable="${isEditorOptimistic() ? 'true' : 'false'}">—</td>
       <td><div class="gantt-row-inner" style="width:${tableWidth}px"></div></td>
     `;
     // Nach LETZTER bestehender task-row dieses Sections einfügen (sonst direkt nach section-row)
@@ -291,7 +303,7 @@
 
     // Focus auf Aufgaben-Name
     const nameCell = row.querySelector('.task-name-cell');
-    if (nameCell && isEditor()) {
+    if (nameCell && isEditorOptimistic()) {
       nameCell.focus();
       // Text markieren
       const range = document.createRange();
@@ -341,7 +353,7 @@
 
     // Focus auf Name
     const editText = row.querySelector('.editable-text');
-    if (editText && isEditor()) {
+    if (editText && isEditorOptimistic()) {
       editText.focus();
       const range = document.createRange();
       range.selectNodeContents(editText);
@@ -393,7 +405,7 @@
     if (row.dataset.seInit === '1') return;
     row.dataset.seInit = '1';
 
-    if (isEditor()) {
+    if (isEditorOptimistic()) {
       // Delete-Button als kleines ✕ rechts in der task-name-cell
       const nameCell = row.querySelector('.task-name-cell');
       if (nameCell && !nameCell.querySelector(':scope > .se-row-del')) {
@@ -706,7 +718,7 @@
     });
 
     // Floating Undo-Button (dauerhaft sichtbar)
-    if (isEditor() && !document.getElementById('se-undo-fab')) {
+    if (isEditorOptimistic() && !document.getElementById('se-undo-fab')) {
       const fab = document.createElement('button');
       fab.id = 'se-undo-fab';
       fab.title = 'Letzte Aktion rückgängig machen (⌘Z / Ctrl+Z)';
