@@ -847,7 +847,11 @@ tr.task-row[data-status="priorität"] .gantt-bar {
 <div class="header">
   <div>
     <div class="h1">Bauzeitenplan HAUPTWERK</div>
-    <div class="sub">Wilhelm-Binder-Str. 15 · VS-Villingen · Stand 22.5.2026, 09:08 Uhr</div>
+    <div class="sub">Wilhelm-Binder-Str. 15 · VS-Villingen · Stand <span id="stand-time"><?php
+      $tz = new DateTimeZone('Europe/Berlin');
+      $now = new DateTime('now', $tz);
+      echo $now->format('j.n.Y, H:i') . ' Uhr';
+    ?></span></div>
   </div>
 </div>
 </div>
@@ -7853,5 +7857,29 @@ window.togglePanel = function() {
 <script src="assets/mobile.js"></script>
 <script src="assets/bar-labels.js"></script>
 <script src="assets/section-edit.js"></script>
+<script>
+(function () {
+  // Live-Update für "Stand DD.MM.YYYY, HH:MM Uhr" jede Minute
+  function updateStandTime() {
+    const el = document.getElementById('stand-time');
+    if (!el) return;
+    const now = new Date();
+    const d = now.getDate();
+    const m = now.getMonth() + 1;
+    const y = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    el.textContent = `${d}.${m}.${y}, ${hh}:${mm} Uhr`;
+  }
+  updateStandTime();
+  // Minütlich aktualisieren (an Minuten-Wechsel andocken)
+  const now = new Date();
+  const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+  setTimeout(() => {
+    updateStandTime();
+    setInterval(updateStandTime, 60 * 1000);
+  }, msToNextMinute);
+})();
+</script>
 </body>
 </html>
