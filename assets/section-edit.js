@@ -170,11 +170,24 @@
     }
 
     // Save-Logik
+    let preEditValue = span.textContent;
+    span.addEventListener('focus', () => {
+      preEditValue = span.textContent;
+    });
     span.addEventListener('blur', () => {
       const newVal = span.textContent.trim();
-      if (newVal && newVal !== overrides[key]) {
+      if (newVal && newVal !== preEditValue) {
+        const oldValForUndo = preEditValue;
         overrides[key] = newVal;
         saveOverrides(overrides);
+        pushUndo({
+          label: 'Text geändert',
+          undo: () => {
+            span.textContent = oldValForUndo;
+            overrides[key] = oldValForUndo;
+            saveOverrides(overrides);
+          },
+        });
       }
     });
     span.addEventListener('keydown', (e) => {
@@ -183,7 +196,7 @@
         span.blur();
       }
       if (e.key === 'Escape') {
-        span.textContent = overrides[key] || textNodes.map(n => n.textContent.trim()).join(' ');
+        span.textContent = preEditValue;
         span.blur();
       }
     });
@@ -288,6 +301,15 @@
     // Counter updaten
     updateSectionCounter(sectionRow);
     updateHeaderStats();
+
+    // Undo-Eintrag
+    pushUndo({
+      label: 'Neue Aufgabe hinzugefügt',
+      undo: () => {
+        row.remove();
+        updateSectionCounter(sectionRow);
+      },
+    });
   }
 
   // ═════════ Neue Section in KFW einfügen ═════════
@@ -324,25 +346,125 @@
       sel.removeAllRanges();
       sel.addRange(range);
     }
+
+    pushUndo({
+      label: 'Neuer Bereich hinzugefügt',
+      undo: () => { row.remove(); },
+    });
   }
 
-  // ═════════ Section löschen ═════════
+  // ═════════ Undo-Stack ═════════
+  const undoStack = [];
+  const MAX_UNDO = 50;
+  function pushUndo(action) {
+    undoStack.push(action);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+  }
+  function performUndo() {
+    if (!undoStack.length) {
+      showToast('Nichts zum Rückgängig-Machen', 'warn');
+      return;
+    }
+    const action = undoStack.pop();
+    try {
+      action.undo();
+      showToast(action.label ? '↶ ' + action.label : '↶ Rückgängig', 'ok');
+      updateHeaderStats();
+    } catch (e) {
+      showToast('Rückgängig fehlgeschlagen: ' + e.message, 'warn');
+    }
+  }
+
+  // ═════════ Section löschen (mit Undo-Tracking) ═════════
   function deleteSection(sectionRow) {
     const taskCount = countTasksInSection(sectionRow);
     if (taskCount > 0) {
-      if (!confirm(`Diesen Abschnitt mit ${taskCount} Aufgabe(n) löschen?`)) return;
+      if (!confirm(`Diesen Abschnitt mit ${taskCount} Aufgabe(n) löschen?\n\nMit ⌘Z / Ctrl+Z rückgängig machbar.`)) return;
     } else {
       if (!confirm('Diesen Abschnitt löschen?')) return;
     }
-    // Alle nachfolgenden task-rows bis nächste section-row / kfw-header-row entfernen
+    // Snapshot: section + alle nachfolgenden task-rows
+    const removed = [{ node: sectionRow, parent: sectionRow.parentNode, anchor: sectionRow.nextSibling }];
+    const toRemoveNodes = [];
     let next = sectionRow.nextElementSibling;
     while (next && !next.classList.contains('section-row') && !next.classList.contains('kfw-header-row')) {
-      const toRemove = next;
+      removed.push({ node: next, parent: next.parentNode, anchor: next.nextSibling });
+      toRemoveNodes.push(next);
       next = next.nextElementSibling;
-      toRemove.remove();
     }
+    // Reihenfolge umkehren für Wiederherstellung
+    toRemoveNodes.forEach(n => n.remove());
     sectionRow.remove();
     updateHeaderStats();
+
+    pushUndo({
+      label: `Abschnitt "${(sectionRow.textContent || '').trim().slice(0, 30)}" gelöscht`,
+      undo: () => {
+        // In ORIGINALER Reihenfolge wieder einfügen (Vorwärts-Iteration)
+        // removed-Array hat die ursprüngliche Reihenfolge
+        for (let i = 0; i < removed.length; i++) {
+          const { node, parent, anchor } = removed[i];
+          if (anchor && anchor.parentNode === parent) {
+            parent.insertBefore(node, anchor);
+          } else {
+            parent.appendChild(node);
+          }
+        }
+      },
+    });
+
+    showToast(`Abschnitt gelöscht — ⌘Z zum Rückgängig`, 'ok', 6000);
+  }
+
+  // ═════════ Toast / Notification ═════════
+  function showToast(msg, type, ms) {
+    let t = document.getElementById('se-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'se-toast';
+      t.style.cssText = [
+        'position:fixed',
+        'bottom:24px',
+        'left:50%',
+        'transform:translateX(-50%) translateY(10px)',
+        'background:#1e293b',
+        'color:#fff',
+        'padding:10px 16px',
+        'border-radius:10px',
+        'font-family:Inter,sans-serif',
+        'font-size:13px',
+        'font-weight:600',
+        'z-index:99999',
+        'box-shadow:0 10px 30px rgba(0,0,0,0.25)',
+        'opacity:0',
+        'transition:opacity 0.2s, transform 0.2s',
+        'pointer-events:auto',
+        'cursor:pointer',
+        'display:flex',
+        'align-items:center',
+        'gap:10px'
+      ].join(';');
+      document.body.appendChild(t);
+    }
+    t.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = msg;
+    t.appendChild(span);
+    if (type === 'ok' && /⌘Z/.test(msg)) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Rückgängig';
+      btn.style.cssText = 'background:#2563eb;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer';
+      btn.addEventListener('click', performUndo);
+      t.appendChild(btn);
+    }
+    t.style.background = type === 'warn' ? '#7f1d1d' : '#1e293b';
+    t.style.opacity = '1';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => {
+      t.style.opacity = '0';
+      t.style.transform = 'translateX(-50%) translateY(10px)';
+    }, ms || 3000);
   }
 
   // ═════════ Counter X/Y berechnen ═════════
@@ -437,6 +559,46 @@
 
     // Counter erstmalig aktualisieren
     updateHeaderStats();
+
+    // ⌘Z / Ctrl+Z für Undo
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        // Nicht in editable-Feldern abfangen (sonst kein normales Undo im Text)
+        const ae = document.activeElement;
+        if (ae && (ae.isContentEditable || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+        e.preventDefault();
+        performUndo();
+      }
+    });
+
+    // Floating Undo-Button oben rechts
+    if (isEditor() && !document.getElementById('se-undo-fab')) {
+      const fab = document.createElement('button');
+      fab.id = 'se-undo-fab';
+      fab.textContent = '↶ Rückgängig (⌘Z)';
+      fab.title = 'Letzte Aktion rückgängig machen';
+      fab.style.cssText = [
+        'position:fixed',
+        'bottom:24px',
+        'right:24px',
+        'z-index:9998',
+        'background:#fff',
+        'color:#1e293b',
+        'border:1px solid #e2e8f0',
+        'padding:8px 14px',
+        'border-radius:999px',
+        'font-family:Inter,sans-serif',
+        'font-size:12px',
+        'font-weight:700',
+        'cursor:pointer',
+        'box-shadow:0 4px 14px rgba(15,23,42,0.10)',
+        'opacity:0.85'
+      ].join(';');
+      fab.addEventListener('mouseenter', () => { fab.style.opacity = '1'; });
+      fab.addEventListener('mouseleave', () => { fab.style.opacity = '0.85'; });
+      fab.addEventListener('click', performUndo);
+      document.body.appendChild(fab);
+    }
 
     // Status-Klicks beobachten → Counter neu berechnen
     document.addEventListener('click', (e) => {
