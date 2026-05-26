@@ -76,6 +76,10 @@
         if (newVal !== oldVal) {
           log(tid, 'Status', oldVal, newVal);
           lastStatus.set(row, newVal);
+          // → Backend-Sync (nicht bei Remote-Anwendung)
+          if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+            window.PlanSync.pushOverride('task', tid, 'status', newVal);
+          }
         }
       }
     });
@@ -122,18 +126,30 @@
       const row = t.closest && t.closest('tr.task-row');
       const sectionRow = t.closest && t.closest('tr.section-row');
       const kfwRow = t.closest && t.closest('tr.kfw-header-row');
+      const syncable = window.PlanSync && !window.PlanSync.isApplyingRemote();
       if (row) {
         const tid = row.getAttribute('data-tid');
-        let field = 'Text';
-        if (t.classList.contains('task-name-cell') || t === row.children[0]) field = 'Aufgabe';
-        else if (t.classList.contains('task-firma-cell') || t === row.children[3]) field = 'Firma';
+        let field = 'Text', syncField = 'name';
+        if (t.classList.contains('task-name-cell') || t === row.children[0]) { field = 'Aufgabe'; syncField = 'name'; }
+        else if (t.classList.contains('task-firma-cell') || t === row.children[3]) { field = 'Firma'; syncField = 'firma'; }
         log(tid, field, oldVal, newVal);
+        if (syncable) {
+          // Custom-Tasks via custom_update, Basis-Tasks via override
+          if (row.getAttribute('data-custom') === '1' || row.getAttribute('data-client-id')) {
+            const cid = row.getAttribute('data-client-id') || tid;
+            window.PlanSync.pushCustomUpdate(cid, { [syncField]: newVal });
+          } else {
+            window.PlanSync.pushOverride('task', tid, syncField, newVal);
+          }
+        }
       } else if (sectionRow) {
         const idx = Array.from(sectionRow.parentNode.children).indexOf(sectionRow);
         log('section-idx-' + idx, 'Abschnitt', oldVal, newVal);
+        if (syncable) window.PlanSync.pushOverride('section', 'section-idx-' + idx, 'name', newVal);
       } else if (kfwRow) {
         const idx = Array.from(kfwRow.parentNode.children).indexOf(kfwRow);
         log('kfw-idx-' + idx, 'KfW-Bereich', oldVal, newVal);
+        if (syncable) window.PlanSync.pushOverride('kfw', 'kfw-idx-' + idx, 'name', newVal);
       }
     }, true);
   }

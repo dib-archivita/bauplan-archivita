@@ -317,10 +317,21 @@
     updateSectionCounter(sectionRow);
     updateHeaderStats();
 
+    // Backend-Sync: neue Aufgabe als custom_item
+    if (window.PlanSync) {
+      const secIdx = Array.from(sectionRow.parentNode.children).indexOf(sectionRow);
+      const afterIdx = Array.from(insertAfter.parentNode.children).indexOf(insertAfter);
+      row.setAttribute('data-client-id', tid);
+      window.PlanSync.pushCustomAdd('task', tid, 'section-idx-' + secIdx,
+        insertAfter.classList.contains('task-row') ? insertAfter.getAttribute('data-tid') : 'section-idx-' + secIdx,
+        { name: 'Neue Aufgabe', status: 'geplant', gewerk: '', firma: '' });
+    }
+
     // Undo-Eintrag
     pushUndo({
       label: 'Neue Aufgabe hinzugefügt',
       undo: () => {
+        if (window.PlanSync) window.PlanSync.pushCustomDelete(tid);
         row.remove();
         updateSectionCounter(sectionRow);
       },
@@ -329,8 +340,10 @@
 
   // ═════════ Neue Section in KFW einfügen ═════════
   function addNewSectionInKfw(kfwRow) {
+    const secClientId = 'custom-sec-' + Date.now() + '-' + (nextTid++);
     const row = document.createElement('tr');
     row.className = 'section-row';
+    row.setAttribute('data-client-id', secClientId);
     row.innerHTML = `
       <td class="section-name" colspan="4">
         <span class="section-arrow">▶</span> Neuer Bereich
@@ -362,9 +375,18 @@
       sel.addRange(range);
     }
 
+    // Backend-Sync: neue Section
+    if (window.PlanSync) {
+      const kfwIdx = Array.from(kfwRow.parentNode.children).indexOf(kfwRow);
+      window.PlanSync.pushCustomAdd('section', secClientId, 'kfw-idx-' + kfwIdx, null, { name: 'Neuer Bereich' });
+    }
+
     pushUndo({
       label: 'Neuer Bereich hinzugefügt',
-      undo: () => { row.remove(); },
+      undo: () => {
+        if (window.PlanSync) window.PlanSync.pushCustomDelete(secClientId);
+        row.remove();
+      },
     });
   }
 
@@ -504,6 +526,14 @@
     }
     const sectionForCount = (sec && sec.classList.contains('section-row')) ? sec : null;
 
+    // Backend-Sync: Löschung melden
+    const tid = row.getAttribute('data-tid');
+    const isCustom = row.getAttribute('data-custom') === '1' || row.getAttribute('data-client-id');
+    if (window.PlanSync && tid) {
+      if (isCustom) window.PlanSync.pushCustomDelete(row.getAttribute('data-client-id') || tid);
+      else window.PlanSync.pushOverride('task', tid, 'deleted', '1');
+    }
+
     row.remove();
     if (sectionForCount) updateSectionCounter(sectionForCount);
     updateHeaderStats();
@@ -517,6 +547,13 @@
           parent.appendChild(row);
         }
         if (sectionForCount) updateSectionCounter(sectionForCount);
+        // Sync: Wiederherstellung
+        if (window.PlanSync && tid) {
+          if (isCustom) window.PlanSync.pushCustomAdd('task', row.getAttribute('data-client-id') || tid, null, null, {
+            name: taskName, status: row.getAttribute('data-status') || 'geplant',
+          });
+          else window.PlanSync.pushOverride('task', tid, 'deleted', '0');
+        }
       },
     });
 
@@ -540,6 +577,22 @@
       toRemoveNodes.push(next);
       next = next.nextElementSibling;
     }
+    // Backend-Sync: Section-Löschung melden (Section + alle Tasks darin)
+    if (window.PlanSync) {
+      const secIdx = Array.from(sectionRow.parentNode.children).indexOf(sectionRow);
+      window.PlanSync.pushOverride('section', 'section-idx-' + secIdx, 'deleted', '1');
+      toRemoveNodes.forEach(n => {
+        if (n.classList.contains('task-row')) {
+          const t = n.getAttribute('data-tid');
+          if (t) {
+            if (n.getAttribute('data-custom') === '1' || n.getAttribute('data-client-id'))
+              window.PlanSync.pushCustomDelete(n.getAttribute('data-client-id') || t);
+            else window.PlanSync.pushOverride('task', t, 'deleted', '1');
+          }
+        }
+      });
+    }
+
     // Reihenfolge umkehren für Wiederherstellung
     toRemoveNodes.forEach(n => n.remove());
     sectionRow.remove();
@@ -679,6 +732,8 @@
     });
     updateAllSectionCounters();
   }
+  // Für sync2.js: nach Remote-Änderungen neu zählen
+  window.__recountStats = updateHeaderStats;
 
   // ═════════ Init ═════════
   function activate() {
