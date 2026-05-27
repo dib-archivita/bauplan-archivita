@@ -44,7 +44,7 @@ if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
         foreach ($d as $k => $v) { if (is_string($v)) $d[$k] = $strip($v); }
         $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':id' => $r['id']]); $ciFixed++;
     }
-    audit_log((int)$u['id'], 'sync.cleanup_glyphs', null, null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
+    audit_log((int)$u['id'], 'sync.cleanup_glyphs', 'maintenance', null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
     json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed]);
 }
 
@@ -213,7 +213,7 @@ if ($method === 'POST') {
             $ciFixed++;
         }
 
-        audit_log((int)$u['id'], 'sync.cleanup_glyphs', null, null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
+        audit_log((int)$u['id'], 'sync.cleanup_glyphs', 'maintenance', null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
         json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed, 'server_time' => date('Y-m-d H:i:s')]);
     }
 
