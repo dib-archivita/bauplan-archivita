@@ -190,28 +190,47 @@
       ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // Liest den reinen Aufgabennamen (nur Text-Nodes, ohne Button-Symbole)
+  function readPlainName(cell) {
+    let txt = '';
+    cell.childNodes.forEach((n) => { if (n.nodeType === Node.TEXT_NODE) txt += n.textContent; });
+    return txt.replace(/[🕐✕]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Entfernt verirrte 🕐/✕-Zeichen aus den direkten Text-Nodes der Zelle (Selbstheilung)
+  function healStrayGlyphs(cell) {
+    cell.childNodes.forEach((n) => {
+      if (n.nodeType === Node.TEXT_NODE && /[🕐✕]/.test(n.textContent)) {
+        n.textContent = n.textContent.replace(/[🕐✕]/g, '');
+      }
+    });
+  }
+
   // History-Button pro Aufgabe einbauen
   function addHistoryButtons() {
     document.querySelectorAll('tr.task-row').forEach((row) => {
       const nameCell = row.querySelector('.task-name-cell');
       if (!nameCell) return;
-      // Bulletproof Dedup: alle vorhandenen 🕐 entfernen außer dem ersten
-      const existing = nameCell.querySelectorAll('.se-history-btn');
+      // Selbstheilung: versehentlich als Text gespeicherte Symbole raus
+      healStrayGlyphs(nameCell);
+      // Bulletproof Dedup (zeilenweit): nur den ersten 🕐-Button behalten
+      const existing = row.querySelectorAll('.se-history-btn');
       if (existing.length > 0) {
         for (let i = 1; i < existing.length; i++) existing[i].remove();
-        return;  // schon (mind.) einer da
+        return;  // schon (genau) einer da
       }
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'se-history-btn';
       btn.title = 'Verlauf anzeigen';
       btn.innerHTML = '🕐';
+      // KRITISCH: contenteditable=false → Browser zieht das Symbol NICHT in den editierbaren Text
+      btn.setAttribute('contenteditable', 'false');
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         const tid = row.getAttribute('data-tid');
-        const taskName = (nameCell.textContent || '').replace(/✕\s*$/, '').replace(/🕐\s*$/, '').trim();
-        openModal(tid, taskName);
+        openModal(tid, readPlainName(nameCell));
       });
       // Vor dem Delete-Button einfügen wenn vorhanden
       const delBtn = nameCell.querySelector('.se-row-del');

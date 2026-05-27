@@ -13,6 +13,14 @@
 (function () {
   'use strict';
 
+  // Liest reinen Text einer Zelle: nur direkte Text-Nodes, ohne Button-Symbole (🕐/✕)
+  function plainCellText(el) {
+    if (!el) return '';
+    let txt = '';
+    el.childNodes.forEach((n) => { if (n.nodeType === Node.TEXT_NODE) txt += n.textContent; });
+    return txt.replace(/[🕐✕]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
   const STORAGE_KEY = 'section-edit-v1';
 
   function loadOverrides() {
@@ -442,6 +450,8 @@
         delBtn.className = 'se-row-del';
         delBtn.innerHTML = '✕';
         delBtn.title = 'Aufgabe löschen';
+        // KRITISCH: contenteditable=false → Symbol landet nie im editierbaren Text
+        delBtn.setAttribute('contenteditable', 'false');
         delBtn.style.cssText = [
           'float:right',
           'margin-left:8px',
@@ -490,10 +500,8 @@
       // Nur in task-row Cells (Aufgabe / Firma) tracken
       const row = t.closest && t.closest('tr.task-row');
       if (!row) return;
-      // Snapshot vom Klartext (ohne Delete-Button-Symbol)
-      let val = (t.textContent || '').trim();
-      val = val.replace(/✕\s*$/, '').trim();
-      t[PRE_EDIT_KEY] = val;
+      // Snapshot vom Klartext (ohne Button-Symbole)
+      t[PRE_EDIT_KEY] = plainCellText(t);
     }, true);
 
     document.addEventListener('focusout', (e) => {
@@ -501,8 +509,7 @@
       if (!t || !(PRE_EDIT_KEY in t)) return;
       const row = t.closest && t.closest('tr.task-row');
       if (!row) { delete t[PRE_EDIT_KEY]; return; }
-      let newVal = (t.textContent || '').trim();
-      newVal = newVal.replace(/✕\s*$/, '').trim();
+      let newVal = plainCellText(t);
       const oldVal = t[PRE_EDIT_KEY];
       delete t[PRE_EDIT_KEY];
       if (newVal !== oldVal) {
@@ -520,7 +527,8 @@
   }
 
   function deleteTaskRow(row) {
-    const taskName = (row.querySelector('.task-name-cell')?.textContent || '').replace(/✕$/, '').trim() || 'Aufgabe';
+    const nc = row.querySelector('.task-name-cell');
+    const taskName = (nc ? plainCellText(nc) : '') || 'Aufgabe';
     if (!confirm(`Aufgabe "${taskName.slice(0,50)}" löschen?\n\nMit ⌘Z / Ctrl+Z rückgängig machbar.`)) return;
 
     const parent = row.parentNode;
