@@ -31,8 +31,11 @@
   };
 
   let lastSync = null;
-  let applyingRemote = false;
+  let remoteUntil = 0;          // applyingRemote bis zu diesem Zeitpunkt (ms)
   let pollTimer = null;
+
+  function beginRemote() { remoteUntil = Date.now() + 400; }  // deckt async Observer ab
+  function isApplyingRemoteNow() { return Date.now() < remoteUntil; }
 
   // ── Helpers ────────────────────────────────────────────────────────
   function rowByTid(tid) {
@@ -59,7 +62,7 @@
 
   // ── Apply einzelne Override aufs DOM ──────────────────────────────
   function applyOverride(ov) {
-    applyingRemote = true;
+    beginRemote();
     try {
       if (ov.entity_type === 'task') {
         const row = rowByTid(ov.entity_key);
@@ -132,7 +135,7 @@
         }
       }
     } finally {
-      applyingRemote = false;
+      
     }
   }
 
@@ -151,7 +154,7 @@
 
   // ── Apply custom item (neue Aufgabe / Section) ────────────────────
   function applyCustom(item) {
-    applyingRemote = true;
+    beginRemote();
     try {
       const existing = document.querySelector('[data-tid="' + cssEscape(item.client_id) + '"]')
                     || document.querySelector('[data-client-id="' + cssEscape(item.client_id) + '"]');
@@ -172,7 +175,7 @@
         insertCustomSection(row, item);
       }
     } finally {
-      applyingRemote = false;
+      
     }
   }
 
@@ -240,24 +243,53 @@
       ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // ── Sync-Indikator ─────────────────────────────────────────────────
+  function setIndicator(state, info) {
+    let el = document.getElementById('sync-indicator');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'sync-indicator';
+      el.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:9997;font-family:Inter,sans-serif;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2e8f0;padding:5px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(15,23,42,.08);color:#64748b';
+      el.innerHTML = '<span class="si-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span><span class="si-text">Sync</span>';
+      document.body.appendChild(el);
+    }
+    const dot = el.querySelector('.si-dot');
+    const txt = el.querySelector('.si-text');
+    if (state === 'ok')   { dot.style.background = '#22c55e'; txt.textContent = info || 'Synchron'; }
+    if (state === 'sync') { dot.style.background = '#2563eb'; txt.textContent = 'Synchronisiere…'; }
+    if (state === 'error'){ dot.style.background = '#ef4444'; txt.textContent = info || 'Sync-Fehler'; }
+  }
+
   // ── Fetch + Apply ──────────────────────────────────────────────────
   async function fetchAndApply(initial) {
+    setIndicator('sync');
     try {
       const url = (initial || !lastSync) ? API : (API + '?since=' + encodeURIComponent(lastSync));
       const res = await fetch(url, { credentials: 'same-origin' });
       if (res.status === 401) { location.href = 'login.html'; return; }
-      if (!res.ok) return;
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error('[sync] GET fehlgeschlagen', res.status, txt.slice(0,200));
+        setIndicator('error', 'Sync-Fehler ' + res.status);
+        return;
+      }
       const data = await res.json();
       lastSync = data.server_time;
+      const nOv = (data.overrides || []).length;
+      const nCi = (data.custom || []).length;
       (data.overrides || []).forEach(applyOverride);
       (data.custom || []).forEach(applyCustom);
-      // Nach Anwendung: Counter / Stats neu (falls section-edit.js geladen)
       if (window.__recountStats) window.__recountStats();
-    } catch (e) { /* still */ }
+      setIndicator('ok', nOv + nCi > 0 ? `↻ ${nOv+nCi} Änderung(en)` : 'Synchron');
+    } catch (e) {
+      console.error('[sync] GET exception', e);
+      setIndicator('error', 'Netzwerk-Fehler');
+    }
   }
 
   // ── Push ───────────────────────────────────────────────────────────
   async function post(body) {
+    setIndicator('sync');
     try {
       const res = await fetch(API, {
         method: 'POST',
@@ -266,11 +298,21 @@
         body: JSON.stringify(body),
       });
       if (res.status === 401) { location.href = 'login.html'; return null; }
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data && data.server_time) lastSync = data.server_time;
-      if (!res.ok && data && data.error) showToast(data.error);
+      if (!res.ok) {
+        console.error('[sync] POST fehlgeschlagen', res.status, data);
+        setIndicator('error', (data && data.error) || ('Fehler ' + res.status));
+        showToast((data && data.error) || ('Speichern fehlgeschlagen (' + res.status + ')'));
+      } else {
+        setIndicator('ok', 'Gespeichert');
+      }
       return data;
-    } catch (e) { return null; }
+    } catch (e) {
+      console.error('[sync] POST exception', e);
+      setIndicator('error', 'Netzwerk-Fehler');
+      return null;
+    }
   }
 
   function showToast(msg) {
@@ -289,21 +331,21 @@
 
   // ── Public API ─────────────────────────────────────────────────────
   window.PlanSync = {
-    isApplyingRemote() { return applyingRemote; },
+    isApplyingRemote() { return isApplyingRemoteNow(); },
     pushOverride(type, key, field, value) {
-      if (applyingRemote) return;
+      if (isApplyingRemoteNow()) return;
       post({ op: 'override', entity_type: type, entity_key: key, field, value });
     },
     pushCustomAdd(itemType, clientId, parentKey, afterKey, data) {
-      if (applyingRemote) return;
+      if (isApplyingRemoteNow()) return;
       post({ op: 'custom_add', item_type: itemType, client_id: clientId, parent_key: parentKey, after_key: afterKey, data });
     },
     pushCustomUpdate(clientId, data) {
-      if (applyingRemote) return;
+      if (isApplyingRemoteNow()) return;
       post({ op: 'custom_update', client_id: clientId, data });
     },
     pushCustomDelete(clientId) {
-      if (applyingRemote) return;
+      if (isApplyingRemoteNow()) return;
       post({ op: 'custom_delete', client_id: clientId });
     },
     forcePoll() { fetchAndApply(false); },

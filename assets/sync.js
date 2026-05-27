@@ -47,17 +47,10 @@
     injectUserBar();
     applyRoleRestrictions();
 
-    // Initialer State-Load
-    await syncState(true);
-
-    // Polling starten
-    State.polling = setInterval(() => syncState(false), State.POLL_MS);
-
-    // Edit-Hooks installieren
-    installEditHooks();
-
-    // Migration prüfen
-    maybeMigrate();
+    // HINWEIS: State-Polling + Edit-Hooks + Migration sind DEAKTIVIERT.
+    // Der Live-Sync läuft jetzt komplett über sync2.js (Overlay-Sync via /api/sync.php).
+    // Das alte /api/state.php + /api/tasks.php-Patching würde nur Konflikte + 404s erzeugen.
+    // (Funktionen bleiben im Code für evtl. spätere Nutzung, werden aber nicht aufgerufen.)
   }
 
   // ── User-Bar oben rechts ───────────────────────────────────────────
