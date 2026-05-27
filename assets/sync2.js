@@ -199,10 +199,10 @@
     row.setAttribute('data-custom', '1');
     const st = d.status || 'geplant';
     row.innerHTML =
-      '<td class="task-name-cell">' + esc(d.name || 'Neue Aufgabe') + '</td>' +
+      '<td class="task-name-cell">' + esc(sanitizeText(d.name) || 'Neue Aufgabe') + '</td>' +
       '<td><span class="status-badge ' + (STATUS_CSS[st]||'status-planned') + '">' + (STATUS_LABELS[st]||'—') + '</span></td>' +
-      '<td style="padding:2px 5px;font-size:10px"><span class="gewerk-badge" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">' + esc(d.gewerk || '+ Gewerk') + '</span></td>' +
-      '<td style="padding:2px 5px;font-size:10px;color:#64748b">' + esc(d.firma || '—') + '</td>' +
+      '<td style="padding:2px 5px;font-size:10px"><span class="gewerk-badge" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">' + esc(sanitizeText(d.gewerk) || '+ Gewerk') + '</span></td>' +
+      '<td style="padding:2px 5px;font-size:10px;color:#64748b">' + esc(sanitizeText(d.firma) || '—') + '</td>' +
       '<td><div class="gantt-row-inner" style="width:3768px">' +
         (d.bar_width ? '<div class="gantt-bar ' + (STATUS_CSS[st]||'status-planned') + '" style="left:' + (d.bar_left||0) + 'px;width:' + d.bar_width + 'px"></div>' : '') +
       '</div></td>';
@@ -338,20 +338,30 @@
     showToast._t = setTimeout(() => { t.style.opacity = '0'; }, 3000);
   }
 
+  // Säubert Text-Felder eines Daten-Objekts (name/firma/gewerk) von Button-Symbolen
+  const TEXT_FIELDS = ['name', 'firma', 'gewerk'];
+  function sanitizeData(data) {
+    if (!data || typeof data !== 'object') return data;
+    const out = Object.assign({}, data);
+    TEXT_FIELDS.forEach(f => { if (typeof out[f] === 'string') out[f] = sanitizeText(out[f]); });
+    return out;
+  }
+
   // ── Public API ─────────────────────────────────────────────────────
   window.PlanSync = {
     isApplyingRemote() { return isApplyingRemoteNow(); },
     pushOverride(type, key, field, value) {
       if (isApplyingRemoteNow()) return;
+      if (TEXT_FIELDS.indexOf(field) !== -1 && typeof value === 'string') value = sanitizeText(value);
       post({ op: 'override', entity_type: type, entity_key: key, field, value });
     },
     pushCustomAdd(itemType, clientId, parentKey, afterKey, data) {
       if (isApplyingRemoteNow()) return;
-      post({ op: 'custom_add', item_type: itemType, client_id: clientId, parent_key: parentKey, after_key: afterKey, data });
+      post({ op: 'custom_add', item_type: itemType, client_id: clientId, parent_key: parentKey, after_key: afterKey, data: sanitizeData(data) });
     },
     pushCustomUpdate(clientId, data) {
       if (isApplyingRemoteNow()) return;
-      post({ op: 'custom_update', client_id: clientId, data });
+      post({ op: 'custom_update', client_id: clientId, data: sanitizeData(data) });
     },
     pushCustomDelete(clientId) {
       if (isApplyingRemoteNow()) return;
