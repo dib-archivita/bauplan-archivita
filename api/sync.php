@@ -25,6 +25,11 @@ $db = db();
 $method = $_SERVER['REQUEST_METHOD'];
 $role = $u['role'];
 
+// WICHTIG: server_time MUSS aus derselben Uhr kommen wie updated_at (MySQL),
+// sonst greift der ?since-Filter daneben und der Auto-Poll verpasst Änderungen.
+// 2 Sek. Sicherheitspuffer → minimaler Overlap (Apply ist idempotent), nichts geht verloren.
+$serverTime = $db->query('SELECT DATE_SUB(NOW(), INTERVAL 2 SECOND)')->fetchColumn();
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
@@ -91,7 +96,7 @@ if ($method === 'GET') {
 
     json_response([
         'ok'          => true,
-        'server_time' => date('Y-m-d H:i:s'),
+        'server_time' => $serverTime,
         'overrides'   => $ovStmt->fetchAll(),
         'custom'      => $custom,
     ]);
@@ -131,7 +136,7 @@ if ($method === 'POST') {
             ':uid' => (int)$u['id'],
         ]);
         audit_log((int)$u['id'], 'sync.override', $type, $key, ['field'=>$field, 'value'=>$value]);
-        json_response(['ok' => true, 'server_time' => date('Y-m-d H:i:s')]);
+        json_response(['ok' => true, 'server_time' => $serverTime]);
     }
 
     if ($op === 'custom_add') {
@@ -158,7 +163,7 @@ if ($method === 'POST') {
             ':uid' => (int)$u['id'],
         ]);
         audit_log((int)$u['id'], 'sync.custom_add', $itemType, $clientId, $data);
-        json_response(['ok' => true, 'server_time' => date('Y-m-d H:i:s')]);
+        json_response(['ok' => true, 'server_time' => $serverTime]);
     }
 
     if ($op === 'custom_update') {
@@ -179,7 +184,7 @@ if ($method === 'POST') {
         $stmt = $db->prepare('UPDATE custom_items SET data = :data WHERE client_id = :c');
         $stmt->execute([':data' => json_encode($data, JSON_UNESCAPED_UNICODE), ':c' => $clientId]);
         audit_log((int)$u['id'], 'sync.custom_update', 'task', $clientId, $data);
-        json_response(['ok' => true, 'server_time' => date('Y-m-d H:i:s')]);
+        json_response(['ok' => true, 'server_time' => $serverTime]);
     }
 
     if ($op === 'cleanup_glyphs') {
@@ -214,7 +219,7 @@ if ($method === 'POST') {
         }
 
         audit_log((int)$u['id'], 'sync.cleanup_glyphs', 'maintenance', null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
-        json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed, 'server_time' => date('Y-m-d H:i:s')]);
+        json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed, 'server_time' => $serverTime]);
     }
 
     if ($op === 'custom_delete') {
@@ -223,7 +228,7 @@ if ($method === 'POST') {
         $db->prepare('UPDATE custom_items SET deleted = 1 WHERE client_id = :c')
            ->execute([':c' => $clientId]);
         audit_log((int)$u['id'], 'sync.custom_delete', 'task', $clientId);
-        json_response(['ok' => true, 'server_time' => date('Y-m-d H:i:s')]);
+        json_response(['ok' => true, 'server_time' => $serverTime]);
     }
 
     json_error('Unbekannte Operation', 400);
