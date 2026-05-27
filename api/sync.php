@@ -25,6 +25,29 @@ $db = db();
 $method = $_SERVER['REQUEST_METHOD'];
 $role = $u['role'];
 
+// ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
+if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
+    if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
+    $clock = "\u{1F550}"; $cross = "\u{2715}";
+    $strip = function (?string $s) use ($clock, $cross) {
+        if ($s === null) return null;
+        return trim(preg_replace('/\s+/u', ' ', str_replace([$clock, $cross], '', $s)));
+    };
+    $ovFixed = 0; $ciFixed = 0;
+    $rows = $db->query("SELECT id, value FROM overrides WHERE value LIKE '%{$clock}%' OR value LIKE '%{$cross}%'")->fetchAll();
+    $upd = $db->prepare('UPDATE overrides SET value = :v WHERE id = :id');
+    foreach ($rows as $r) { $upd->execute([':v' => $strip($r['value']), ':id' => $r['id']]); $ovFixed++; }
+    $rows = $db->query("SELECT id, data FROM custom_items WHERE data LIKE '%{$clock}%' OR data LIKE '%{$cross}%'")->fetchAll();
+    $upd = $db->prepare('UPDATE custom_items SET data = :d WHERE id = :id');
+    foreach ($rows as $r) {
+        $d = json_decode($r['data'] ?? '{}', true) ?: [];
+        foreach ($d as $k => $v) { if (is_string($v)) $d[$k] = $strip($v); }
+        $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':id' => $r['id']]); $ciFixed++;
+    }
+    audit_log((int)$u['id'], 'sync.cleanup_glyphs', null, null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
+    json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed]);
+}
+
 // ── GET: aktuelle Änderungen liefern ─────────────────────────────────
 if ($method === 'GET') {
     require_role($u, 'state.read');
@@ -157,6 +180,41 @@ if ($method === 'POST') {
         $stmt->execute([':data' => json_encode($data, JSON_UNESCAPED_UNICODE), ':c' => $clientId]);
         audit_log((int)$u['id'], 'sync.custom_update', 'task', $clientId, $data);
         json_response(['ok' => true, 'server_time' => date('Y-m-d H:i:s')]);
+    }
+
+    if ($op === 'cleanup_glyphs') {
+        // Einmal-Bereinigung: entfernt verirrte Button-Symbole (🕐 / ✕) aus gespeicherten Werten
+        if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
+        $clock = "\u{1F550}"; // 🕐
+        $cross = "\u{2715}";  // ✕
+        $strip = function (?string $s) use ($clock, $cross) {
+            if ($s === null) return null;
+            $s = str_replace([$clock, $cross], '', $s);
+            return trim(preg_replace('/\s+/u', ' ', $s));
+        };
+
+        $ovFixed = 0; $ciFixed = 0;
+
+        // overrides.value
+        $rows = $db->query("SELECT id, value FROM overrides WHERE value LIKE '%{$clock}%' OR value LIKE '%{$cross}%'")->fetchAll();
+        $upd = $db->prepare('UPDATE overrides SET value = :v WHERE id = :id');
+        foreach ($rows as $r) {
+            $upd->execute([':v' => $strip($r['value']), ':id' => $r['id']]);
+            $ovFixed++;
+        }
+
+        // custom_items.data (JSON) — pro String-Feld säubern
+        $rows = $db->query("SELECT id, data FROM custom_items WHERE data LIKE '%{$clock}%' OR data LIKE '%{$cross}%'")->fetchAll();
+        $upd = $db->prepare('UPDATE custom_items SET data = :d WHERE id = :id');
+        foreach ($rows as $r) {
+            $d = json_decode($r['data'] ?? '{}', true) ?: [];
+            foreach ($d as $k => $v) { if (is_string($v)) $d[$k] = $strip($v); }
+            $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':id' => $r['id']]);
+            $ciFixed++;
+        }
+
+        audit_log((int)$u['id'], 'sync.cleanup_glyphs', null, null, ['overrides'=>$ovFixed, 'custom'=>$ciFixed]);
+        json_response(['ok' => true, 'overrides_fixed' => $ovFixed, 'custom_fixed' => $ciFixed, 'server_time' => date('Y-m-d H:i:s')]);
     }
 
     if ($op === 'custom_delete') {

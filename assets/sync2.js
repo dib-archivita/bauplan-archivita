@@ -370,9 +370,33 @@
     forcePoll() { fetchAndApply(false); },
   };
 
+  // Einmalige DB-Bereinigung verirrter Button-Symbole (nur Admin, einmal pro Browser)
+  async function cleanupGlyphsOnce() {
+    if (!document.body.classList.contains('role-admin')) return;
+    if (localStorage.getItem('glyph-cleanup-done') === '1') return;
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ op: 'cleanup_glyphs' }),
+      });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        localStorage.setItem('glyph-cleanup-done', '1');
+        if ((d.overrides_fixed || 0) + (d.custom_fixed || 0) > 0) {
+          console.log('[sync] DB bereinigt:', d.overrides_fixed, 'overrides,', d.custom_fixed, 'custom');
+          lastSync = null;            // erzwinge Voll-Refresh mit sauberen Werten
+          fetchAndApply(true);
+        }
+      }
+    } catch (e) { /* still */ }
+  }
+
   // ── Init ───────────────────────────────────────────────────────────
   function init() {
     fetchAndApply(true).then(() => {
+      cleanupGlyphsOnce();
       pollTimer = setInterval(() => fetchAndApply(false), POLL_MS);
     });
     // Bei Tab-Fokus sofort syncen
