@@ -855,6 +855,26 @@
     document.querySelectorAll('tr.task-row').forEach(t =>
       mo.observe(t, { attributes: true, attributeFilter: ['data-status'] })
     );
+
+    // ChildList-Observer: neue (z.B. gesyncte) Aufgaben-Zeilen bekommen Delete-Button + Status-Watch
+    const rowObs = new MutationObserver((muts) => {
+      let added = false;
+      for (const m of muts) {
+        m.addedNodes && m.addedNodes.forEach((n) => {
+          if (n.nodeType !== 1) return;
+          const rows = n.matches && n.matches('tr.task-row') ? [n]
+                     : (n.querySelectorAll ? Array.from(n.querySelectorAll('tr.task-row')) : []);
+          rows.forEach((r) => {
+            addTaskRowEditing(r);
+            mo.observe(r, { attributes: true, attributeFilter: ['data-status'] });
+            added = true;
+          });
+        });
+      }
+      if (added) { clearTimeout(rowObs._t); rowObs._t = setTimeout(updateHeaderStats, 120); }
+    });
+    const tbody = document.querySelector('#main-gantt tbody');
+    if (tbody) rowObs.observe(tbody, { childList: true });
   }
 
   if (document.readyState === 'loading') {
