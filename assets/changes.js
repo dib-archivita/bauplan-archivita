@@ -109,16 +109,24 @@
 
   // ── Text-Edits via Capture-Phase focus/blur ───────────────────────
   const PRE = '__changes_pre';
+  // Liest NUR die direkten Text-Nodes (ignoriert 🕐/✕ Buttons + andere Elemente)
+  function cleanText(el) {
+    let txt = '';
+    el.childNodes.forEach((n) => {
+      if (n.nodeType === Node.TEXT_NODE) txt += n.textContent;
+    });
+    return txt.trim();
+  }
   function initTextObserver() {
     document.addEventListener('focusin', (e) => {
       const t = e.target;
       if (!t || !t.isContentEditable) return;
-      t[PRE] = (t.textContent || '').replace(/✕\s*$/, '').trim();
+      t[PRE] = cleanText(t);
     }, true);
     document.addEventListener('focusout', (e) => {
       const t = e.target;
       if (!t || !(PRE in t)) return;
-      const newVal = (t.textContent || '').replace(/✕\s*$/, '').trim();
+      const newVal = cleanText(t);
       const oldVal = t[PRE];
       delete t[PRE];
       if (newVal === oldVal) return;
