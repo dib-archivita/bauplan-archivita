@@ -11,10 +11,39 @@
 (function () {
   'use strict';
 
-  // ── 1. Service Worker registrieren ────────────────────────────────
+  // ── 1. Service Worker registrieren + Auto-Update ──────────────────
   if ('serviceWorker' in navigator) {
+    let reloadingForSW = false;
+
+    function reloadOnce() {
+      if (reloadingForSW) return;
+      reloadingForSW = true;
+      // Einmaliger Reload, damit der Tab die neuen Assets lädt
+      window.location.reload();
+    }
+
+    // Wenn ein neuer SW die Kontrolle übernimmt → Seite einmal neu laden
+    navigator.serviceWorker.addEventListener('controllerchange', reloadOnce);
+
+    // sw.js postet bei activate {type:'sw-updated'}
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'sw-updated') reloadOnce();
+    });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // Regelmäßig auf neue Version prüfen (alle 60s) + sofort beim Laden
+        reg.update().catch(() => {});
+        setInterval(() => reg.update().catch(() => {}), 60000);
+        // Neuer SW gefunden → installiert → aktivieren lassen (skipWaiting in sw.js)
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'activated' && navigator.serviceWorker.controller) reloadOnce();
+          });
+        });
+      }).catch(() => {});
     });
   }
 
