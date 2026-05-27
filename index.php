@@ -7572,6 +7572,15 @@ window.addEventListener('DOMContentLoaded', function(){
     tr.setAttribute('data-gewerk', g.name);
     var tid = tr.getAttribute('data-tid');
     if (tid) localStorage.setItem('task-gewerk-' + tid, g.name);
+    // An den Live-Sync weitergeben (außer wir wenden gerade eine Remote-Änderung an)
+    if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+      var cid = tr.getAttribute('data-client-id');
+      if (cid || tr.getAttribute('data-custom') === '1') {
+        window.PlanSync.pushCustomUpdate(cid || tid, { gewerk: g.name });
+      } else if (tid) {
+        window.PlanSync.pushOverride('task', tid, 'gewerk', g.name);
+      }
+    }
   }
   window.applyGewerk = applyGewerk;
 

@@ -60,6 +60,25 @@
     return tb ? tb.children[idx] : null;
   }
 
+  // Gewerk inkl. Farbe setzen (nutzt window.applyGewerk + window.GEWERKE aus index.php)
+  function applyGewerkStyled(row, value) {
+    const td = row.children[2];
+    let span = td && (td.querySelector('.gewerk-badge') || td.querySelector('span'));
+    if (td && !span) {
+      span = document.createElement('span');
+      span.className = 'gewerk-badge';
+      td.appendChild(span);
+    }
+    const list = window.GEWERKE || [];
+    const g = list.find(x => x.name === value) || { name: value, bg: '#f1f5f9', fg: '#64748b' };
+    if (window.applyGewerk && span) {
+      window.applyGewerk(span, row, g);   // setzt Text + Farbe + data-gewerk (Echo via isApplyingRemote geblockt)
+    } else if (span) {
+      span.textContent = value || '+ Gewerk';
+      row.setAttribute('data-gewerk', value || '');
+    }
+  }
+
   // ── Apply einzelne Override aufs DOM ──────────────────────────────
   function applyOverride(ov) {
     beginRemote();
@@ -88,9 +107,7 @@
             break;
           }
           case 'gewerk': {
-            const badge = row.querySelector('.gewerk-badge') || row.children[2]?.querySelector('span');
-            if (badge) badge.textContent = ov.value;
-            row.setAttribute('data-gewerk', ov.value);
+            applyGewerkStyled(row, ov.value);
             break;
           }
           case 'bar_left': {
@@ -216,6 +233,7 @@
       if (badge) { badge.textContent = STATUS_LABELS[d.status]||d.status; badge.className = 'status-badge ' + (STATUS_CSS[d.status]||'status-planned'); }
     }
     if (d.firma != null && row.children[3]) setCellText(row.children[3], d.firma);
+    if (d.gewerk != null) applyGewerkStyled(row, d.gewerk);
   }
   function insertCustomTask(row, item) {
     let anchor = null;
