@@ -124,6 +124,12 @@
             row.setAttribute('data-notiz', ov.value || '');
             break;
           }
+          case 'deadline': {
+            const tid = ov.entity_key;
+            if (ov.value) localStorage.setItem('bar-deadline-' + tid, ov.value);
+            else localStorage.removeItem('bar-deadline-' + tid);
+            break;
+          }
           case 'deleted': {
             if (ov.value === '1') row.remove();
             break;
@@ -234,6 +240,18 @@
     }
     if (d.firma != null && row.children[3]) setCellText(row.children[3], d.firma);
     if (d.gewerk != null) applyGewerkStyled(row, d.gewerk);
+    if (d.bar_left != null || d.bar_width != null) {
+      const bar = row.querySelector('.gantt-bar');
+      if (bar) {
+        if (d.bar_left != null) bar.style.left = parseInt(d.bar_left, 10) + 'px';
+        if (d.bar_width != null) bar.style.width = parseInt(d.bar_width, 10) + 'px';
+      }
+    }
+    if (d.deadline != null) {
+      const tid = row.getAttribute('data-tid');
+      if (d.deadline) localStorage.setItem('bar-deadline-' + tid, d.deadline);
+      else localStorage.removeItem('bar-deadline-' + tid);
+    }
   }
   function insertCustomTask(row, item) {
     let anchor = null;

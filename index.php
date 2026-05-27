@@ -7059,6 +7059,18 @@ window.addEventListener('DOMContentLoaded', function(){
       var dl = document.getElementById('be-deadline').value;
       if (dl) localStorage.setItem('bar-deadline-' + currentTid, dl);
       else localStorage.removeItem('bar-deadline-' + currentTid);
+      // An den Live-Sync weitergeben
+      if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+        var tr = currentBar.closest('tr.task-row');
+        var cid = tr && tr.getAttribute('data-client-id');
+        if (cid || (tr && tr.getAttribute('data-custom') === '1')) {
+          window.PlanSync.pushCustomUpdate(cid || currentTid, { bar_left: newLeft, bar_width: newWidth, deadline: dl || '' });
+        } else {
+          window.PlanSync.pushOverride('task', currentTid, 'bar_left', String(newLeft));
+          window.PlanSync.pushOverride('task', currentTid, 'bar_width', String(newWidth));
+          window.PlanSync.pushOverride('task', currentTid, 'deadline', dl || '');
+        }
+      }
     }
 
     closeBarEditor();
