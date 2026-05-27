@@ -7261,6 +7261,16 @@ window.addEventListener('DOMContentLoaded', function(){
         if (tid) {
           localStorage.setItem('bar-pos-' + tid, JSON.stringify({left: newLeft, width: newWidth}));
         }
+        // An den Live-Sync weitergeben
+        if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+          var cid = tr.getAttribute('data-client-id');
+          if (cid || tr.getAttribute('data-custom') === '1') {
+            window.PlanSync.pushCustomUpdate(cid || tid, { bar_left: newLeft, bar_width: newWidth });
+          } else if (tid) {
+            window.PlanSync.pushOverride('task', tid, 'bar_left', String(newLeft));
+            window.PlanSync.pushOverride('task', tid, 'bar_width', String(newWidth));
+          }
+        }
       }
 
       // VERKETTUNG: Folge-Tasks innerhalb gleicher Einheit zeigen anbieten
@@ -7308,9 +7318,19 @@ window.addEventListener('DOMContentLoaded', function(){
       fbar.classList.add('shifted');
       // Persist
       var ftid = ftr.getAttribute('data-tid');
+      var fw = parseInt(fbar.style.width,10) || 0;
       if (ftid) {
-        var fw = parseInt(fbar.style.width,10) || 0;
         localStorage.setItem('bar-pos-' + ftid, JSON.stringify({left: fl, width: fw}));
+      }
+      // An den Live-Sync weitergeben
+      if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+        var fcid = ftr.getAttribute('data-client-id');
+        if (fcid || ftr.getAttribute('data-custom') === '1') {
+          window.PlanSync.pushCustomUpdate(fcid || ftid, { bar_left: fl, bar_width: fw });
+        } else if (ftid) {
+          window.PlanSync.pushOverride('task', ftid, 'bar_left', String(fl));
+          window.PlanSync.pushOverride('task', ftid, 'bar_width', String(fw));
+        }
       }
     });
   }
