@@ -140,7 +140,16 @@
   }
 
   // Setzt Text einer Zelle ohne die Action-Buttons (✕, 🕐) zu verlieren
+  function sanitizeText(text) {
+    // Entferne versehentlich mitgespeicherte Button-Symbole (🕐 / ✕)
+    return String(text == null ? '' : text)
+      .replace(/[🕐✕]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function setCellText(cell, text) {
+    text = sanitizeText(text);
     const buttons = Array.from(cell.querySelectorAll(':scope > button, :scope > .editable-text'));
     // Falls editable-text-span vorhanden (sections), nur dessen Text setzen
     const et = cell.querySelector(':scope > .editable-text');

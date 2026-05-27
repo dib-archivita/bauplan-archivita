@@ -193,9 +193,14 @@
   // History-Button pro Aufgabe einbauen
   function addHistoryButtons() {
     document.querySelectorAll('tr.task-row').forEach((row) => {
-      if (row.querySelector(':scope .se-history-btn')) return;
       const nameCell = row.querySelector('.task-name-cell');
       if (!nameCell) return;
+      // Bulletproof Dedup: alle vorhandenen 🕐 entfernen außer dem ersten
+      const existing = nameCell.querySelectorAll('.se-history-btn');
+      if (existing.length > 0) {
+        for (let i = 1; i < existing.length; i++) existing[i].remove();
+        return;  // schon (mind.) einer da
+      }
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'se-history-btn';

@@ -424,6 +424,12 @@
 
   // ═════════ Task-Row: Delete-Button + Text-Edit-Undo ═════════
   function addTaskRowEditing(row) {
+    // Duplikate aufräumen falls vorhanden (mehrfache ✕)
+    const nc = row.querySelector('.task-name-cell');
+    if (nc) {
+      const dels = nc.querySelectorAll('.se-row-del');
+      for (let i = 1; i < dels.length; i++) dels[i].remove();
+    }
     if (row.dataset.seInit === '1') return;
     row.dataset.seInit = '1';
 
