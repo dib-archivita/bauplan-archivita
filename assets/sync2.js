@@ -79,6 +79,22 @@
     }
   }
 
+  // ── KV (Neben-Tabs) anwenden ──────────────────────────────────────
+  function applyKV(item) {
+    if (!item || item.k == null) return;
+    beginRemote();
+    try {
+      const cur = localStorage.getItem(item.k);
+      if (cur === item.v) return;                 // nichts geändert
+      if (item.v == null) localStorage.removeItem(item.k);
+      else localStorage.setItem(item.k, item.v);
+      // Feature-spezifisches Re-Render (in index.php definiert)
+      if (typeof window.__applyKVUpdate === 'function') {
+        window.__applyKVUpdate(item.k, item.v);
+      }
+    } finally { /* beginRemote-Fenster läuft aus */ }
+  }
+
   // ── Apply einzelne Override aufs DOM ──────────────────────────────
   function applyOverride(ov) {
     beginRemote();
@@ -322,10 +338,12 @@
       lastSync = data.server_time;
       const nOv = (data.overrides || []).length;
       const nCi = (data.custom || []).length;
+      const nKv = (data.kv || []).length;
       (data.overrides || []).forEach(applyOverride);
       (data.custom || []).forEach(applyCustom);
+      (data.kv || []).forEach(applyKV);
       if (window.__recountStats) window.__recountStats();
-      setIndicator('ok', nOv + nCi > 0 ? `↻ ${nOv+nCi} Änderung(en)` : 'Synchron');
+      setIndicator('ok', nOv + nCi + nKv > 0 ? `↻ ${nOv+nCi+nKv} Änderung(en)` : 'Synchron');
     } catch (e) {
       console.error('[sync] GET exception', e);
       setIndicator('error', 'Netzwerk-Fehler');
@@ -402,6 +420,10 @@
     pushCustomDelete(clientId) {
       if (isApplyingRemoteNow()) return;
       post({ op: 'custom_delete', client_id: clientId });
+    },
+    pushKV(key, value) {
+      if (isApplyingRemoteNow()) return;
+      post({ op: 'kv_set', key: key, value: value });
     },
     forcePoll() { fetchAndApply(false); },
   };

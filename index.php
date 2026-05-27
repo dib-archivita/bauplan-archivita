@@ -5592,6 +5592,7 @@ window.openUrlaubModal = function(cell) {
   }
 
   function renderKalender() {
+    window.renderKalender = renderKalender;  // für KV-Sync von außen aufrufbar
     var thead = document.getElementById('kap-kal-thead');
     var tbody = document.getElementById('kap-kal-tbody');
     if (!thead || !tbody) return;
@@ -7901,6 +7902,63 @@ window.togglePanel = function() {
 <script src="assets/changes.js"></script>
 <script src="assets/history-modal.js"></script>
 <script src="assets/sync2.js"></script>
+<script>
+/* ===== Generischer KV-Sync für Neben-Tabs (Bestellungen, Budget, Kapazität, TODs, Einheiten) ===== */
+(function () {
+  // Welche localStorage-Keys über die DB synchronisiert werden (Kern-Plan läuft separat über overrides!)
+  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry'];
+  var PREFIX = ['task-mh-', 'todo-kw-'];
+  function isSynced(key) {
+    if (!key) return false;
+    if (EXACT.indexOf(key) !== -1) return true;
+    return PREFIX.some(function (p) { return key.indexOf(p) === 0; });
+  }
+
+  // localStorage.setItem/removeItem abfangen → an DB pushen (außer während Remote-Anwendung)
+  var _set = localStorage.setItem.bind(localStorage);
+  var _rem = localStorage.removeItem.bind(localStorage);
+  localStorage.setItem = function (k, v) {
+    _set(k, v);
+    if (isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+      window.PlanSync.pushKV(k, v);
+    }
+  };
+  localStorage.removeItem = function (k) {
+    _rem(k);
+    if (isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+      window.PlanSync.pushKV(k, null);
+    }
+  };
+
+  // Eingehende KV-Änderung anwenden → passendes Re-Render auslösen
+  window.__applyKVUpdate = function (key, value) {
+    try {
+      if (key === 'bo-orders-v3') {
+        window.boOrders = JSON.parse(value || 'null') || window.boOrders;
+        if (typeof window.renderOrders === 'function') window.renderOrders();
+      } else if (key === 'cost-values') {
+        if (typeof window.loadCostValues === 'function') window.loadCostValues();
+      } else if (key === 'unit-costs') {
+        if (typeof window.loadUnitCosts === 'function') window.loadUnitCosts();
+      } else if (key === 'kap-mitarbeiter-v10' || key.indexOf('task-mh-') === 0) {
+        if (typeof window.renderKalender === 'function') window.renderKalender();
+      } else if (key === 'unit-registry') {
+        try { window.UNIT_REGISTRY = JSON.parse(value || '[]'); } catch (e) {}
+        if (typeof window.renderKalender === 'function') window.renderKalender();
+      } else if (key.indexOf('todo-kw-') === 0) {
+        var kw = key.replace('todo-kw-', '');
+        var el = document.getElementById('manual-kw' + kw);
+        if (el) el.innerHTML = value || '';
+      }
+    } catch (e) { /* defensiv: niemals den Sync crashen lassen */ }
+  };
+
+  // Globale Referenzen sicherstellen (renderOrders/loadCostValues/loadUnitCosts sind bereits global)
+  if (typeof renderOrders === 'function') window.renderOrders = renderOrders;
+  if (typeof loadCostValues === 'function') window.loadCostValues = loadCostValues;
+  if (typeof loadUnitCosts === 'function') window.loadUnitCosts = loadUnitCosts;
+})();
+</script>
 <script>
 (function () {
   // Live-Update für "Stand DD.MM.YYYY, HH:MM Uhr" jede Minute

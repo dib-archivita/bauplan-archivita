@@ -30,6 +30,17 @@ $role = $u['role'];
 // 2 Sek. Sicherheitspuffer → minimaler Overlap (Apply ist idempotent), nichts geht verloren.
 $serverTime = $db->query('SELECT DATE_SUB(NOW(), INTERVAL 2 SECOND)')->fetchColumn();
 
+// KV-Tabelle bei Bedarf anlegen (generischer Sync für Neben-Tabs)
+$db->exec(
+  'CREATE TABLE IF NOT EXISTS kv_state (
+     k VARCHAR(160) NOT NULL PRIMARY KEY,
+     v MEDIUMTEXT NULL,
+     updated_by INT UNSIGNED NULL,
+     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+     INDEX idx_kv_updated (updated_at)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+);
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
@@ -73,6 +84,8 @@ if ($method === 'GET') {
              WHERE c.updated_at > :since ORDER BY c.id'
         );
         $ciStmt->execute([':since' => $since]);
+        $kvStmt = $db->prepare('SELECT k, v FROM kv_state WHERE updated_at > :since ORDER BY updated_at');
+        $kvStmt->execute([':since' => $since]);
     } else {
         $ovStmt = $db->query(
             'SELECT o.entity_type, o.entity_key, o.field, o.value, o.updated_at,
@@ -85,6 +98,7 @@ if ($method === 'GET') {
              FROM custom_items c LEFT JOIN users u ON u.id = c.created_by
              ORDER BY c.id'
         );
+        $kvStmt = $db->query('SELECT k, v FROM kv_state ORDER BY updated_at');
     }
 
     $custom = [];
@@ -99,6 +113,7 @@ if ($method === 'GET') {
         'server_time' => $serverTime,
         'overrides'   => $ovStmt->fetchAll(),
         'custom'      => $custom,
+        'kv'          => $kvStmt->fetchAll(),
     ]);
 }
 
@@ -184,6 +199,20 @@ if ($method === 'POST') {
         $stmt = $db->prepare('UPDATE custom_items SET data = :data WHERE client_id = :c');
         $stmt->execute([':data' => json_encode($data, JSON_UNESCAPED_UNICODE), ':c' => $clientId]);
         audit_log((int)$u['id'], 'sync.custom_update', 'task', $clientId, $data);
+        json_response(['ok' => true, 'server_time' => $serverTime]);
+    }
+
+    if ($op === 'kv_set') {
+        // Generischer Key-Value-Sync (Neben-Tabs). Viewer/Worker dürfen nicht schreiben.
+        if (!in_array($role, [ROLE_ADMIN, ROLE_ARCHITEKT], true)) json_error('Keine Berechtigung', 403);
+        $k = str_clip((string)($b['key'] ?? ''), 160);
+        if ($k === '') json_error('key fehlt', 400);
+        $v = $b['value'] ?? null;
+        $stmt = $db->prepare(
+            'INSERT INTO kv_state (k, v, updated_by) VALUES (:k, :v, :uid)
+             ON DUPLICATE KEY UPDATE v = VALUES(v), updated_by = VALUES(updated_by)'
+        );
+        $stmt->execute([':k' => $k, ':v' => $v !== null ? (string)$v : null, ':uid' => (int)$u['id']]);
         json_response(['ok' => true, 'server_time' => $serverTime]);
     }
 
