@@ -5911,7 +5911,9 @@ function saveCostValues() {
   document.querySelectorAll('input[data-section]').forEach(function(inp) {
     vals[inp.id] = parseFloat(inp.value) || 0;
   });
-  localStorage.setItem('cost-values', JSON.stringify(vals));
+  var json = JSON.stringify(vals);
+  localStorage.setItem('cost-values', json);
+  if (window.__syncKV) window.__syncKV('cost-values', json);
 }
 function loadCostValues() {
   var saved = getCostValues();
@@ -7914,20 +7916,26 @@ window.togglePanel = function() {
     return PREFIX.some(function (p) { return key.indexOf(p) === 0; });
   }
 
-  // localStorage.setItem/removeItem abfangen → an DB pushen (außer während Remote-Anwendung)
-  var _set = localStorage.setItem.bind(localStorage);
-  var _rem = localStorage.removeItem.bind(localStorage);
-  localStorage.setItem = function (k, v) {
-    _set(k, v);
-    if (isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+  // localStorage abfangen → an DB pushen (außer während Remote-Anwendung).
+  // WICHTIG: am Storage-PROTOTYP überschreiben — Instanz-Überschreibung greift in Safari oft nicht.
+  var proto = (window.Storage && Storage.prototype) ? Storage.prototype : Object.getPrototypeOf(localStorage);
+  var _set = proto.setItem;
+  var _rem = proto.removeItem;
+  proto.setItem = function (k, v) {
+    _set.call(this, k, v);
+    if (this === window.localStorage && isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
       window.PlanSync.pushKV(k, v);
     }
   };
-  localStorage.removeItem = function (k) {
-    _rem(k);
-    if (isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+  proto.removeItem = function (k) {
+    _rem.call(this, k);
+    if (this === window.localStorage && isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
       window.PlanSync.pushKV(k, null);
     }
+  };
+  // Zusätzlich explizite Hook-Funktion (falls einzelne Save-Stellen sie direkt aufrufen)
+  window.__syncKV = function (k, v) {
+    if (isSynced(k) && window.PlanSync && !window.PlanSync.isApplyingRemote()) window.PlanSync.pushKV(k, v);
   };
 
   // Eingehende KV-Änderung anwenden → passendes Re-Render auslösen
