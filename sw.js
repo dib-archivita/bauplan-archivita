@@ -7,7 +7,7 @@
  *  - API-Endpoints: Network-only (kein Cache, damit Daten aktuell bleiben)
  *  - Cache wird bei jeder Version-Bump geleert
  */
-const CACHE_NAME = 'bauplan-v70';        // bei JEDER deployten Änderung anpassen
+const CACHE_NAME = 'bauplan-v71';        // bei JEDER deployten Änderung anpassen
 const STATIC_ASSETS = [
   '/',
   '/login.html',

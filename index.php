@@ -5260,6 +5260,7 @@ function filterWohnNew(mode, btn) {
   <!-- TABS innerhalb des Kapazität-Tabs -->
   <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid #e2e8f0">
     <div class="kap-subtab active" data-sub="ma" onclick="showKapSub('ma',this)" style="padding:8px 16px;cursor:pointer;font-size:12px;font-weight:700;border-bottom:2px solid #2563eb;color:#2563eb">👥 Mitarbeiter</div>
+    <div class="kap-subtab" data-sub="gw" onclick="showKapSub('gw',this)" style="padding:8px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">🎯 Gewerke-Übersicht</div>
     <div class="kap-subtab" data-sub="kal" onclick="showKapSub('kal',this)" style="padding:8px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">📅 Kalender / Auslastung</div>
     <div class="kap-subtab" data-sub="zu" onclick="showKapSub('zu',this)" style="padding:8px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">🔗 Aufgaben-Zuordnung</div>
   </div>
@@ -5272,6 +5273,13 @@ function filterWohnNew(mode, btn) {
     </div>
     <div id="kap-ma-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
     <div style="margin-top:8px;font-size:10px;color:#94a3b8">💡 Tipp: Auf einen Wert klicken zum Bearbeiten. Gewerk-Tags klicken öffnet den Picker.</div>
+  </div>
+
+  <!-- SUB-TAB: Gewerke-Übersicht (Mitarbeiter + Aufgaben + Auslastung pro Gewerk) -->
+  <div id="kap-sub-gw" class="kap-sub" style="display:none">
+    <h2 style="font-size:14px;font-weight:700;margin:0 0 12px">🎯 Gewerke-Übersicht</h2>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:14px">Pro Gewerk: zugeordnete Mitarbeiter · Aufgaben-Anzahl · KW-Auslastung als Mini-Heatmap</div>
+    <div id="kap-gw-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px"></div>
   </div>
 
   <!-- SUB-TAB 2: Kalender / Auslastung -->
@@ -6095,7 +6103,92 @@ window.openUrlaubModal = function(cell) {
     document.getElementById('kap-sub-' + sub).style.display = 'block';
     if (sub === 'kal') renderKalender();
     if (sub === 'zu') renderZuordnung();
+    if (sub === 'gw') renderKapaGewerke();
   };
+
+  // Gewerke-Übersicht — pro Gewerk eine Karte
+  function renderKapaGewerke() {
+    var cont = document.getElementById('kap-gw-grid');
+    if (!cont) return;
+    var demand = tasksByGewerkAndKw();
+    var supply = capacityByGewerkAndKw();
+    var rng = getKWRange();
+    var gewerke = getAllGewerke();
+    var gMap = {}; (window.GEWERKE || []).forEach(function(g){ gMap[g.name] = g; });
+    var nowKW = (typeof window.dateToContKW === 'function') ? window.dateToContKW(new Date().toISOString().slice(0,10)) : 23;
+
+    cont.innerHTML = gewerke.map(function (gw) {
+      var meta = gMap[gw] || { bg: '#f1f5f9', fg: '#475569' };
+      // Mitarbeiter dieser Gewerk-Zuordnung
+      var emps = employees.filter(function(e){ return (e.gewerke||[]).map(gnorm).indexOf(gw) >= 0; });
+      // Aufgaben (Hauptzeitplan)
+      var tasks = [];
+      document.querySelectorAll('tr.task-row').forEach(function(tr){
+        if (gnorm(tr.getAttribute('data-gewerk') || '') !== gw) return;
+        var nameEl = tr.querySelector('.task-name-cell');
+        if (!nameEl) return;
+        var name = (nameEl.textContent || '').replace(/[🕐✕]/g,'').replace(/\s+/g,' ').trim();
+        if (name) tasks.push(name);
+      });
+      // Auslastung this-week + max
+      var thisWeekD = (demand[gw]||{})[nowKW] || 0;
+      var thisWeekS = (supply[gw]||{})[nowKW] || 0;
+      var thisLoad = thisWeekS > 0 ? Math.round(thisWeekD / thisWeekS * 100) : 0;
+      var maxLoad = 0;
+      for (var kk = rng.start; kk <= rng.end; kk++) {
+        var d = (demand[gw]||{})[kk] || 0, s = (supply[gw]||{})[kk] || 0;
+        if (s > 0) { var r = Math.round(d/s*100); if (r > maxLoad) maxLoad = r; }
+      }
+      var loadCol = thisLoad > 100 ? '#dc2626' : thisLoad > 80 ? '#d97706' : '#15803d';
+      // Mini-Heatmap (32 KWs ab now)
+      var stripCells = '';
+      for (var kw = nowKW; kw < nowKW + 32; kw++) {
+        var dd = (demand[gw]||{})[kw] || 0, ss = (supply[gw]||{})[kw] || 0;
+        var col = '#f1f5f9';
+        if (ss > 0 && dd > ss) col = '#dc2626';
+        else if (ss > 0 && dd / ss > 0.8) col = '#f59e0b';
+        else if (dd > 0) col = '#16a34a';
+        var pct2 = ss > 0 ? Math.round(dd/ss*100) : 0;
+        stripCells += '<div title="KW ' + kw + ' · ' + Math.round(dd) + 'h / ' + Math.round(ss) + 'h (' + pct2 + '%)" style="flex:1;background:' + col + ';border-right:1px solid #fff"></div>';
+      }
+      // Mitarbeiter-Chips
+      var empChips = emps.length
+        ? emps.map(function(e){ return '<span style="display:inline-block;background:' + meta.bg + ';color:' + meta.fg + ';border:1px solid ' + meta.fg + '40;border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700;margin:2px 3px 0 0">' + (e.name || '?') + ' · ' + (e.std || 0) + 'h</span>'; }).join('')
+        : '<span style="font-size:10px;color:#cbd5e1;font-style:italic">keine Mitarbeiter zugeordnet</span>';
+      // Aufgaben-Anzahl + erste 3
+      var taskPreview = tasks.length
+        ? '<div style="font-size:10px;color:#64748b;margin-top:4px">' + tasks.length + ' Aufgabe(n)' + (tasks.length > 3 ? ' — z. B.: ' + tasks.slice(0,3).join(' · ') + ' …' : ': ' + tasks.join(' · ')) + '</div>'
+        : '<div style="font-size:10px;color:#cbd5e1;margin-top:4px;font-style:italic">keine Aufgaben</div>';
+
+      return '<div style="background:#fff;border:1.5px solid ' + meta.fg + '30;border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:8px">'
+        // Header
+        + '<div style="display:flex;justify-content:space-between;align-items:center">'
+          + '<div style="display:flex;align-items:center;gap:8px">'
+            + '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + meta.fg + '"></span>'
+            + '<span style="font-size:14px;font-weight:800;color:#1e293b">' + gw + '</span>'
+          + '</div>'
+          + '<span style="background:' + loadCol + '15;color:' + loadCol + ';border:1px solid ' + loadCol + '40;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800">' + thisLoad + '%</span>'
+        + '</div>'
+        // Mini-Heatmap
+        + '<div>'
+          + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Auslastung KW ' + nowKW + '–' + (nowKW+31) + ' · max ' + maxLoad + '%</div>'
+          + '<div style="display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid #e2e8f0">' + stripCells + '</div>'
+        + '</div>'
+        // Mitarbeiter
+        + '<div>'
+          + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">👥 Mitarbeiter</div>'
+          + '<div>' + empChips + '</div>'
+        + '</div>'
+        // Aufgaben
+        + '<div>'
+          + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">📋 Aufgaben</div>'
+          + taskPreview
+        + '</div>'
+      + '</div>';
+    }).join('');
+    if (!cont.innerHTML) cont.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12px">Noch keine Gewerke mit Daten.</div>';
+  }
+  window.renderKapaGewerke = renderKapaGewerke;
 
   // CSV Export
   window.exportKap = function() {
@@ -8299,17 +8392,43 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   function maybeChainShift(tr, bar, delta, isFromResize) {
-    // Folge-Tasks = nachfolgende task-row mit gleichem data-unit
+    // Folge-Tasks ermitteln: zuerst data-unit, sonst Gewerk-Kette
     var unit = tr.getAttribute('data-unit');
-    if (!unit) return;
-    var allRows = Array.from(document.querySelectorAll('tr.task-row[data-unit="' + unit + '"]'));
+    var gewerk = tr.getAttribute('data-gewerk');
+    var allRows, scopeLbl;
+    if (unit) {
+      allRows = Array.from(document.querySelectorAll('tr.task-row[data-unit="' + unit + '"]'));
+      scopeLbl = 'Einheit ' + unit;
+    } else if (gewerk) {
+      // Gewerk-Chain: alle Tasks mit gleichem (normiertem) Gewerk, deren Bar zeitlich nach der aktuellen liegt
+      var nrm = (typeof window.mapGewerk === 'function') ? window.mapGewerk(gewerk) : gewerk;
+      var movedLeft = parseInt(bar.style.left, 10) || 0;
+      allRows = Array.from(document.querySelectorAll('tr.task-row[data-gewerk]')).filter(function (other) {
+        var og = other.getAttribute('data-gewerk');
+        var ogN = (typeof window.mapGewerk === 'function') ? window.mapGewerk(og) : og;
+        if (ogN !== nrm) return false;
+        var ob = other.querySelector('.gantt-bar');
+        if (!ob || !ob.style.width) return false;
+        var ol = parseInt(ob.style.left, 10) || 0;
+        // Nur nachfolgende Tasks (Bar startet später) — und nicht die aktuelle Zeile
+        return other !== tr && ol >= movedLeft;
+      });
+      // Sortieren nach left aufsteigend
+      allRows.sort(function(a, b){
+        return (parseInt(a.querySelector('.gantt-bar').style.left, 10)||0)
+             - (parseInt(b.querySelector('.gantt-bar').style.left, 10)||0);
+      });
+      // tr selbst noch davor einfügen, damit der idx-Logik unten funktioniert
+      allRows.unshift(tr);
+      scopeLbl = 'Gewerk ' + nrm;
+    } else { return; }
     var idx = allRows.indexOf(tr);
     if (idx < 0 || idx === allRows.length - 1) return;
     var followers = allRows.slice(idx + 1);
     if (!followers.length) return;
 
     // Frage Nutzer
-    var msg = followers.length + ' Folge-Aufgabe' + (followers.length>1?'n':'') + ' für ' + unit +
+    var msg = followers.length + ' Folge-Aufgabe' + (followers.length>1?'n':'') + ' für ' + scopeLbl +
               ' um ' + (delta > 0 ? '+' : '') + Math.round(delta/PX_PER_WEEK) + ' Wochen verschieben?';
     if (!confirm(msg)) return;
 
