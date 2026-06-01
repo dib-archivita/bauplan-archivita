@@ -7693,6 +7693,17 @@ window.addEventListener('DOMContentLoaded', function(){
       </div>
     </div>
 
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#14532d;display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        👷 Mannstunden für diese Aufgabe
+        <span style="font-weight:400;color:#15803d;font-size:10px">— wirken auf Kapazitäts-Auslastung</span>
+      </label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="be-mh" type="number" min="0" max="9999" step="1" placeholder="z.B. 40" style="width:100px;padding:5px 8px;border:1.5px solid #bbf7d0;border-radius:5px;font-size:12px;background:#fff">
+        <span style="font-size:11px;color:#15803d">Std</span>
+        <span id="be-mh-hint" style="font-size:10px;color:#15803d;margin-left:8px"></span>
+      </div>
+    </div>
     <div id="be-info" style="font-size:11px;color:#64748b;padding:8px 12px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe;margin-bottom:14px"></div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -7760,6 +7771,24 @@ window.addEventListener('DOMContentLoaded', function(){
     var savedDeadline = localStorage.getItem('bar-deadline-' + currentTid);
     if (savedDeadline) document.getElementById('be-deadline').value = savedDeadline;
 
+    // Mannstunden laden
+    var mhInput = document.getElementById('be-mh');
+    if (mhInput) {
+      var savedMh = localStorage.getItem('task-mh-' + currentTid);
+      mhInput.value = savedMh !== null ? savedMh : '40';
+      var hint = document.getElementById('be-mh-hint');
+      if (hint) {
+        var perWeek = Math.round((parseInt(mhInput.value, 10) || 0) / Math.max(1, durWeeks));
+        hint.textContent = '≈ ' + perWeek + ' Std/Woche bei ' + durWeeks + ' Wochen Dauer';
+      }
+      mhInput.oninput = function () {
+        var dW = parseInt(document.getElementById('be-duration').value, 10) || 1;
+        var v = parseInt(this.value, 10) || 0;
+        var h2 = document.getElementById('be-mh-hint');
+        if (h2) h2.textContent = '≈ ' + Math.round(v / Math.max(1, dW)) + ' Std/Woche bei ' + dW + ' Wochen Dauer';
+      };
+    }
+
     beRecalc();
     document.getElementById('bar-editor-modal').style.display = 'flex';
   }
@@ -7821,6 +7850,16 @@ window.addEventListener('DOMContentLoaded', function(){
       var dl = document.getElementById('be-deadline').value;
       if (dl) localStorage.setItem('bar-deadline-' + currentTid, dl);
       else localStorage.removeItem('bar-deadline-' + currentTid);
+      // Mannstunden speichern + KV-Sync → Kapa-Kalender aktualisiert sich
+      var mhEl = document.getElementById('be-mh');
+      if (mhEl) {
+        var mhVal = String(parseInt(mhEl.value, 10) || 0);
+        var mhKey = 'task-mh-' + currentTid;
+        localStorage.setItem(mhKey, mhVal);
+        if (window.__syncKV) window.__syncKV(mhKey, mhVal);
+        if (typeof window.kapReload === 'function') window.kapReload();
+        else if (typeof window.renderKalender === 'function') window.renderKalender();
+      }
       // An den Live-Sync weitergeben
       if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
         var tr = currentBar.closest('tr.task-row');
