@@ -5835,6 +5835,7 @@ window.openUrlaubModal = function(cell) {
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Verantwortlich</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Firma</th>
     <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">KW fällig</th>
+    <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">Lieferung in KW</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Status</th>
     <th style="padding:8px 10px;text-align:right;font-size:10px;color:#94a3b8;font-weight:600">Betrag (Netto)</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Hinweis</th>
@@ -5844,7 +5845,7 @@ window.openUrlaubModal = function(cell) {
 <tbody id="bo-tbody"></tbody>
 <tfoot>
   <tr style="background:#1e293b">
-    <td colspan="7" style="padding:8px 10px;font-size:12px;font-weight:700;color:#fff">Gesamt (gefiltert)</td>
+    <td colspan="8" style="padding:8px 10px;font-size:12px;font-weight:700;color:#fff">Gesamt (gefiltert)</td>
     <td id="bo-total" style="padding:8px 10px;text-align:right;font-size:13px;font-weight:800;color:#fbbf24"></td>
     <td colspan="2"></td>
   </tr>
@@ -5883,7 +5884,11 @@ window.openUrlaubModal = function(cell) {
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">KW fällig (z.B. 28)</label>
-        <input id="bo-m-kw" type="number" min="1" max="52" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
+        <input id="bo-m-kw" type="number" min="1" max="80" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b">Lieferung in KW</label>
+        <input id="bo-m-kw-lief" type="number" min="1" max="80" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">Status</label>
@@ -6117,7 +6122,7 @@ window.BO_VERANT_LIST = [
 window.setOrderField = function (id, key, value) {
   var idx = boOrders.findIndex(function (x) { return x.id === id; });
   if (idx < 0) return;
-  if (key === 'kw') value = value === '' ? null : parseInt(value, 10);
+  if (key === 'kw' || key === 'kw_lief') value = value === '' ? null : parseInt(value, 10);
   if (key === 'betrag') value = parseFloat(value) || 0;
   boOrders[idx][key] = value;
   var json = JSON.stringify(boOrders);
@@ -6193,8 +6198,10 @@ function renderOrders() {
         }).join('')
       + '</select>';
 
-    // KW als Input
+    // KW fällig als Input
     var kwInput = '<input type="number" min="1" max="80" value="' + (o.kw || '') + '" onchange="setOrderField(\'' + o.id + '\',\'kw\',this.value)" style="width:54px;text-align:center;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700">';
+    // Lieferung in KW als Input
+    var kwLiefInput = '<input type="number" min="1" max="80" value="' + (o.kw_lief || '') + '" onchange="setOrderField(\'' + o.id + '\',\'kw_lief\',this.value)" style="width:54px;text-align:center;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700">';
 
     return '<tr style="border-bottom:1px solid #f1f5f9;' + urgentStyle + '">'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8">' + o.id + '</td>'
@@ -6203,6 +6210,7 @@ function renderOrders() {
       + '<td style="padding:5px 8px">' + verantSel + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.firma) + '</td>'
       + '<td style="padding:5px 8px;text-align:center">' + kwInput + '</td>'
+      + '<td style="padding:5px 8px;text-align:center">' + kwLiefInput + '</td>'
       + '<td style="padding:5px 8px">' + statusSel + '</td>'
       + '<td style="padding:5px 10px;text-align:right;font-weight:600;color:#2563eb;font-size:11px">' + (o.betrag ? o.betrag.toLocaleString('de-DE') + ' €' : '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (o.hinweis||'') + '</td>'
@@ -6263,7 +6271,7 @@ function fillGewerkDropdown() {
 // ── ADD / EDIT MODAL ──────────────────────────────────────────────────────────
 function openAddOrder() {
   document.getElementById('bo-modal-title').textContent = 'Neue Bestellung';
-  ['bo-m-id','bo-m-name','bo-m-firma','bo-m-kw','bo-m-betrag','bo-m-hinweis'].forEach(function(id) {
+  ['bo-m-id','bo-m-name','bo-m-firma','bo-m-kw','bo-m-kw-lief','bo-m-betrag','bo-m-hinweis'].forEach(function(id) {
     var el = document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('bo-m-tod').checked = false;
@@ -6281,6 +6289,7 @@ function editOrder(id) {
   document.getElementById('bo-m-verant').value = o.verantwortlicher;
   document.getElementById('bo-m-firma').value = o.firma;
   document.getElementById('bo-m-kw').value = o.kw || '';
+  document.getElementById('bo-m-kw-lief').value = o.kw_lief || '';
   document.getElementById('bo-m-status').value = o.status;
   document.getElementById('bo-m-betrag').value = o.betrag || '';
   document.getElementById('bo-m-hinweis').value = o.hinweis || '';
@@ -6316,6 +6325,7 @@ function saveOrder() {
     verantwortlicher: document.getElementById('bo-m-verant').value,
     firma: document.getElementById('bo-m-firma').value.trim(),
     kw: parseInt(document.getElementById('bo-m-kw').value) || null,
+    kw_lief: parseInt(document.getElementById('bo-m-kw-lief').value) || null,
     status: document.getElementById('bo-m-status').value,
     betrag: parseFloat(document.getElementById('bo-m-betrag').value) || 0,
     hinweis: document.getElementById('bo-m-hinweis').value.trim(),
