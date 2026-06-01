@@ -6552,6 +6552,7 @@ function cycleVerant(id) {
   localStorage.setItem('bo-orders-v3', boJson);
   if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson);
   renderOrders();
+  if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
   syncOrdersToTODs();
 }
 
@@ -6589,6 +6590,7 @@ function saveOrder() {
   if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson2);
   closeModal();
   renderOrders();
+  if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
   syncOrdersToTODs();
 }
 
@@ -7040,9 +7042,12 @@ function restoreTaskStatuses() {
       });
       if (changed > 0) {
         var boJson3 = JSON.stringify(orders);
+        // window.boOrders aktuell halten, damit renderCostOrders die neuen Status sieht
+        try { window.boOrders = JSON.parse(boJson3); } catch (e) {}
         localStorage.setItem('bo-orders-v3', boJson3);
         if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson3);
         if (typeof renderOrders === 'function') renderOrders();
+        if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
         console.log('Status-Sync: ' + changed + ' Bestellung(en) → ' + orderStatus);
       }
     });
