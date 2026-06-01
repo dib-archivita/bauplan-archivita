@@ -1195,7 +1195,10 @@ window.addEventListener('load', function() {
   <label>Filter Gewerk:</label>
   <button class="filter-btn active" onclick="filterGewerk('all')">Alle Gewerke</button>
   <span id="gewerk-filter-pills" style="display:contents"></span>
-  <button class="filter-btn" id="gewerk-filter-add" onclick="(function(){var n=prompt('Neues Gewerk:'); if(n && window.addGewerk){ window.addGewerk(n); } })()" title="Neues Gewerk anlegen — wird überall verfügbar" style="padding:4px 11px;border-radius:14px;border:1.5px dashed #94a3b8;background:transparent;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer;margin-left:auto">＋ Gewerk</button>
+  <div style="margin-left:auto;display:flex;gap:4px">
+    <button class="filter-btn" id="gewerk-filter-add" onclick="(function(){var n=prompt('Neues Gewerk:'); if(n && window.addGewerk){ window.addGewerk(n); } })()" title="Neues Gewerk anlegen — wird überall verfügbar" style="padding:4px 11px;border-radius:14px;border:1.5px dashed #94a3b8;background:transparent;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer">＋ Gewerk</button>
+    <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten (umbenennen, Farbe, löschen)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Verwalten</button>
+  </div>
 </div>
 <div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
@@ -8230,6 +8233,95 @@ window.addEventListener('DOMContentLoaded', function(){
     window.populateGewerkSelects();
     return g;
   };
+  // Gewerk löschen (Datensätze mit dem Namen bleiben, verlieren aber die Farbe)
+  window.removeGewerkByName = function (name) {
+    var idx = GEWERKE.findIndex(function(g){ return g.name === name; });
+    if (idx < 0) return false;
+    GEWERKE.splice(idx, 1);
+    window.saveGewerkeList();
+    window.populateGewerkSelects();
+    return true;
+  };
+  // Helfer: aus Farb-Hex (#rrggbb) leichten Hintergrund ableiten
+  function softenHex(hex) {
+    hex = (hex || '#475569').replace('#','');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    // mit Weiß mischen (85% Weiß)
+    r = Math.round(r*0.18 + 255*0.82);
+    g = Math.round(g*0.18 + 255*0.82);
+    b = Math.round(b*0.18 + 255*0.82);
+    return '#' + [r,g,b].map(function(x){var h=x.toString(16); return h.length===1?'0'+h:h;}).join('');
+  }
+  // Gewerke-Verwaltungs-Modal
+  window.openGewerkeManager = function () {
+    var existing = document.getElementById('gewerke-manager-overlay');
+    if (existing) existing.remove();
+    var bd = document.createElement('div');
+    bd.id = 'gewerke-manager-overlay';
+    bd.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:99998;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif';
+    var md = document.createElement('div');
+    md.style.cssText = 'background:#fff;border-radius:14px;padding:0;width:560px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden';
+    md.innerHTML =
+        '<div style="padding:14px 20px;border-bottom:1px solid #e8e9ed;display:flex;justify-content:space-between;align-items:center">'
+      +   '<div><h2 style="margin:0;font-size:15px;font-weight:800">🔧 Gewerke verwalten</h2>'
+      +   '<div style="font-size:11px;color:#64748b;margin-top:2px">Name + Farbe ändern · Löschen · neu anlegen — wirkt überall</div></div>'
+      +   '<button id="gv-close-x" style="background:#f1f5f9;border:none;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:13px;color:#64748b">✕</button>'
+      + '</div>'
+      + '<div id="gv-list" style="padding:8px 16px;overflow-y:auto;flex:1"></div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e8e9ed;display:flex;gap:8px;justify-content:space-between;align-items:center;background:#f8fafc">'
+      +   '<button id="gv-add" style="padding:7px 14px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">+ Neues Gewerk</button>'
+      +   '<button id="gv-done" style="padding:7px 14px;background:#2563eb;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Fertig</button>'
+      + '</div>';
+    bd.appendChild(md);
+    document.body.appendChild(bd);
+
+    function refresh() {
+      var lst = md.querySelector('#gv-list');
+      if (!GEWERKE.length) { lst.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12px">Noch keine Gewerke. Klick auf "+ Neues Gewerk".</div>'; return; }
+      lst.innerHTML = GEWERKE.map(function(g, i){
+        return '<div data-i="' + i + '" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">'
+          + '<input type="color" value="' + g.fg + '" data-i="' + i + '" data-f="fg" title="Farbe ändern" style="width:34px;height:34px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:0;background:#fff">'
+          + '<span class="gv-preview" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:' + g.fg + ';flex-shrink:0"></span>'
+          + '<input value="' + (g.name || '').replace(/"/g,'&quot;') + '" data-i="' + i + '" data-f="name" placeholder="Name" style="flex:1;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;font-size:12px;font-weight:600">'
+          + '<button data-i="' + i + '" class="gv-del" title="Löschen" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:700">🗑</button>'
+        + '</div>';
+      }).join('');
+      lst.querySelectorAll('input').forEach(function(inp){
+        inp.addEventListener('change', function(){
+          var i = +this.dataset.i, f = this.dataset.f;
+          if (!GEWERKE[i]) return;
+          var v = this.value;
+          if (f === 'name') GEWERKE[i].name = v.trim();
+          else if (f === 'fg') { GEWERKE[i].fg = v; GEWERKE[i].bg = softenHex(v); }
+          window.saveGewerkeList();
+          window.populateGewerkSelects();
+          refresh();
+        });
+      });
+      lst.querySelectorAll('.gv-del').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var i = +this.dataset.i;
+          if (!GEWERKE[i]) return;
+          if (!confirm('Gewerk "' + GEWERKE[i].name + '" löschen?\n\nBestehende Aufgaben/Bestellungen mit diesem Gewerk bleiben — sie verlieren nur die Farbe.')) return;
+          GEWERKE.splice(i, 1);
+          window.saveGewerkeList();
+          window.populateGewerkSelects();
+          refresh();
+        });
+      });
+    }
+    md.querySelector('#gv-add').onclick = function(){
+      var nm = prompt('Name des neuen Gewerks:');
+      if (!nm) return;
+      window.addGewerk(nm);
+      refresh();
+    };
+    md.querySelector('#gv-close-x').onclick = function(){ bd.remove(); };
+    md.querySelector('#gv-done').onclick = function(){ bd.remove(); };
+    bd.addEventListener('click', function(e){ if (e.target === bd) bd.remove(); });
+    refresh();
+  };
   // Hauptzeitplan-Filter-Pills neu rendern
   window.renderGewerkFilter = function () {
     var cont = document.getElementById('gewerk-filter-pills');
@@ -8273,6 +8365,10 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     // Bestellungen-Inline-Dropdowns aktualisieren
     if (typeof renderOrders === 'function') renderOrders();
+    // Kapazitäts-Ansicht: Mitarbeiter-Badges + Kalender + Cockpit nachziehen
+    if (typeof window.renderMA === 'function') window.renderMA();
+    if (typeof window.renderKalender === 'function') window.renderKalender();
+    if (typeof window.renderKapaCockpit === 'function') window.renderKapaCockpit();
   };
   // Eingehender KV-Update auf gewerke-list-v1 → Liste tauschen + überall neu rendern
   window.__applyGewerkeKV = function (value) {
