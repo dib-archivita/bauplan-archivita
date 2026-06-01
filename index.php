@@ -5780,11 +5780,18 @@ window.openUrlaubModal = function(cell) {
   <select id="bo-status-filter" onchange="renderOrders()"
     style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:11px;color:#374151">
     <option value="">Alle Status</option>
-    <option value="ausstehend">ausstehend</option>
     <option value="geplant">geplant</option>
+    <option value="Angebot angefordert">Angebot angefordert</option>
+    <option value="Angebot erhalten">Angebot erhalten</option>
+    <option value="Angebot geprüft">Angebot geprüft</option>
+    <option value="Angebot freigegeben">Angebot freigegeben</option>
+    <option value="AB erhalten">AB erhalten</option>
     <option value="bestellt">bestellt</option>
-    <option value="laufend">laufend</option>
+    <option value="Lieferung ausstehend">Lieferung ausstehend</option>
+    <option value="kommt in KW">kommt in KW</option>
     <option value="geliefert">geliefert</option>
+    <option value="laufend">laufend</option>
+    <option value="ausstehend">ausstehend</option>
   </select>
   <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:8px">Gewerk:</span>
   <select id="bo-gewerk-filter" onchange="renderOrders()"
@@ -5881,7 +5888,18 @@ window.openUrlaubModal = function(cell) {
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">Status</label>
         <select id="bo-m-status" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
-          <option>ausstehend</option><option>geplant</option><option>bestellt</option><option>laufend</option><option>geliefert</option>
+          <option>geplant</option>
+          <option>Angebot angefordert</option>
+          <option>Angebot erhalten</option>
+          <option>Angebot geprüft</option>
+          <option>Angebot freigegeben</option>
+          <option>AB erhalten</option>
+          <option>bestellt</option>
+          <option>Lieferung ausstehend</option>
+          <option>kommt in KW</option>
+          <option>geliefert</option>
+          <option>laufend</option>
+          <option>ausstehend</option>
         </select>
       </div>
       <div>
@@ -6071,6 +6089,43 @@ function exportCostCSV() {
 
 // ════════════ BESTELLUNGEN ENGINE ════════════
 
+// Status-Liste in Workflow-Reihenfolge (Angebot → Auftrag → Bestellung → Lieferung)
+window.BO_STATUS_LIST = [
+  { v: 'geplant',              bg: '#f1f5f9', fg: '#64748b' },
+  { v: 'Angebot angefordert',  bg: '#fefce8', fg: '#a16207' },
+  { v: 'Angebot erhalten',     bg: '#fef3c7', fg: '#b45309' },
+  { v: 'Angebot geprüft',      bg: '#e0e7ff', fg: '#4338ca' },
+  { v: 'Angebot freigegeben',  bg: '#dbeafe', fg: '#1d4ed8' },
+  { v: 'AB erhalten',          bg: '#ede9fe', fg: '#6d28d9' },
+  { v: 'bestellt',             bg: '#dbeafe', fg: '#2563eb' },
+  { v: 'Lieferung ausstehend', bg: '#fed7aa', fg: '#ea580c' },
+  { v: 'kommt in KW',          bg: '#ffedd5', fg: '#c2410c' },
+  { v: 'geliefert',            bg: '#dcfce7', fg: '#15803d' },
+  { v: 'laufend',              bg: '#fef3c7', fg: '#b45309' },
+  { v: 'ausstehend',           bg: '#fee2e2', fg: '#dc2626' },
+];
+// Auswahlliste Verantwortliche (frei erweiterbar)
+window.BO_VERANT_LIST = [
+  { v: 'offen',       bg: '#94a3b8' },
+  { v: 'DIB',         bg: '#2563eb' },
+  { v: 'HEG',         bg: '#16a34a' },
+  { v: 'EGA',         bg: '#d97706' },
+  { v: 'Architronik', bg: '#7c3aed' },
+];
+
+// Inline-Edit einer Bestellung — schreibt + synct + re-rendert
+window.setOrderField = function (id, key, value) {
+  var idx = boOrders.findIndex(function (x) { return x.id === id; });
+  if (idx < 0) return;
+  if (key === 'kw') value = value === '' ? null : parseInt(value, 10);
+  if (key === 'betrag') value = parseFloat(value) || 0;
+  boOrders[idx][key] = value;
+  var json = JSON.stringify(boOrders);
+  localStorage.setItem('bo-orders-v3', json);
+  if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
+  if (typeof renderOrders === 'function') renderOrders();
+};
+
 var boOrders = JSON.parse(localStorage.getItem('bo-orders-v3') || 'null');
 if (!boOrders) {
   boOrders = [{"id":"B001","name":"NSHV Niederspannungshauptverteilung","gewerk":"Elektro","kategorie":"Material","verantwortlicher":"offen","firma":"DIB Elektro","kw":27,"status":"bestellt","betrag":32000,"hinweis":"Lieferung KW27 – Einbau danach"},{"id":"B002","name":"Batteriespeicher – Einbau","gewerk":"Elektro","kategorie":"Montage","verantwortlicher":"offen","firma":"DIB Elektro","kw":25,"status":"geliefert","betrag":8000,"hinweis":"Ist da, Einbau planen"},{"id":"B003","name":"Kaltwassersatz Installation Restarbeiten","gewerk":"Klima","kategorie":"Montage","verantwortlicher":"offen","firma":"extern","kw":26,"status":"laufend","betrag":12000,"hinweis":"75% fertig"},{"id":"B004","name":"Sole-Wasser-Wärmepumpe Brigach","gewerk":"Heizung","kategorie":"Material","verantwortlicher":"offen","firma":"Heizungsbauer","kw":29,"status":"ausstehend","betrag":58000,"hinweis":"Verzögert – Angebot einholen"},{"id":"B005","name":"Lüftungsanlagen 2+3 Shedhalle – Lieferung","gewerk":"Lüftung","kategorie":"Material","verantwortlicher":"offen","firma":"TGA-Fachbetrieb","kw":28,"status":"ausstehend","betrag":44000,"hinweis":"Beginnt nach Lieferung"},{"id":"B006","name":"Lüftungsanlage 4 HBO – Einhausung","gewerk":"Lüftung","kategorie":"Montage","verantwortlicher":"offen","firma":"TGA-Fachbetrieb","kw":30,"status":"geplant","betrag":35000,"hinweis":"Einhausung Wände+Dach offen"},{"id":"B007","name":"Vakuumdämmung Dach HBO","gewerk":"Dämmung","kategorie":"Material","verantwortlicher":"offen","firma":"Spezialist","kw":51,"status":"geliefert","betrag":28800,"hinweis":"Bestellt KW46 / geliefert KW51"},{"id":"B008","name":"Aufzüge – Demontage + Neubau Kabinen (2 Stk.)","gewerk":"Aufzug","kategorie":"Montage","verantwortlicher":"offen","firma":"CBS Aufzüge","kw":30,"status":"geplant","betrag":145000,"hinweis":"Schachtentrauchung inkl."},{"id":"B009","name":"Regen- Schmutzwasserleitungen Tiefbau","gewerk":"Sanitär","kategorie":"Montage","verantwortlicher":"offen","firma":"Sanitärfirma","kw":26,"status":"ausstehend","betrag":24000,"hinweis":"Priorität – sofort vergeben"},{"id":"B010","name":"Gerüst Haushahn Außen (2. Einsatz)","gewerk":"Gerüst","kategorie":"Montage","verantwortlicher":"offen","firma":"Haushahn","kw":28,"status":"geplant","betrag":18000,"hinweis":"Terminabstimmung ausstehend"},{"id":"B011","name":"Estrich Ausgleich Dach","gewerk":"Estrich","kategorie":"Montage","verantwortlicher":"offen","firma":"Chini","kw":29,"status":"ausstehend","betrag":15000,"hinweis":"Termin offen – nach UK"},{"id":"B012","name":"Glasgeländer Terrasse","gewerk":"Schlosser","kategorie":"Material","verantwortlicher":"offen","firma":"Schlosserei","kw":32,"status":"ausstehend","betrag":11107,"hinweis":"Maße erst nach Estrich"},{"id":"B013","name":"Unterkonstruktion Terrasse 4.OG","gewerk":"Metall","kategorie":"Material","verantwortlicher":"offen","firma":"Stahlbau","kw":31,"status":"ausstehend","betrag":20000,"hinweis":"Planung läuft"},{"id":"B014","name":"Flüssigkunststoff Dach Kaltwassersatz","gewerk":"Abdichtung","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":27,"status":"geliefert","betrag":3500,"hinweis":"Vorhanden laut Checkliste"},{"id":"B015","name":"Brandschutz Abschottungen (Allgemein)","gewerk":"Brandschutz","kategorie":"Montage","verantwortlicher":"offen","firma":"Brandschutz-Fachbetrieb","kw":30,"status":"geplant","betrag":12000,"hinweis":"Planung noch offen"},{"id":"B016","name":"Trockenbau Phase 2 (9 WE)","gewerk":"Trockenbau","kategorie":"Montage","verantwortlicher":"offen","firma":"Trockenbauer","kw":28,"status":"geplant","betrag":82800,"hinweis":"9 WE × 9.200 €"},{"id":"B017","name":"Elektro Phase 2 (9 WE) 1.Fix","gewerk":"Elektro","kategorie":"Montage","verantwortlicher":"offen","firma":"Elektrofirma","kw":28,"status":"geplant","betrag":70200,"hinweis":"9 WE × 7.800 €"},{"id":"B018","name":"Sanitär Phase 2 (9 WE) 1.Fix","gewerk":"Sanitär","kategorie":"Montage","verantwortlicher":"offen","firma":"Sanitärfirma","kw":28,"status":"geplant","betrag":85500,"hinweis":"9 WE × 9.500 €"},{"id":"B019","name":"FBHZ Rohrleitungen Phase 2 (9 WE)","gewerk":"Heizung","kategorie":"Montage","verantwortlicher":"offen","firma":"Heizungsbauer","kw":28,"status":"geplant","betrag":49500,"hinweis":"9 WE × 5.500 €"},{"id":"B020","name":"Estrich Phase 2 (9 WE)","gewerk":"Estrich","kategorie":"Montage","verantwortlicher":"offen","firma":"Chini","kw":30,"status":"geplant","betrag":41400,"hinweis":"9 WE × 4.600 € – KW30 start"},{"id":"B021","name":"Bodenbelag Vinyl Phase 2 (9 WE)","gewerk":"Bodenbelag","kategorie":"Material","verantwortlicher":"offen","firma":"Bodenbelag-Firma","kw":34,"status":"geplant","betrag":37800,"hinweis":"9 WE × 4.200 €"},{"id":"B022","name":"Türen + Zargen Phase 2 (9 WE)","gewerk":"Schreiner","kategorie":"Material","verantwortlicher":"offen","firma":"Schreinerei","kw":34,"status":"geplant","betrag":52200,"hinweis":"9 WE × 5.800 € – Maße nach Trockenbau"},{"id":"B023","name":"Fensterbänke Außen HBO","gewerk":"Schlosser","kategorie":"Material","verantwortlicher":"offen","firma":"Schlosserei","kw":27,"status":"ausstehend","betrag":6000,"hinweis":"Bestellen – Material prüfen"},{"id":"B024","name":"Kran Dach TH Nord + Brückenbau","gewerk":"Gerüst","kategorie":"Miete","verantwortlicher":"offen","firma":"Haushahn","kw":29,"status":"geplant","betrag":6000,"hinweis":"Termin koordinieren"},{"id":"B025","name":"Fliesen Wellnessbereich T5.1","gewerk":"Fliesen","kategorie":"Material","verantwortlicher":"offen","firma":"Fliesenfirma","kw":33,"status":"geplant","betrag":32000,"hinweis":"Großformat – früh bestellen"},{"id":"B026","name":"Glaswände Wellnessbereich","gewerk":"Glas","kategorie":"Material","verantwortlicher":"offen","firma":"Glaserei","kw":35,"status":"geplant","betrag":22000,"hinweis":"Maße nach Trockenbau"},{"id":"B027","name":"PV-Anlage Dach HBO","gewerk":"Elektro","kategorie":"Material","verantwortlicher":"offen","firma":"Elektro / Solar","kw":35,"status":"geplant","betrag":45000,"hinweis":"Termin nach Dacharbeiten"},{"id":"B028","name":"Blitzschutz Dach HBO","gewerk":"Elektro","kategorie":"Montage","verantwortlicher":"offen","firma":"Blitzschutz-Süd","kw":35,"status":"geplant","betrag":8000,"hinweis":"Firma Blitzableiterbau Süd"},{"id":"B029","name":"Regenrohre Brückenbau","gewerk":"Sanitär","kategorie":"Material","verantwortlicher":"offen","firma":"Staiger","kw":31,"status":"ausstehend","betrag":4500,"hinweis":"Bestellen – fehlt laut Checkliste"},{"id":"B030","name":"ICF Kidsräume Materialpaket","gewerk":"Trockenbau","kategorie":"Material","verantwortlicher":"offen","firma":"Lieferant","kw":30,"status":"geplant","betrag":18000,"hinweis":"Vollständiger Ausbau 3.OG"},{"id":"GH001","name":"Rinnen Ostseite – Dach HBO","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":1800,"hinweis":"✓ Vorhanden – Dach HBO"},{"id":"GH002","name":"Kantteile – Dach HBO","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":950,"hinweis":"✓ Vorhanden – Dach HBO"},{"id":"GH003","name":"Gefälledämmung Kaltwassersatz","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Isolierung","kw":25,"status":"ausstehend","betrag":3200,"hinweis":"Angebot einholen – Dach KWS"},{"id":"GH004","name":"Flüssigkunststoff Dach KWS","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":1100,"hinweis":"✓ Vorhanden – Dach KWS"},{"id":"GH005","name":"Wanne Kaltwassersatz","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":27,"status":"geplant","betrag":2400,"hinweis":"noch nicht geplant – Dach KWS"},{"id":"GH006","name":"Sandwich + UK Dach Brückenbau","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":8500,"hinweis":"✓ Vorhanden – Dach Brücke"},{"id":"GH007","name":"Rinnen Dach Brückenbau","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":1600,"hinweis":"✓ Vorhanden – Dach Brücke"},{"id":"GH008","name":"Regenrohr Dach Brückenbau","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":25,"status":"ausstehend","betrag":780,"hinweis":"Fehlt – Bestellen – Dach Brücke"},{"id":"GH009","name":"Kantteile Dach Brückenbau","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":650,"hinweis":"✓ Vorhanden – Dach Brücke"},{"id":"GH010","name":"Decke öffnen Aufzug / Abbruch","gewerk":"Gebäudehülle","kategorie":"Leistung","verantwortlicher":"offen","firma":"Abbruch","kw":26,"status":"geplant","betrag":4500,"hinweis":"Termin + Kran klären – Dach TH Nord"},{"id":"GH011","name":"Sandwich + UK Dach TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":6200,"hinweis":"✓ Vorhanden – Dach TH Nord"},{"id":"GH012","name":"Rinnen Dach TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":1400,"hinweis":"✓ Vorhanden – Dach TH Nord"},{"id":"GH013","name":"Abwasserrohr Dach TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":25,"status":"ausstehend","betrag":620,"hinweis":"Fehlt – Bestellen – Dach TH Nord"},{"id":"GH014","name":"Kantteile Dach TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":580,"hinweis":"✓ Vorhanden – Dach TH Nord"},{"id":"GH015","name":"Fenster versetzen 1+2.OG Ostseite (Siga)","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":25,"status":"ausstehend","betrag":12400,"hinweis":"NEIN – Siga fehlt, Bestellen prüfen – Ostseite"},{"id":"GH016","name":"Fensterbänke Ostseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":26,"status":"geplant","betrag":2100,"hinweis":"Prüfen erforderlich – Ostseite"},{"id":"GH017","name":"WDVS Ostseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"WDVS","kw":23,"status":"geliefert","betrag":9800,"hinweis":"✓ Vorhanden – Material prüfen – Ostseite"},{"id":"GH018","name":"Regenrohr Ostseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":25,"status":"ausstehend","betrag":840,"hinweis":"Fehlt – Bestellen – Ostseite"},{"id":"GH019","name":"Jalousien 1+2.OG Ostseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Sonnenschutz","kw":27,"status":"geplant","betrag":6800,"hinweis":"Zuständigkeit + Termin klären – Ostseite"},{"id":"GH020","name":"Beleuchtung Ostseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Elektro","kw":27,"status":"ausstehend","betrag":2200,"hinweis":"Fehlt – Besprechen + planen – Ostseite"},{"id":"GH021","name":"UK Kante Süd-Ost","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":25,"status":"ausstehend","betrag":1800,"hinweis":"UK fehlt – Detail zeichnen – Ostseite"},{"id":"GH022","name":"UK Kante Nord-Ost","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":25,"status":"ausstehend","betrag":1800,"hinweis":"UK fehlt – Detail zeichnen – Ostseite"},{"id":"GH023","name":"Ausgleich Estrich 4.OG Terrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Estrich","kw":26,"status":"ausstehend","betrag":2800,"hinweis":"Fehlt – 4.OG Terrasse"},{"id":"GH024","name":"Vakuumdämmung 4.OG Terrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Isolierung","kw":26,"status":"ausstehend","betrag":4200,"hinweis":"Fehlt – 4.OG Terrasse"},{"id":"GH025","name":"UK Erweiterungsterrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":3100,"hinweis":"✓ Vorhanden – 4.OG Terrasse"},{"id":"GH026","name":"Holzplatten 4.OG Terrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Schreiner","kw":27,"status":"ausstehend","betrag":5600,"hinweis":"Fehlt – Bestellen – 4.OG Terrasse"},{"id":"GH027","name":"Flüssigkunststoff 4.OG Terrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Dachdecker","kw":23,"status":"geliefert","betrag":1200,"hinweis":"✓ Vorhanden – 4.OG Terrasse"},{"id":"GH028","name":"Granitplatten 4.OG Terrasse","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Steinmetz","kw":28,"status":"ausstehend","betrag":8900,"hinweis":"Fehlt – Angebot + Bestellen – 4.OG Terrasse"},{"id":"GH029","name":"Beleuchtung Westseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Elektro","kw":27,"status":"geplant","betrag":1900,"hinweis":"Besprechen + planen – Westseite"},{"id":"GH030","name":"WDVS Westseite (Restfläche)","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"WDVS","kw":23,"status":"geliefert","betrag":7200,"hinweis":"✓ Vorhanden – Putz + Farbe – Westseite"},{"id":"GH031","name":"Sandwich + UK TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":5800,"hinweis":"✓ Vorhanden – TH Nord"},{"id":"GH032","name":"Kantteile TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":520,"hinweis":"✓ Vorhanden – TH Nord"},{"id":"GH033","name":"Fenster + Lamellenfenster TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":23,"status":"geliefert","betrag":6400,"hinweis":"✓ Vorhanden – TH Nord"},{"id":"GH034","name":"Beleuchtung Südseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Elektro","kw":27,"status":"geplant","betrag":1900,"hinweis":"Besprechen + planen – Südseite"},{"id":"GH035","name":"Fenster 3.OG Südseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":23,"status":"geliefert","betrag":4800,"hinweis":"✓ Vorhanden – Wand sägen + Sandwich"},{"id":"GH036","name":"Sandwich + UK TH Nord (2)","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":4200,"hinweis":"✓ Vorhanden – TH Nord 2"},{"id":"GH037","name":"Kantteile TH Nord (2)","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":430,"hinweis":"✓ Vorhanden – TH Nord 2"},{"id":"GH038","name":"Beleuchtung Nordseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Elektro","kw":27,"status":"geplant","betrag":1900,"hinweis":"Besprechen + planen – Nordseite"},{"id":"GH039","name":"WDVS 4.OG Nordseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"WDVS","kw":26,"status":"ausstehend","betrag":5400,"hinweis":"Fehlt – Nordseite"},{"id":"GH040","name":"Sandwich + UK Nordseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":7100,"hinweis":"✓ Vorhanden – Nordseite"},{"id":"GH041","name":"Kantteile Nordseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":610,"hinweis":"✓ Vorhanden – Nordseite"},{"id":"GH042","name":"Fenster + Türen 4.OG W5.3 Nordseite","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":23,"status":"geliefert","betrag":8200,"hinweis":"✓ Vorhanden – Wand sägen – Nordseite"},{"id":"GH043","name":"Fenster 5.OG TH Nord","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fensterbau","kw":23,"status":"geliefert","betrag":5600,"hinweis":"✓ Vorhanden – TH Nord 5.OG"},{"id":"GH044","name":"Sandwich + UK TH Nord 5.OG","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":4900,"hinweis":"✓ Vorhanden – TH Nord 5.OG"},{"id":"GH045","name":"Kantteile TH Nord 5.OG","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":390,"hinweis":"✓ Vorhanden – TH Nord 5.OG"},{"id":"GH046","name":"PR Fassade TH Nord 5.OG","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":25,"status":"ausstehend","betrag":3800,"hinweis":"Fehlt – Bestellen – TH Nord 5.OG"},{"id":"GH047","name":"Sandwich + UK Brückenbau Decke","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":6300,"hinweis":"✓ Vorhanden – Brückenbau"},{"id":"GH048","name":"Kantteile Brückenbau Decke","gewerk":"Gebäudehülle","kategorie":"Material","verantwortlicher":"offen","firma":"Fassadenbau","kw":23,"status":"geliefert","betrag":490,"hinweis":"✓ Vorhanden – Brückenbau"}];
@@ -6113,23 +6168,42 @@ function renderOrders() {
   var tbody = document.getElementById('bo-tbody');
   if (!tbody) return;
 
-  var vColors = {"DIB": "#2563eb", "HEG": "#16a34a", "EGA": "#d97706", "Architronik": "#7c3aed", "offen": "#94a3b8"};
-  var sColors = {"geliefert": ["#dcfce7", "#15803d"], "bestellt": ["#dbeafe", "#2563eb"], "laufend": ["#fef3c7", "#b45309"], "geplant": ["#f1f5f9", "#64748b"], "ausstehend": ["#fee2e2", "#dc2626"]};
+  var sMap = {}; (window.BO_STATUS_LIST || []).forEach(function(s){ sMap[s.v] = s; });
+  var vMap = {}; (window.BO_VERANT_LIST || []).forEach(function(v){ vMap[v.v] = v; });
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);}); }
 
   tbody.innerHTML = filtered.map(function(o) {
-    var vc = vColors[o.verantwortlicher] || '#64748b';
-    var sc = sColors[o.status] || ['#f1f5f9','#64748b'];
-    var kwBadge = o.kw ? '<span style="background:#eff6ff;color:#2563eb;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">KW' + o.kw + '</span>' : '—';
-    var urgentStyle = (o.status === 'ausstehend') ? 'background:#fff8f0;' : '';
+    var sMeta = sMap[o.status] || { bg:'#f1f5f9', fg:'#64748b' };
+    var vMeta = vMap[o.verantwortlicher] || { bg:'#64748b' };
+    var isUrgent = (o.status === 'ausstehend' || o.status === 'Lieferung ausstehend');
+    var urgentStyle = isUrgent ? 'background:#fff8f0;' : '';
     var ghBadge = (o.id && o.id.startsWith('GH')) ? '<span style="background:#0891b218;color:#0891b2;border:1px solid #0891b230;padding:1px 4px;border-radius:3px;font-size:9px;font-weight:700;margin-left:4px">GH</span>' : '';
+
+    // Status-Dropdown
+    var statusSel = '<select onchange="setOrderField(\'' + o.id + '\',\'status\',this.value)" style="background:' + sMeta.bg + ';color:' + sMeta.fg + ';border:1px solid ' + sMeta.fg + '30;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700;cursor:pointer">'
+      + (window.BO_STATUS_LIST || []).map(function(s){
+          return '<option value="' + esc(s.v) + '"' + (s.v === o.status ? ' selected' : '') + '>' + esc(s.v) + '</option>';
+        }).join('')
+      + '</select>';
+
+    // Verantwortlicher-Dropdown
+    var verantSel = '<select onchange="setOrderField(\'' + o.id + '\',\'verantwortlicher\',this.value)" style="background:' + vMeta.bg + '18;color:' + vMeta.bg + ';border:1px solid ' + vMeta.bg + '30;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:700;cursor:pointer">'
+      + (window.BO_VERANT_LIST || []).map(function(vv){
+          return '<option value="' + esc(vv.v) + '"' + (vv.v === o.verantwortlicher ? ' selected' : '') + '>' + esc(vv.v) + '</option>';
+        }).join('')
+      + '</select>';
+
+    // KW als Input
+    var kwInput = '<input type="number" min="1" max="80" value="' + (o.kw || '') + '" onchange="setOrderField(\'' + o.id + '\',\'kw\',this.value)" style="width:54px;text-align:center;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700">';
+
     return '<tr style="border-bottom:1px solid #f1f5f9;' + urgentStyle + '">'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8">' + o.id + '</td>'
-      + '<td style="padding:5px 10px;font-size:11px;color:#1e293b;font-weight:' + (o.status==='ausstehend'?'700':'400') + '">' + o.name + ghBadge + '</td>'
-      + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + o.gewerk + '</td>'
-      + '<td style="padding:5px 8px"><span onclick="cycleVerant(\'' + o.id + '\')" title="Klick: Verantwortlichen ändern" style="background:' + vc + '18;color:' + vc + ';border:1px solid ' + vc + '30;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;cursor:pointer;user-select:none">' + o.verantwortlicher + ' ⇄</span></td>'
-      + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + o.firma + '</td>'
-      + '<td style="padding:5px 8px;text-align:center">' + kwBadge + '</td>'
-      + '<td style="padding:5px 8px"><span style="background:' + sc[0] + ';color:' + sc[1] + ';border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">' + o.status + '</span></td>'
+      + '<td style="padding:5px 10px;font-size:11px;color:#1e293b;font-weight:' + (isUrgent?'700':'400') + '">' + esc(o.name) + ghBadge + '</td>'
+      + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.gewerk) + '</td>'
+      + '<td style="padding:5px 8px">' + verantSel + '</td>'
+      + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.firma) + '</td>'
+      + '<td style="padding:5px 8px;text-align:center">' + kwInput + '</td>'
+      + '<td style="padding:5px 8px">' + statusSel + '</td>'
       + '<td style="padding:5px 10px;text-align:right;font-weight:600;color:#2563eb;font-size:11px">' + (o.betrag ? o.betrag.toLocaleString('de-DE') + ' €' : '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (o.hinweis||'') + '</td>'
       + '<td style="padding:5px 8px;text-align:center"><button onclick="editOrder(\'' + o.id + '\')" style="padding:2px 8px;font-size:10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;background:#f8fafc">✏</button></td>'
@@ -6169,7 +6243,7 @@ function renderSummaryBadges(filtered) {
     html += '<span style="background:' + c + '18;color:' + c + ';border:1px solid ' + c + '30;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">'
       + v + ': ' + byVerant[v] + '</span>';
   });
-  var urgentCount = filtered.filter(function(o){return o.status==='ausstehend';}).length;
+  var urgentCount = filtered.filter(function(o){return o.status==='ausstehend' || o.status==='Lieferung ausstehend';}).length;
   if (urgentCount > 0) {
     html += '<span style="background:#fee2e2;color:#dc2626;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700">⚠ ' + urgentCount + ' ausstehend</span>';
   }
