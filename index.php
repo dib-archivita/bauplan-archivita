@@ -1184,10 +1184,11 @@ function scrollToCard(id) {
 })();
 
 
-// Auto-scroll Gantt to today (Mai 18, 2026) — nach vollem Layout
+// Auto-scroll Gantt zum Projektstart (Anfang Juni 2026 = KW23)
+// 4 Wochen × 42 px Wochenbreite = 168 px Offset; KW19–22 bleiben bei Bedarf nach links scrollbar erreichbar
 window.addEventListener('load', function() {
   document.querySelectorAll('.gantt-wrap').forEach(function(wrap) {
-    wrap.scrollLeft = 0;
+    wrap.scrollLeft = 168;
   });
 });
 
