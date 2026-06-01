@@ -1195,10 +1195,7 @@ window.addEventListener('load', function() {
   <label>Filter Gewerk:</label>
   <button class="filter-btn active" onclick="filterGewerk('all')">Alle Gewerke</button>
   <span id="gewerk-filter-pills" style="display:contents"></span>
-  <div style="margin-left:auto;display:flex;gap:4px">
-    <button class="filter-btn" id="gewerk-filter-add" onclick="(function(){var n=prompt('Neues Gewerk:'); if(n && window.addGewerk){ window.addGewerk(n); } })()" title="Neues Gewerk anlegen — wird überall verfügbar" style="padding:4px 11px;border-radius:14px;border:1.5px dashed #94a3b8;background:transparent;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer">＋ Gewerk</button>
-    <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten (umbenennen, Farbe, löschen)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Verwalten</button>
-  </div>
+  <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
 </div>
 <div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
