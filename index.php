@@ -5834,8 +5834,8 @@ window.openUrlaubModal = function(cell) {
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Gewerk</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Verantwortlich</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Firma</th>
-    <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">KW fällig</th>
-    <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">Lieferung in KW</th>
+    <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">bis KW</th>
+    <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">Lieferung</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Status</th>
     <th style="padding:8px 10px;text-align:right;font-size:10px;color:#94a3b8;font-weight:600">Betrag (Netto)</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Hinweis</th>
@@ -5883,12 +5883,13 @@ window.openUrlaubModal = function(cell) {
         <input id="bo-m-firma" type="text" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#64748b">KW fällig (z.B. 28)</label>
+        <label style="font-size:11px;font-weight:600;color:#64748b">bis KW (z.B. 28)</label>
         <input id="bo-m-kw" type="number" min="1" max="80" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#64748b">Lieferung in KW</label>
-        <input id="bo-m-kw-lief" type="number" min="1" max="80" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
+        <label style="font-size:11px;font-weight:600;color:#64748b">Lieferung (Datum)</label>
+        <input id="bo-m-kw-lief-date" type="date" oninput="(function(v){var k=window.dateToContKW(v);document.getElementById('bo-m-kw-lief-preview').textContent=k?('→ KW '+k):'';})(this.value)" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box;font-family:inherit">
+        <div id="bo-m-kw-lief-preview" style="margin-top:4px;font-size:10px;color:#15803d;font-weight:700"></div>
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">Status</label>
@@ -6118,13 +6119,33 @@ window.BO_VERANT_LIST = [
   { v: 'Architronik', bg: '#7c3aed' },
 ];
 
+// Datum (YYYY-MM-DD) → fortlaufende KW relativ zum Projektstart 2026
+window.dateToContKW = function (dateStr) {
+  if (!dateStr) return null;
+  var d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  var target = new Date(d.valueOf());
+  var dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  var jan4 = new Date(target.getFullYear(), 0, 4);
+  var dayDiff = (target - jan4) / 86400000;
+  var iso = 1 + Math.ceil(dayDiff / 7);
+  return iso + (target.getFullYear() - 2026) * 52;
+};
+
 // Inline-Edit einer Bestellung — schreibt + synct + re-rendert
 window.setOrderField = function (id, key, value) {
   var idx = boOrders.findIndex(function (x) { return x.id === id; });
   if (idx < 0) return;
   if (key === 'kw' || key === 'kw_lief') value = value === '' ? null : parseInt(value, 10);
   if (key === 'betrag') value = parseFloat(value) || 0;
-  boOrders[idx][key] = value;
+  // Bei Lieferdatum auch die KW automatisch ableiten
+  if (key === 'kw_lief_date') {
+    boOrders[idx].kw_lief_date = value || null;
+    boOrders[idx].kw_lief = value ? window.dateToContKW(value) : null;
+  } else {
+    boOrders[idx][key] = value;
+  }
   var json = JSON.stringify(boOrders);
   localStorage.setItem('bo-orders-v3', json);
   if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
@@ -6198,10 +6219,19 @@ function renderOrders() {
         }).join('')
       + '</select>';
 
-    // KW fällig als Input
-    var kwInput = '<input type="number" min="1" max="80" value="' + (o.kw || '') + '" onchange="setOrderField(\'' + o.id + '\',\'kw\',this.value)" style="width:54px;text-align:center;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700">';
-    // Lieferung in KW als Input
-    var kwLiefInput = '<input type="number" min="1" max="80" value="' + (o.kw_lief || '') + '" onchange="setOrderField(\'' + o.id + '\',\'kw_lief\',this.value)" style="width:54px;text-align:center;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700">';
+    // bis KW — nur Anzeige, Änderung im Modal
+    var kwBadge = o.kw
+      ? '<span style="display:inline-block;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">KW ' + o.kw + '</span>'
+      : '<span style="color:#cbd5e1;font-size:11px">—</span>';
+    // Lieferung als Datums-Picker, KW wird automatisch berechnet + angezeigt
+    var kwLiefDate = o.kw_lief_date || '';
+    var kwLiefDisplay = o.kw_lief ? 'KW ' + o.kw_lief : '';
+    var kwLiefInput =
+      '<div style="display:inline-flex;align-items:center;gap:4px">' +
+        '<input type="date" value="' + kwLiefDate + '" onchange="setOrderField(\'' + o.id + '\',\'kw_lief_date\',this.value)" ' +
+          'style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700;font-family:inherit">' +
+        (kwLiefDisplay ? '<span style="font-size:10px;color:#15803d;font-weight:700">' + kwLiefDisplay + '</span>' : '') +
+      '</div>';
 
     return '<tr style="border-bottom:1px solid #f1f5f9;' + urgentStyle + '">'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8">' + o.id + '</td>'
@@ -6209,7 +6239,7 @@ function renderOrders() {
       + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.gewerk) + '</td>'
       + '<td style="padding:5px 8px">' + verantSel + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.firma) + '</td>'
-      + '<td style="padding:5px 8px;text-align:center">' + kwInput + '</td>'
+      + '<td style="padding:5px 8px;text-align:center">' + kwBadge + '</td>'
       + '<td style="padding:5px 8px;text-align:center">' + kwLiefInput + '</td>'
       + '<td style="padding:5px 8px">' + statusSel + '</td>'
       + '<td style="padding:5px 10px;text-align:right;font-weight:600;color:#2563eb;font-size:11px">' + (o.betrag ? o.betrag.toLocaleString('de-DE') + ' €' : '—') + '</td>'
@@ -6271,9 +6301,10 @@ function fillGewerkDropdown() {
 // ── ADD / EDIT MODAL ──────────────────────────────────────────────────────────
 function openAddOrder() {
   document.getElementById('bo-modal-title').textContent = 'Neue Bestellung';
-  ['bo-m-id','bo-m-name','bo-m-firma','bo-m-kw','bo-m-kw-lief','bo-m-betrag','bo-m-hinweis'].forEach(function(id) {
+  ['bo-m-id','bo-m-name','bo-m-firma','bo-m-kw','bo-m-kw-lief-date','bo-m-betrag','bo-m-hinweis'].forEach(function(id) {
     var el = document.getElementById(id); if(el) el.value='';
   });
+  var prev = document.getElementById('bo-m-kw-lief-preview'); if (prev) prev.textContent = '';
   document.getElementById('bo-m-tod').checked = false;
   document.getElementById('bo-modal').style.display = 'flex';
 }
@@ -6289,7 +6320,8 @@ function editOrder(id) {
   document.getElementById('bo-m-verant').value = o.verantwortlicher;
   document.getElementById('bo-m-firma').value = o.firma;
   document.getElementById('bo-m-kw').value = o.kw || '';
-  document.getElementById('bo-m-kw-lief').value = o.kw_lief || '';
+  document.getElementById('bo-m-kw-lief-date').value = o.kw_lief_date || '';
+  document.getElementById('bo-m-kw-lief-preview').textContent = o.kw_lief ? ('→ KW ' + o.kw_lief) : '';
   document.getElementById('bo-m-status').value = o.status;
   document.getElementById('bo-m-betrag').value = o.betrag || '';
   document.getElementById('bo-m-hinweis').value = o.hinweis || '';
@@ -6325,7 +6357,8 @@ function saveOrder() {
     verantwortlicher: document.getElementById('bo-m-verant').value,
     firma: document.getElementById('bo-m-firma').value.trim(),
     kw: parseInt(document.getElementById('bo-m-kw').value) || null,
-    kw_lief: parseInt(document.getElementById('bo-m-kw-lief').value) || null,
+    kw_lief_date: document.getElementById('bo-m-kw-lief-date').value || null,
+    kw_lief: window.dateToContKW(document.getElementById('bo-m-kw-lief-date').value),
     status: document.getElementById('bo-m-status').value,
     betrag: parseFloat(document.getElementById('bo-m-betrag').value) || 0,
     hinweis: document.getElementById('bo-m-hinweis').value.trim(),
