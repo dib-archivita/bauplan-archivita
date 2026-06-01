@@ -4575,6 +4575,7 @@ window.addEventListener('load', function() {
 function saveTodo(el){
   var key = 'todo-kw-' + el.dataset.kw;
   localStorage.setItem(key, el.innerHTML);
+  if (window.__syncKV) window.__syncKV(key, el.innerHTML);
 }
 function clearTodo(kw){
   localStorage.removeItem('todo-kw-' + kw);
@@ -5273,7 +5274,9 @@ function filterWohnNew(mode, btn) {
     return saved || DEFAULT_EMPLOYEES.slice();
   }
   function saveEmployees(arr) {
-    localStorage.setItem('kap-mitarbeiter-v10', JSON.stringify(arr));
+    var json = JSON.stringify(arr);
+    localStorage.setItem('kap-mitarbeiter-v10', json);
+    if (window.__syncKV) window.__syncKV('kap-mitarbeiter-v10', json);
   }
   var employees = loadEmployees();
 
@@ -5592,7 +5595,6 @@ window.openUrlaubModal = function(cell) {
   }
 
   function renderKalender() {
-    window.renderKalender = renderKalender;  // für KV-Sync von außen aufrufbar
     var thead = document.getElementById('kap-kal-thead');
     var tbody = document.getElementById('kap-kal-tbody');
     if (!thead || !tbody) return;
@@ -5675,7 +5677,9 @@ window.openUrlaubModal = function(cell) {
 
     tbody.querySelectorAll('.kap-mh').forEach(function(inp){
       inp.addEventListener('change', function(){
-        localStorage.setItem('task-mh-' + this.dataset.tid, this.value);
+        var k = 'task-mh-' + this.dataset.tid;
+        localStorage.setItem(k, this.value);
+        if (window.__syncKV) window.__syncKV(k, this.value);
         renderKalender();
       });
     });
@@ -5728,6 +5732,19 @@ window.openUrlaubModal = function(cell) {
   setTimeout(function(){
     renderMA();
   }, 500);
+
+  // Exporte für generischen KV-Sync (sync2.js → __applyKVUpdate)
+  window.renderKalender = renderKalender;
+  window.renderMA       = renderMA;
+  window.loadEmployees  = loadEmployees;
+  // Reload nach Remote-Sync (employees ist Closure-Variable → von außen nicht setzbar)
+  window.kapReload = function () {
+    try {
+      employees = loadEmployees();
+      renderMA();
+      renderKalender();
+    } catch (e) {}
+  };
 })();
 </script>
 
@@ -6202,7 +6219,9 @@ function cycleVerant(id) {
   var order = ['offen','DIB','HEG','EGA','Architronik'];
   var cur = order.indexOf(boOrders[idx].verantwortlicher);
   boOrders[idx].verantwortlicher = order[(cur + 1) % order.length];
-  localStorage.setItem('bo-orders-v3', JSON.stringify(boOrders));
+  var boJson = JSON.stringify(boOrders);
+  localStorage.setItem('bo-orders-v3', boJson);
+  if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson);
   renderOrders();
   syncOrdersToTODs();
 }
@@ -6234,7 +6253,9 @@ function saveOrder() {
   } else {
     boOrders.push(newO);
   }
-  localStorage.setItem('bo-orders-v3', JSON.stringify(boOrders));
+  var boJson2 = JSON.stringify(boOrders);
+  localStorage.setItem('bo-orders-v3', boJson2);
+  if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson2);
   closeModal();
   renderOrders();
   syncOrdersToTODs();
@@ -6301,7 +6322,9 @@ function saveUnitCosts() {
   document.querySelectorAll('input[data-unit][data-trade]').forEach(function(inp) {
     vals[inp.id] = parseFloat(inp.value) || 0;
   });
-  localStorage.setItem('unit-costs', JSON.stringify(vals));
+  var json = JSON.stringify(vals);
+  localStorage.setItem('unit-costs', json);
+  if (window.__syncKV) window.__syncKV('unit-costs', json);
 }
 
 function resetUnitDefaults() {
@@ -6632,7 +6655,9 @@ function restoreTaskStatuses() {
         if (mc >= 2 && o.status !== orderStatus) { o.status = orderStatus; changed++; }
       });
       if (changed > 0) {
-        localStorage.setItem('bo-orders-v3', JSON.stringify(orders));
+        var boJson3 = JSON.stringify(orders);
+        localStorage.setItem('bo-orders-v3', boJson3);
+        if (window.__syncKV) window.__syncKV('bo-orders-v3', boJson3);
         if (typeof renderOrders === 'function') renderOrders();
         console.log('Status-Sync: ' + changed + ' Bestellung(en) → ' + orderStatus);
       }
@@ -6833,7 +6858,9 @@ window.updateUnit = function(uid, key, value) {
   var unit = window.UNIT_REGISTRY.find(function(u){return u.id === uid;});
   if (!unit) return false;
   unit[key] = value;
-  localStorage.setItem('unit-registry', JSON.stringify(window.UNIT_REGISTRY));
+  var urJson = JSON.stringify(window.UNIT_REGISTRY);
+  localStorage.setItem('unit-registry', urJson);
+  if (window.__syncKV) window.__syncKV('unit-registry', urJson);
   // Section-Titles im Hauptzeitplan aktualisieren
   document.querySelectorAll('span.section-arrow + *').forEach(function(span){
     var txt = span.textContent || '';
@@ -7949,10 +7976,12 @@ window.togglePanel = function() {
       } else if (key === 'unit-costs') {
         if (typeof window.loadUnitCosts === 'function') window.loadUnitCosts();
       } else if (key === 'kap-mitarbeiter-v10' || key.indexOf('task-mh-') === 0) {
-        if (typeof window.renderKalender === 'function') window.renderKalender();
+        if (typeof window.kapReload === 'function') window.kapReload();
+        else if (typeof window.renderKalender === 'function') window.renderKalender();
       } else if (key === 'unit-registry') {
         try { window.UNIT_REGISTRY = JSON.parse(value || '[]'); } catch (e) {}
-        if (typeof window.renderKalender === 'function') window.renderKalender();
+        if (typeof window.kapReload === 'function') window.kapReload();
+        else if (typeof window.renderKalender === 'function') window.renderKalender();
       } else if (key.indexOf('todo-kw-') === 0) {
         var kw = key.replace('todo-kw-', '');
         var el = document.getElementById('manual-kw' + kw);
