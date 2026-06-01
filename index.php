@@ -6098,6 +6098,17 @@ window.openUrlaubModal = function(cell) {
     });
     if (changed > 0) { saveEmployees(employees); renderMA(); renderKalender(); renderKapaCockpit(); }
   };
+  // Cascade-Clear: das gelöschte Gewerk aus allen Mitarbeitern entfernen
+  window.cascadeClearKapEmployees = function (oldName) {
+    var changed = 0;
+    employees.forEach(function(e){
+      if (!e.gewerke) return;
+      var before = e.gewerke.length;
+      e.gewerke = e.gewerke.filter(function(g){ return g !== oldName; });
+      if (e.gewerke.length !== before) changed++;
+    });
+    if (changed > 0) { saveEmployees(employees); renderMA(); renderKalender(); renderKapaCockpit(); }
+  };
 
   // Reload nach Remote-Sync (employees ist Closure-Variable → von außen nicht setzbar)
   window.kapReload = function () {
@@ -8286,6 +8297,31 @@ window.addEventListener('DOMContentLoaded', function(){
     b = Math.round(b*0.18 + 255*0.82);
     return '#' + [r,g,b].map(function(x){var h=x.toString(16); return h.length===1?'0'+h:h;}).join('');
   }
+  // Wenn ein Gewerk gelöscht wird: alle Referenzen "leeren" (Aufgaben, Bestellungen, Mitarbeiter)
+  function cascadeClearGewerk(oldName) {
+    if (!oldName) return;
+    var empty = { name: '', bg: '#f1f5f9', fg: '#475569' };
+    document.querySelectorAll('tr.task-row[data-gewerk="' + (window.CSS && CSS.escape ? CSS.escape(oldName) : oldName.replace(/"/g,'\\"')) + '"]').forEach(function(tr){
+      var span = tr.querySelector('.gewerk-badge') || (tr.children[2] && tr.children[2].querySelector('span'));
+      if (span && typeof window.applyGewerk === 'function') window.applyGewerk(span, tr, empty);
+      else tr.setAttribute('data-gewerk', '');
+    });
+    if (window.boOrders && window.boOrders.length) {
+      var anyOrder = false;
+      window.boOrders.forEach(function(o){ if (o.gewerk === oldName) { o.gewerk = ''; anyOrder = true; } });
+      if (anyOrder) {
+        var json = JSON.stringify(window.boOrders);
+        localStorage.setItem('bo-orders-v3', json);
+        if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
+        if (typeof window.renderOrders === 'function') window.renderOrders();
+        if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
+      }
+    }
+    if (typeof window.cascadeClearKapEmployees === 'function') {
+      window.cascadeClearKapEmployees(oldName);
+    }
+  }
+
   // Wenn ein Gewerk umbenannt wird: alle Referenzen mitschleppen (Aufgaben, Bestellungen, Mitarbeiter)
   function cascadeRenameGewerk(oldName, newName) {
     if (!oldName || !newName || oldName === newName) return;
@@ -8373,7 +8409,10 @@ window.addEventListener('DOMContentLoaded', function(){
         btn.addEventListener('click', function(){
           var i = +this.dataset.i;
           if (!GEWERKE[i]) return;
-          if (!confirm('Gewerk "' + GEWERKE[i].name + '" löschen?\n\nBestehende Aufgaben/Bestellungen mit diesem Gewerk bleiben — sie verlieren nur die Farbe.')) return;
+          var delName = GEWERKE[i].name;
+          if (!confirm('Gewerk "' + delName + '" löschen?\n\nZugewiesene Aufgaben, Bestellungen und Mitarbeiter behalten ihren Eintrag, das Gewerk wird aber GELEERT — du musst dann ein neues Gewerk zuweisen.')) return;
+          // Erst alle Referenzen leeren, dann aus der Liste entfernen
+          cascadeClearGewerk(delName);
           GEWERKE.splice(i, 1);
           window.saveGewerkeList();
           window.populateGewerkSelects();
