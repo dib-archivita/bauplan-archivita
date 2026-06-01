@@ -8288,7 +8288,7 @@ window.togglePanel = function() {
 /* ===== Generischer KV-Sync für Neben-Tabs (Bestellungen, Budget, Kapazität, TODs, Einheiten) ===== */
 (function () {
   // Welche localStorage-Keys über die DB synchronisiert werden (Kern-Plan läuft separat über overrides!)
-  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1'];
+  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1', 'task-times-v1'];
   var PREFIX = ['task-mh-', 'todo-kw-'];
   function isSynced(key) {
     if (!key) return false;
@@ -8337,6 +8337,8 @@ window.togglePanel = function() {
         else if (typeof window.renderKalender === 'function') window.renderKalender();
       } else if (key === 'gewerke-list-v1') {
         if (typeof window.__applyGewerkeKV === 'function') window.__applyGewerkeKV(value);
+      } else if (key === 'task-times-v1') {
+        if (typeof window.__applyTaskTimesKV === 'function') window.__applyTaskTimesKV(value);
       } else if (key.indexOf('todo-kw-') === 0) {
         var kw = key.replace('todo-kw-', '');
         var el = document.getElementById('manual-kw' + kw);
@@ -8349,6 +8351,254 @@ window.togglePanel = function() {
   if (typeof renderOrders === 'function') window.renderOrders = renderOrders;
   if (typeof loadCostValues === 'function') window.loadCostValues = loadCostValues;
   if (typeof loadUnitCosts === 'function') window.loadUnitCosts = loadUnitCosts;
+})();
+</script>
+<script>
+/* ===== TODs-Tab: Inline-Status + Zeit-Erfassung + Gewerke-Filter + Sync zum Hauptplan ===== */
+(function () {
+  var TIMES_KEY = 'task-times-v1';
+  function loadTimes() { try { return JSON.parse(localStorage.getItem(TIMES_KEY) || '{}'); } catch (e) { return {}; } }
+  function saveTimes(t) { localStorage.setItem(TIMES_KEY, JSON.stringify(t)); }
+  var times = loadTimes();
+  var activeGw = '';
+
+  // Status-Zyklus inkl. "Projekt begonnen" (laufend) und "abgeschlossen"
+  var CYCLE = ['geplant', 'laufend', 'fortschritt_50', 'fortschritt_75', 'abgeschlossen'];
+  var DOT_BG = { geplant: '#94a3b8', laufend: '#f59e0b', fortschritt_50: '#f59e0b', fortschritt_75: '#f59e0b', abgeschlossen: '#16a34a' };
+  var DOT_LBL = { geplant: '·', laufend: '▶', fortschritt_50: '½', fortschritt_75: '¾', abgeschlossen: '✓' };
+
+  function fmt(ts) { if (!ts) return ''; try { return new Date(ts).toLocaleDateString('de-DE') + ' ' + new Date(ts).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}); } catch(e){return ts;} }
+
+  function findTaskRow(name) {
+    name = (name || '').trim().toLowerCase();
+    if (!name) return null;
+    var cells = document.querySelectorAll('tr.task-row .task-name-cell');
+    for (var i=0; i<cells.length; i++) {
+      var t = (cells[i].textContent || '').replace(/[🕐✕]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+      if (t === name) return cells[i].closest('tr.task-row');
+    }
+    for (var j=0; j<cells.length; j++) {
+      var u = (cells[j].textContent || '').replace(/[🕐✕]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+      if (u && (u.indexOf(name) >= 0 || name.indexOf(u) >= 0)) return cells[j].closest('tr.task-row');
+    }
+    return null;
+  }
+
+  function setStatus(taskRow, tid, next) {
+    if (!taskRow || taskRow.getAttribute('data-status') === next) return;
+    // setAttribute → MutationObserver in changes.js pusht über PlanSync an die DB
+    taskRow.setAttribute('data-status', next);
+    // Zeitstempel
+    if (next === 'laufend') {
+      times[tid] = times[tid] || {};
+      if (!times[tid].started) { times[tid].started = new Date().toISOString(); saveTimes(times); }
+    }
+    if (next === 'abgeschlossen') {
+      times[tid] = times[tid] || {};
+      times[tid].done = new Date().toISOString();
+      saveTimes(times);
+    }
+  }
+
+  function renderControls(li) {
+    var tid = li.dataset.tid;
+    if (!tid) return;
+    var ctrl = li.querySelector('.todo-ctrl');
+    if (!ctrl) {
+      ctrl = document.createElement('div');
+      ctrl.className = 'todo-ctrl';
+      ctrl.style.cssText = 'display:flex;gap:4px;align-items:center;margin-left:auto';
+      li.appendChild(ctrl);
+    }
+    var taskRow = document.querySelector('tr.task-row[data-tid="' + CSS.escape(tid) + '"]');
+    var curS = taskRow ? (taskRow.getAttribute('data-status') || 'geplant') : 'geplant';
+    var t = times[tid] || {};
+    ctrl.innerHTML =
+      '<button class="todo-begin" title="Projekt begonnen — setzt Status laufend + erfasst Startzeit" '
+      +   'style="padding:2px 6px;border-radius:8px;border:1px solid ' + (curS!=='geplant'?'#f59e0b':'#e2e8f0') + ';'
+      +   'background:' + (curS==='laufend'||/^fortschritt_/.test(curS)?'#fef3c7':'#fff') + ';color:#b45309;font-size:9px;font-weight:700;cursor:pointer">▶ begonnen</button>'
+      + '<button class="todo-done" title="Erledigt — setzt abgeschlossen + erfasst Endzeit" '
+      +   'style="padding:2px 6px;border-radius:8px;border:1px solid ' + (curS==='abgeschlossen'?'#16a34a':'#e2e8f0') + ';'
+      +   'background:' + (curS==='abgeschlossen'?'#dcfce7':'#fff') + ';color:#15803d;font-size:9px;font-weight:700;cursor:pointer">✓ erledigt</button>';
+    if (t.started || t.done) {
+      var tbadge = '<span style="font-size:9px;color:#94a3b8;white-space:nowrap;margin-left:4px">';
+      if (t.started) tbadge += '▶ ' + fmt(t.started);
+      if (t.started && t.done) tbadge += ' · ';
+      if (t.done) tbadge += '✓ ' + fmt(t.done);
+      tbadge += '</span>';
+      ctrl.insertAdjacentHTML('beforeend', tbadge);
+    }
+  }
+
+  function refreshDot(li) {
+    var tid = li.dataset.tid;
+    if (!tid) return;
+    var taskRow = document.querySelector('tr.task-row[data-tid="' + CSS.escape(tid) + '"]');
+    if (!taskRow) return;
+    var s = taskRow.getAttribute('data-status') || 'geplant';
+    var dot = li.querySelector('.todo-dot');
+    if (!dot) return;
+    dot.style.background = DOT_BG[s] || '#94a3b8';
+    dot.textContent = DOT_LBL[s] || '·';
+  }
+
+  function setupLi(li) {
+    if (li.dataset.todoInit) return;
+    var nameEl = li.querySelector('span[style*="flex:1"]');
+    if (!nameEl) return;
+    var name = nameEl.textContent.trim();
+    var taskRow = findTaskRow(name);
+    if (!taskRow) return;
+    var tid = taskRow.getAttribute('data-tid');
+    if (!tid) return;
+    li.dataset.tid = tid;
+    li.dataset.gewerk = taskRow.getAttribute('data-gewerk') || '';
+    li.dataset.todoInit = '1';
+
+    // Erstes <span> ist der Status-Dot → klickbar machen + Klasse setzen
+    var dot = li.firstElementChild;
+    if (dot && dot.style && dot.style.borderRadius && dot.style.borderRadius.indexOf('50%') >= 0) {
+      dot.classList.add('todo-dot');
+      dot.style.cursor = 'pointer';
+      dot.style.width = '14px';
+      dot.style.height = '14px';
+      dot.style.display = 'inline-flex';
+      dot.style.alignItems = 'center';
+      dot.style.justifyContent = 'center';
+      dot.style.color = '#fff';
+      dot.style.fontSize = '10px';
+      dot.style.fontWeight = '700';
+      dot.title = 'Klick: Status weiterschalten';
+      dot.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var s = taskRow.getAttribute('data-status') || 'geplant';
+        var idx = CYCLE.indexOf(s);
+        var next = CYCLE[(idx + 1) % CYCLE.length];
+        setStatus(taskRow, tid, next);
+        refreshDot(li);
+        renderControls(li);
+      });
+      refreshDot(li);
+    }
+
+    // Strecker, damit Buttons rechts landen
+    var strut = document.createElement('span');
+    strut.style.cssText = 'flex:1 0 0';
+    li.appendChild(strut);
+
+    renderControls(li);
+
+    // Click-Delegation für ▶ begonnen / ✓ erledigt
+    li.addEventListener('click', function (e) {
+      var b = e.target.closest('.todo-begin, .todo-done');
+      if (!b) return;
+      e.stopPropagation();
+      var target = b.classList.contains('todo-begin') ? 'laufend' : 'abgeschlossen';
+      setStatus(taskRow, tid, target);
+      refreshDot(li);
+      renderControls(li);
+    });
+  }
+
+  function buildFilterRow() {
+    var wrap = document.querySelector('#tab-todos .todos-wrap');
+    if (!wrap || document.getElementById('todos-filter-row')) return;
+    var row = document.createElement('div');
+    row.id = 'todos-filter-row';
+    row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px;padding:6px 0;border-bottom:1px solid #f1f5f9';
+    var lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:11px;font-weight:600;color:#64748b;margin-right:4px';
+    lbl.textContent = 'Filter Gewerk:';
+    row.appendChild(lbl);
+    var btnAll = document.createElement('button');
+    btnAll.textContent = 'Alle';
+    btnAll.dataset.gw = '';
+    btnAll.className = 'todos-gw-pill';
+    row.appendChild(btnAll);
+    (window.GEWERKE || []).forEach(function (g) {
+      if (!g.name) return;
+      var b = document.createElement('button');
+      b.textContent = g.name;
+      b.dataset.gw = g.name;
+      b.dataset.fg = g.fg;
+      b.className = 'todos-gw-pill';
+      row.appendChild(b);
+    });
+    row.querySelectorAll('.todos-gw-pill').forEach(function (b) {
+      b.style.cssText = 'padding:3px 11px;border-radius:14px;border:1.5px solid '
+        + (b.dataset.fg ? b.dataset.fg + '40' : '#e2e8f0')
+        + ';background:#fff;color:' + (b.dataset.fg || '#64748b')
+        + ';font-size:11px;font-weight:600;cursor:pointer';
+    });
+    var ref = wrap.children[1] || wrap.firstChild;
+    wrap.insertBefore(row, ref);
+    row.addEventListener('click', function (e) {
+      var b = e.target.closest('.todos-gw-pill');
+      if (!b) return;
+      activeGw = b.dataset.gw || '';
+      row.querySelectorAll('.todos-gw-pill').forEach(function (p) {
+        var on = (p === b);
+        p.style.background = on ? (p.dataset.fg || '#2563eb') : '#fff';
+        p.style.color = on ? '#fff' : (p.dataset.fg || '#64748b');
+      });
+      applyFilter();
+    });
+    // Initial "Alle" aktiv
+    btnAll.style.background = '#2563eb';
+    btnAll.style.color = '#fff';
+    btnAll.style.borderColor = '#2563eb';
+  }
+
+  function applyFilter() {
+    document.querySelectorAll('#tab-todos .kw-card ul li').forEach(function (li) {
+      if (!activeGw) { li.style.display = ''; return; }
+      li.style.display = (li.dataset.gewerk === activeGw) ? '' : 'none';
+    });
+    // Leere KW-Karten ggf. dezent stumpf
+    document.querySelectorAll('#tab-todos .kw-card').forEach(function (c) {
+      var visible = Array.from(c.querySelectorAll('ul li')).some(function (li) { return li.style.display !== 'none'; });
+      c.style.opacity = visible ? '1' : '0.45';
+    });
+  }
+
+  function init() {
+    buildFilterRow();
+    document.querySelectorAll('#tab-todos .kw-card ul li').forEach(setupLi);
+    applyFilter();
+  }
+
+  // Init nach Page-Load + bei Tab-Wechsel zu TODs
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 400); });
+  } else { setTimeout(init, 400); }
+  var origShow = window.showTab;
+  if (origShow) {
+    window.showTab = function (name, el) { origShow(name, el); if (name === 'todos') setTimeout(init, 100); };
+  }
+
+  // Bei eingehendem KV-Update (z.B. andere Person hat erledigt geklickt)
+  window.__applyTaskTimesKV = function (value) {
+    try { times = JSON.parse(value || '{}'); } catch (e) {}
+    document.querySelectorAll('#tab-todos .kw-card ul li[data-tid]').forEach(function (li) { renderControls(li); });
+  };
+
+  // Wenn Hauptplan-Status sich ändert (auch via Sync) → TOD-Bullets nachziehen
+  var statusObs = new MutationObserver(function (muts) {
+    var dirty = false;
+    for (var i = 0; i < muts.length; i++) {
+      if (muts[i].type === 'attributes' && muts[i].attributeName === 'data-status') { dirty = true; break; }
+    }
+    if (!dirty) return;
+    document.querySelectorAll('#tab-todos .kw-card ul li[data-tid]').forEach(function (li) {
+      refreshDot(li);
+      renderControls(li);
+    });
+  });
+  setTimeout(function () {
+    document.querySelectorAll('tr.task-row').forEach(function (r) {
+      statusObs.observe(r, { attributes: true, attributeFilter: ['data-status'] });
+    });
+  }, 800);
 })();
 </script>
 <script>
