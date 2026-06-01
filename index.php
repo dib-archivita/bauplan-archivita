@@ -980,6 +980,13 @@ function showTab(name, el) {
 
 // Status-Übersichtsbalken je Tab anpassen
 window.updateTabSummary = function (tabName) {
+  // FAB "+ Neue Aufgabe" und ⏰-Toggle nur im Hauptzeitplan zeigen
+  var fabPlus = document.querySelector('.btn-new-task');
+  var fabClock = document.getElementById('btn-toggle-panel');
+  var isMain = (tabName === 'hauptwerk');
+  if (fabPlus)  fabPlus.style.display  = isMain ? '' : 'none';
+  if (fabClock) fabClock.style.display = isMain ? '' : 'none';
+
   var bar = document.getElementById('header-summary');
   if (!bar) return;
   // Tabs ohne sinnvolle Status-Statistik → Balken ausblenden
