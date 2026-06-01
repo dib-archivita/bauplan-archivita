@@ -1115,18 +1115,8 @@ window.addEventListener('load', function() {
 <div class="filter-bar">
   <label>Filter Gewerk:</label>
   <button class="filter-btn active" onclick="filterGewerk('all')">Alle Gewerke</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#2563eb40;--gw-color:#2563eb;--gw-bg:#dbeafe" onclick="filterGewerk('Sanitär/Heizung')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb;margin-right:4px;vertical-align:middle"></span>Sanitär/Heizung</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#d9770640;--gw-color:#d97706;--gw-bg:#fef3c7" onclick="filterGewerk('Elektro')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d97706;margin-right:4px;vertical-align:middle"></span>Elektro</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#ea580c40;--gw-color:#ea580c;--gw-bg:#ffedd5" onclick="filterGewerk('Maler/Gipser')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ea580c;margin-right:4px;vertical-align:middle"></span>Maler/Gipser</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#6366f140;--gw-color:#6366f1;--gw-bg:#dbeafe" onclick="filterGewerk('Trockenbau')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6366f1;margin-right:4px;vertical-align:middle"></span>Trockenbau</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#92400e40;--gw-color:#92400e;--gw-bg:#fef3c7" onclick="filterGewerk('Bodenbelag')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#92400e;margin-right:4px;vertical-align:middle"></span>Bodenbelag</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#0f766e40;--gw-color:#0f766e;--gw-bg:#ccfbf1" onclick="filterGewerk('Fliesen')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#0f766e;margin-right:4px;vertical-align:middle"></span>Fliesen</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#7c3aed40;--gw-color:#7c3aed;--gw-bg:#ede9fe" onclick="filterGewerk('Estrich')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c3aed;margin-right:4px;vertical-align:middle"></span>Estrich</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#78350f40;--gw-color:#78350f;--gw-bg:#fde68a" onclick="filterGewerk('Schreiner/Endmontage')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#78350f;margin-right:4px;vertical-align:middle"></span>Schreiner/Endmontage</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#991b1b40;--gw-color:#991b1b;--gw-bg:#fee2e2" onclick="filterGewerk('Brandschutz')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#991b1b;margin-right:4px;vertical-align:middle"></span>Brandschutz</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#065f4640;--gw-color:#065f46;--gw-bg:#d1fae5" onclick="filterGewerk('Dach/Fassade')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#065f46;margin-right:4px;vertical-align:middle"></span>Dach/Fassade</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#4338ca40;--gw-color:#4338ca;--gw-bg:#e0e7ff" onclick="filterGewerk('Planung/Architekt')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4338ca;margin-right:4px;vertical-align:middle"></span>Planung/Architekt</button>
-  <button class="filter-btn gw-filter-btn" style="border-color:#64748b40;--gw-color:#64748b;--gw-bg:#f1f5f9" onclick="filterGewerk('Sonstige')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#64748b;margin-right:4px;vertical-align:middle"></span>Sonstige</button>
+  <span id="gewerk-filter-pills" style="display:contents"></span>
+  <button class="filter-btn" id="gewerk-filter-add" onclick="(function(){var n=prompt('Neues Gewerk:'); if(n && window.addGewerk){ window.addGewerk(n); } })()" title="Neues Gewerk anlegen — wird überall verfügbar" style="padding:4px 11px;border-radius:14px;border:1.5px dashed #94a3b8;background:transparent;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer;margin-left:auto">＋ Gewerk</button>
 </div>
 <div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
@@ -7665,8 +7655,23 @@ window.addEventListener('DOMContentLoaded', function(){
     window.populateGewerkSelects();
     return g;
   };
+  // Hauptzeitplan-Filter-Pills neu rendern
+  window.renderGewerkFilter = function () {
+    var cont = document.getElementById('gewerk-filter-pills');
+    if (!cont) return;
+    cont.innerHTML = GEWERKE.filter(function(g){ return g.name; }).map(function(g){
+      var name = g.name.replace(/'/g, "\\'");
+      return '<button class="filter-btn gw-filter-btn" '
+        + 'style="border-color:' + g.fg + '40;--gw-color:' + g.fg + ';--gw-bg:' + g.bg + '" '
+        + 'onclick="filterGewerk(\'' + name + '\')">'
+        + '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + g.fg + ';margin-right:4px;vertical-align:middle"></span>'
+        + g.name + '</button>';
+    }).join('');
+  };
+
   // Alle Gewerk-Dropdowns/Re-Render auf einen Stand bringen
   window.populateGewerkSelects = function () {
+    window.renderGewerkFilter();
     var names = GEWERKE.map(function(g){return g.name;}).filter(function(n){return n;});
     var opts = names.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
     var addOpt = '<option value="__add__" style="font-style:italic;color:#2563eb">+ Neues Gewerk…</option>';
