@@ -268,6 +268,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 body:not([data-active-tab="hauptwerk"]) #today-fab,
 body:not([data-active-tab="hauptwerk"]) #btn-toggle-panel,
 body:not([data-active-tab="hauptwerk"]) .btn-new-task { display: none !important; }
+/* Verantwortlich-Spalte in den Budget-Tabellen ausblenden */
+#tab-kosten div[id^="block-"] table th:nth-child(2),
+#tab-kosten div[id^="block-"] table td:nth-child(2) { display: none; }
 
 
 /* ── Gewerke Multi-Select ── */
@@ -6610,7 +6613,6 @@ window.renderBudgetCustom = function () {
       +   '<thead><tr style="background:#fff">'
       +     '<th style="padding:5px 16px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Position</th>'
       +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Gewerk</th>'
-      +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Verantwortl.</th>'
       +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Hinweis</th>'
       +     '<th style="padding:5px 16px;text-align:right;font-size:10px;color:#94a3b8;font-weight:600">Betrag</th>'
       +     '<th style="padding:5px 8px;width:36px"></th>'
@@ -6619,7 +6621,6 @@ window.renderBudgetCustom = function () {
       html += '<tr style="border-top:1px solid #f8fafc">'
         + '<td style="padding:5px 16px"><input value="' + (it.name||'').replace(/"/g,'&quot;') + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'name\',this.value)" placeholder="Position" style="width:100%;border:none;background:transparent;font-size:11px;font-weight:600;color:#1e293b;outline:none;padding:2px 4px;border-bottom:1px dashed transparent" onfocus="this.style.borderBottomColor=\'#cbd5e1\'" onblur="this.style.borderBottomColor=\'transparent\'"></td>'
         + '<td style="padding:5px 8px"><select onchange="window.updateBudgetCustom(\'' + it.id + '\',\'gewerk\',this.value); setTimeout(window.renderBudgetCustom,30)" style="width:130px;border:1px solid #e2e8f0;border-radius:4px;padding:3px 5px;font-size:11px">' + gewerkOpts.replace('value="' + (it.gewerk||'') + '"', 'value="' + (it.gewerk||'') + '" selected') + '</select></td>'
-        + '<td style="padding:5px 8px"><select onchange="window.updateBudgetCustom(\'' + it.id + '\',\'verantwortlicher\',this.value)" style="width:110px;border:1px solid #e2e8f0;border-radius:4px;padding:3px 5px;font-size:11px">' + verantOpts.replace('value="' + (it.verantwortlicher||'offen') + '"', 'value="' + (it.verantwortlicher||'offen') + '" selected') + '</select></td>'
         + '<td style="padding:5px 8px"><input value="' + (it.hinweis||'').replace(/"/g,'&quot;') + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'hinweis\',this.value)" placeholder="Hinweis" style="width:100%;border:none;background:transparent;font-size:10px;color:#64748b;outline:none;padding:2px 4px"></td>'
         + '<td style="padding:5px 16px;text-align:right"><input type="number" min="0" step="100" value="' + (it.betrag||0) + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'betrag\',this.value)" style="width:110px;text-align:right;border:1.5px solid #e2e8f0;border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600;color:#2563eb"></td>'
         + '<td style="padding:5px 8px;text-align:center"><button onclick="window.deleteBudgetCustom(\'' + it.id + '\')" title="Löschen" style="background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:3px 7px;cursor:pointer;font-size:10px">🗑</button></td>'
