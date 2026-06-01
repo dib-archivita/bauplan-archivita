@@ -5833,7 +5833,7 @@ window.openUrlaubModal = function(cell) {
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Position</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Gewerk</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Verantwortlich</th>
-    <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Firma</th>
+    <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Lieferant</th>
     <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">bis KW</th>
     <th style="padding:8px 10px;text-align:center;font-size:10px;color:#94a3b8;font-weight:600">Lieferung</th>
     <th style="padding:8px 10px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Status</th>
@@ -5879,7 +5879,7 @@ window.openUrlaubModal = function(cell) {
         </select>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#64748b">Firma</label>
+        <label style="font-size:11px;font-weight:600;color:#64748b">Lieferant</label>
         <input id="bo-m-firma" type="text" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
       </div>
       <div>
