@@ -5848,14 +5848,21 @@ window.openUrlaubModal = function(cell) {
   };
 
   // ── Kalender: Wochen-Auslastung pro Gewerk ─────────────────────────
+  // Konsolidiere alten Gewerk-Namen auf den kanonischen Namen
+  function gnorm(g) {
+    if (!g) return '';
+    return (typeof window.mapGewerk === 'function') ? window.mapGewerk(g) : g;
+  }
   function getAllGewerke() {
     var set = new Set();
-    employees.forEach(function(e){ e.gewerke.forEach(function(g){ if (g) set.add(g); }); });
+    employees.forEach(function(e){ e.gewerke.forEach(function(g){ var n = gnorm(g); if (n) set.add(n); }); });
     document.querySelectorAll('tr.task-row[data-gewerk]').forEach(function(tr){
-      var g = tr.getAttribute('data-gewerk');
+      var g = gnorm(tr.getAttribute('data-gewerk'));
       if (g) set.add(g);
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort(function(a,b){
+      return a.localeCompare(b, 'de', { sensitivity: 'base' });
+    });
   }
 
   function getKWRange() {
@@ -5866,7 +5873,7 @@ window.openUrlaubModal = function(cell) {
     // Map: gewerk → kw → mannstunden_sum
     var map = {};
     document.querySelectorAll('tr.task-row').forEach(function(tr){
-      var gewerk = tr.getAttribute('data-gewerk') || '';
+      var gewerk = gnorm(tr.getAttribute('data-gewerk') || '');
       if (!gewerk) return;
       var bar = tr.querySelector('.gantt-bar');
       if (!bar || !bar.style.width) return;
@@ -5900,7 +5907,8 @@ window.openUrlaubModal = function(cell) {
   function capacityByGewerkAndKw() {
     var map = {};
     employees.forEach(function(emp){
-      emp.gewerke.forEach(function(gw){
+      emp.gewerke.forEach(function(gw0){
+        var gw = gnorm(gw0);
         if (!gw) return;
         if (!map[gw]) map[gw] = {};
         for (var kw = emp.von; kw <= emp.bis; kw++) {
@@ -5934,10 +5942,17 @@ window.openUrlaubModal = function(cell) {
     head += '</tr>';
     thead.innerHTML = head;
 
-    // "Nur Überlast"-Filter: Gewerke ohne irgendeine überlastete KW im Zeitraum überspringen
-    var visibleGewerke = gewerke;
+    // Standard: Gewerke ohne Bedarf UND ohne Kapazität ausblenden (kein Rauschen)
+    var visibleGewerke = gewerke.filter(function(gw){
+      for (var kk = rng.start; kk <= rng.end; kk++) {
+        if (((demand[gw]||{})[kk] || 0) > 0) return true;
+        if (((supply[gw]||{})[kk] || 0) > 0) return true;
+      }
+      return false;
+    });
+    // "Nur Überlast"-Filter: zusätzlich auf überbuchte Gewerke einschränken
     if (kalFilter === 'overload') {
-      visibleGewerke = gewerke.filter(function(gw){
+      visibleGewerke = visibleGewerke.filter(function(gw){
         for (var kk = rng.start; kk <= rng.end; kk++) {
           var dd = (demand[gw]||{})[kk] || 0;
           var ss = (supply[gw]||{})[kk] || 0;
