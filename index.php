@@ -8420,14 +8420,8 @@ window.togglePanel = function() {
       + '<button class="todo-done" title="Erledigt — setzt abgeschlossen + erfasst Endzeit" '
       +   'style="padding:2px 6px;border-radius:8px;border:1px solid ' + (curS==='abgeschlossen'?'#16a34a':'#e2e8f0') + ';'
       +   'background:' + (curS==='abgeschlossen'?'#dcfce7':'#fff') + ';color:#15803d;font-size:9px;font-weight:700;cursor:pointer">✓ erledigt</button>';
-    if (t.started || t.done) {
-      var tbadge = '<span style="font-size:9px;color:#94a3b8;white-space:nowrap;margin-left:4px">';
-      if (t.started) tbadge += '▶ ' + fmt(t.started);
-      if (t.started && t.done) tbadge += ' · ';
-      if (t.done) tbadge += '✓ ' + fmt(t.done);
-      tbadge += '</span>';
-      ctrl.insertAdjacentHTML('beforeend', tbadge);
-    }
+    // Zeitstempel-Anzeige ist vorerst ausgeblendet (Erfassung läuft im Hintergrund weiter)
+    // Zur Reaktivierung später wieder einkommentieren / refaktorieren.
   }
 
   function refreshDot(li) {
