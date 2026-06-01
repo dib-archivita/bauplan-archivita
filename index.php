@@ -989,6 +989,7 @@ function showTab(name, el) {
   try { localStorage.setItem('active-tab', name); } catch(e) {}
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
   if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
+  if (name === 'kosten' && typeof window.renderBudgetCustom === 'function') window.renderBudgetCustom();
   if (name === 'kapazitaet' && typeof window.renderKapaCockpit === 'function') window.renderKapaCockpit();
   if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
@@ -5154,6 +5155,18 @@ function filterWohnNew(mode, btn) {
 <!-- BESTELLUNGEN-ÜBERSICHT (automatisch aus Bestellungen) -->
 <div id="cost-orders-overview" style="background:#fff;border:1.5px solid #16a34a30;border-radius:10px;margin-bottom:20px;overflow:hidden"></div>
 
+<!-- EIGENE BUDGET-POSITIONEN (frei editierbar) -->
+<div id="budget-custom-block" style="background:#fff;border:1.5px solid #2563eb30;border-radius:10px;margin-bottom:20px;overflow:hidden">
+  <div style="padding:12px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:13px;font-weight:800;color:#1e40af">📝 Eigene Budget-Positionen</div>
+      <div style="font-size:10px;color:#2563eb;margin-top:2px">Frei editierbar — alle Werte werden in die Gesamtsumme aufgenommen</div>
+    </div>
+    <button onclick="window.addBudgetCustom()" style="padding:6px 14px;background:#2563eb;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">+ Position</button>
+  </div>
+  <div id="budget-custom-body"></div>
+</div>
+
 <!-- PLAUSIBILITÄT -->
 <div id="cost-plausibility" style="background:#fff;border:1.5px solid #2563eb20;border-radius:10px;margin-bottom:20px;overflow:hidden">
   <div style="padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe">
@@ -6367,7 +6380,10 @@ function updateCostSummary() {
     ordersTotal += v;
     if (window.BO_CONFIRMED_STATES && window.BO_CONFIRMED_STATES.indexOf(o.status) !== -1) ordersConfirmed += v;
   });
-  var netto = sectionsSum + ordersTotal;
+  // Eigene Budget-Positionen mit aufnehmen
+  var customTotal = 0;
+  (window.budgetCustom || []).forEach(function(it){ customTotal += (it.betrag || 0); });
+  var netto = sectionsSum + ordersTotal + customTotal;
   var reserve = Math.round(netto * 0.08);
   var mwst = Math.round((netto + reserve) * 0.19);
   var brutto = netto + reserve + mwst;
@@ -6403,6 +6419,10 @@ function updateCostSummary() {
     if (ordersTotal > 0) {
       rows += '<tr style="background:#f0fdf4"><td style="padding:6px 10px;font-size:11px;color:#15803d">+ 📦 Bestellungen (' + fmt(ordersConfirmed) + ' verbindlich)</td>'
         + '<td style="padding:6px 10px;text-align:right;font-size:11px;color:#15803d;font-weight:700">' + fmt(ordersTotal) + '</td></tr>';
+    }
+    if (customTotal > 0) {
+      rows += '<tr style="background:#eff6ff"><td style="padding:6px 10px;font-size:11px;color:#1e40af">+ 📝 Eigene Positionen</td>'
+        + '<td style="padding:6px 10px;text-align:right;font-size:11px;color:#1e40af;font-weight:700">' + fmt(customTotal) + '</td></tr>';
     }
     rows += '<tr style="background:#f8fafc"><td style="padding:7px 10px;font-weight:700;font-size:12px;color:#1e293b">Netto-Summe (inkl. Bestellungen)</td>'
       + '<td style="padding:7px 10px;text-align:right;font-weight:700;font-size:12px;color:#2563eb">' + fmt(netto) + '</td></tr>';
@@ -6462,6 +6482,105 @@ function exportCostCSV() {
   a.download = 'Budgetplanung_Archivita.csv';
   a.click();
 }
+
+// ════════════ EIGENE BUDGET-POSITIONEN ════════════
+window.budgetCustom = JSON.parse(localStorage.getItem('budget-custom-v1') || '[]');
+
+function saveBudgetCustom() {
+  var json = JSON.stringify(window.budgetCustom);
+  localStorage.setItem('budget-custom-v1', json);
+  if (window.__syncKV) window.__syncKV('budget-custom-v1', json);
+}
+
+window.addBudgetCustom = function () {
+  window.budgetCustom.push({
+    id: 'bc' + Date.now(),
+    name: 'Neue Position',
+    gewerk: '',
+    verantwortlicher: 'offen',
+    betrag: 0,
+    hinweis: ''
+  });
+  saveBudgetCustom();
+  renderBudgetCustom();
+  if (typeof updateCostSummary === 'function') updateCostSummary();
+};
+
+window.updateBudgetCustom = function (id, field, value) {
+  var idx = window.budgetCustom.findIndex(function(x){ return x.id === id; });
+  if (idx < 0) return;
+  if (field === 'betrag') value = parseFloat(value) || 0;
+  window.budgetCustom[idx][field] = value;
+  saveBudgetCustom();
+  // Nur Gesamtsumme aktualisieren, kein Re-Render (sonst verliert Input den Fokus)
+  if (typeof updateCostSummary === 'function') updateCostSummary();
+};
+
+window.deleteBudgetCustom = function (id) {
+  var idx = window.budgetCustom.findIndex(function(x){ return x.id === id; });
+  if (idx < 0) return;
+  if (!confirm('Position "' + (window.budgetCustom[idx].name || '?') + '" löschen?')) return;
+  window.budgetCustom.splice(idx, 1);
+  saveBudgetCustom();
+  renderBudgetCustom();
+  if (typeof updateCostSummary === 'function') updateCostSummary();
+};
+
+window.renderBudgetCustom = function () {
+  var body = document.getElementById('budget-custom-body');
+  if (!body) return;
+  var items = window.budgetCustom || [];
+  if (!items.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12px">Noch keine eigenen Positionen. Klick auf "+ Position".</div>';
+    return;
+  }
+  // Nach Gewerk gruppieren
+  var groups = {};
+  items.forEach(function(it){
+    var g = it.gewerk || '— Ohne Gewerk —';
+    if (!groups[g]) groups[g] = { sum: 0, items: [] };
+    groups[g].sum += it.betrag || 0;
+    groups[g].items.push(it);
+  });
+  var gMap = {}; (window.GEWERKE || []).forEach(function(g){ gMap[g.name] = g; });
+  var gewerkOpts = '<option value="">— Ohne Gewerk —</option>'
+    + (window.GEWERKE || []).map(function(g){ return '<option value="' + g.name + '">' + g.name + '</option>'; }).join('');
+  var verantOpts = ['offen','DIB','HEG','EGA','Architronik'].map(function(v){ return '<option value="' + v + '">' + v + '</option>'; }).join('');
+  var fmtE = function(n){ return (n||0).toLocaleString('de-DE') + ' €'; };
+
+  var html = '';
+  Object.keys(groups).sort(function(a,b){ return a.localeCompare(b, 'de'); }).forEach(function(g){
+    var gMeta = gMap[g] || { bg:'#f1f5f9', fg:'#64748b' };
+    html += '<div style="border-bottom:1px solid #f1f5f9">'
+      + '<div style="padding:8px 16px;background:#fafafa;display:flex;align-items:center;justify-content:space-between">'
+      +   '<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#1e293b">'
+      +     '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + gMeta.fg + '"></span>' + g
+      +   '</span>'
+      +   '<span style="font-size:11px;color:#1e40af;font-weight:700">' + fmtE(groups[g].sum) + '</span>'
+      + '</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +   '<thead><tr style="background:#fff">'
+      +     '<th style="padding:5px 16px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Position</th>'
+      +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Gewerk</th>'
+      +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Verantwortl.</th>'
+      +     '<th style="padding:5px 8px;text-align:left;font-size:10px;color:#94a3b8;font-weight:600">Hinweis</th>'
+      +     '<th style="padding:5px 16px;text-align:right;font-size:10px;color:#94a3b8;font-weight:600">Betrag</th>'
+      +     '<th style="padding:5px 8px;width:36px"></th>'
+      +   '</tr></thead><tbody>';
+    groups[g].items.forEach(function(it){
+      html += '<tr style="border-top:1px solid #f8fafc">'
+        + '<td style="padding:5px 16px"><input value="' + (it.name||'').replace(/"/g,'&quot;') + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'name\',this.value)" placeholder="Position" style="width:100%;border:none;background:transparent;font-size:11px;font-weight:600;color:#1e293b;outline:none;padding:2px 4px;border-bottom:1px dashed transparent" onfocus="this.style.borderBottomColor=\'#cbd5e1\'" onblur="this.style.borderBottomColor=\'transparent\'"></td>'
+        + '<td style="padding:5px 8px"><select onchange="window.updateBudgetCustom(\'' + it.id + '\',\'gewerk\',this.value); setTimeout(window.renderBudgetCustom,30)" style="width:130px;border:1px solid #e2e8f0;border-radius:4px;padding:3px 5px;font-size:11px">' + gewerkOpts.replace('value="' + (it.gewerk||'') + '"', 'value="' + (it.gewerk||'') + '" selected') + '</select></td>'
+        + '<td style="padding:5px 8px"><select onchange="window.updateBudgetCustom(\'' + it.id + '\',\'verantwortlicher\',this.value)" style="width:110px;border:1px solid #e2e8f0;border-radius:4px;padding:3px 5px;font-size:11px">' + verantOpts.replace('value="' + (it.verantwortlicher||'offen') + '"', 'value="' + (it.verantwortlicher||'offen') + '" selected') + '</select></td>'
+        + '<td style="padding:5px 8px"><input value="' + (it.hinweis||'').replace(/"/g,'&quot;') + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'hinweis\',this.value)" placeholder="Hinweis" style="width:100%;border:none;background:transparent;font-size:10px;color:#64748b;outline:none;padding:2px 4px"></td>'
+        + '<td style="padding:5px 16px;text-align:right"><input type="number" min="0" step="100" value="' + (it.betrag||0) + '" oninput="window.updateBudgetCustom(\'' + it.id + '\',\'betrag\',this.value)" style="width:110px;text-align:right;border:1.5px solid #e2e8f0;border-radius:5px;padding:3px 6px;font-size:11px;font-weight:600;color:#2563eb"></td>'
+        + '<td style="padding:5px 8px;text-align:center"><button onclick="window.deleteBudgetCustom(\'' + it.id + '\')" title="Löschen" style="background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:3px 7px;cursor:pointer;font-size:10px">🗑</button></td>'
+      + '</tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+  body.innerHTML = html;
+};
 
 // ════════════ BESTELLUNGEN ENGINE ════════════
 
@@ -8986,7 +9105,7 @@ window.togglePanel = function() {
 /* ===== Generischer KV-Sync für Neben-Tabs (Bestellungen, Budget, Kapazität, TODs, Einheiten) ===== */
 (function () {
   // Welche localStorage-Keys über die DB synchronisiert werden (Kern-Plan läuft separat über overrides!)
-  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1', 'task-times-v1'];
+  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1', 'task-times-v1', 'budget-custom-v1'];
   var PREFIX = ['task-mh-', 'todo-kw-'];
   function isSynced(key) {
     if (!key) return false;
@@ -9023,6 +9142,10 @@ window.togglePanel = function() {
         window.boOrders = JSON.parse(value || 'null') || window.boOrders;
         if (typeof window.renderOrders === 'function') window.renderOrders();
         if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
+      } else if (key === 'budget-custom-v1') {
+        try { window.budgetCustom = JSON.parse(value || '[]') || []; } catch (e) {}
+        if (typeof window.renderBudgetCustom === 'function') window.renderBudgetCustom();
+        if (typeof window.updateCostSummary === 'function') window.updateCostSummary();
       } else if (key === 'cost-values') {
         if (typeof window.loadCostValues === 'function') window.loadCostValues();
       } else if (key === 'unit-costs') {
