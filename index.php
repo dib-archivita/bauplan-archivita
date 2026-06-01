@@ -5574,16 +5574,21 @@ window.openUrlaubModal = function(cell) {
   }
 
   function urlaubListHtml(urls, empIdx) {
-    if (!urls || !urls.length) return '<span style="color:#cbd5e1;font-size:11px;font-style:italic">keine Urlaube · "+ Urlaub" zum Hinzufügen</span>';
-    return urls.map(function(u, i){
-      return '<span class="urlaub-pill" data-eidx="' + empIdx + '" data-uidx="' + i + '" '
-        + 'style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px;cursor:pointer" '
-        + 'title="Klick zum Bearbeiten">'
-        + fmtKw(u)
-        + '<button data-uidx="' + i + '" class="urlaub-del" title="Löschen" style="background:none;border:none;color:#b45309;cursor:pointer;font-size:11px;padding:0 0 0 4px;line-height:1">×</button>'
-      + '</span>';
-    }).join('')
-    + '<div class="urlaub-editor" data-eidx="' + empIdx + '" style="display:none"></div>';
+    var pills = '';
+    if (!urls || !urls.length) {
+      pills = '<span style="color:#cbd5e1;font-size:11px;font-style:italic">keine Urlaube</span>';
+    } else {
+      pills = urls.map(function(u, i){
+        return '<span class="urlaub-pill" data-eidx="' + empIdx + '" data-uidx="' + i + '" '
+          + 'style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px;cursor:pointer" '
+          + 'title="Klick zum Bearbeiten">'
+          + fmtKw(u)
+          + '<button data-uidx="' + i + '" class="urlaub-del" title="Löschen" style="background:none;border:none;color:#b45309;cursor:pointer;font-size:11px;padding:0 0 0 4px;line-height:1">×</button>'
+        + '</span>';
+      }).join('');
+    }
+    // Editor-Container immer anhängen (egal ob Urlaube vorhanden) — sonst greift "+ Urlaub" ins Leere
+    return pills + '<div class="urlaub-editor" data-eidx="' + empIdx + '" style="display:none"></div>';
   }
 
   function renderMA() {
