@@ -997,12 +997,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Status-Übersichtsbalken je Tab anpassen
 window.updateTabSummary = function (tabName) {
-  // FAB "+ Neue Aufgabe" und ⏰-Toggle nur im Hauptzeitplan zeigen
+  // FAB "+ Neue Aufgabe", ⏰-Toggle und "Heute"-Button nur im Hauptzeitplan zeigen
   var fabPlus = document.querySelector('.btn-new-task');
   var fabClock = document.getElementById('btn-toggle-panel');
+  var fabToday = document.getElementById('today-fab');
   var isMain = (tabName === 'hauptwerk');
   if (fabPlus)  fabPlus.style.display  = isMain ? '' : 'none';
   if (fabClock) fabClock.style.display = isMain ? '' : 'none';
+  if (fabToday) fabToday.style.display = isMain ? '' : 'none';
 
   var bar = document.getElementById('header-summary');
   if (!bar) return;
