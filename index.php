@@ -5795,8 +5795,11 @@ window.openUrlaubModal = function(cell) {
 
     var maxOver = bottlenecks.length ? bottlenecks[0] : null;
 
-    function card(icon, lbl, value, sub, color) {
-      return '<div style="background:#fff;border:1.5px solid ' + color + '30;border-radius:10px;padding:12px 16px;flex:1;min-width:200px">'
+    function card(icon, lbl, value, sub, color, action) {
+      return '<div onclick="' + action + '" '
+        + 'style="background:#fff;border:1.5px solid ' + color + '30;border-radius:10px;padding:12px 16px;flex:1;min-width:200px;cursor:pointer;transition:transform .12s,box-shadow .12s" '
+        + 'onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(15,23,42,.08)\'" '
+        + 'onmouseleave="this.style.transform=\'\';this.style.boxShadow=\'\'">'
         + '<div style="font-size:18px">' + icon + '</div>'
         + '<div style="font-size:18px;font-weight:800;color:' + color + ';line-height:1.2">' + value + '</div>'
         + '<div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-top:2px">' + lbl + '</div>'
@@ -5807,11 +5810,30 @@ window.openUrlaubModal = function(cell) {
     var loadColor = thisLoad > 100 ? '#dc2626' : thisLoad > 80 ? '#d97706' : '#15803d';
     var loadIcon = thisLoad > 100 ? '🔴' : thisLoad > 80 ? '🟡' : '🟢';
     el.innerHTML =
-        card(loadIcon, 'Auslastung diese Woche (KW ' + nowKW + ')', thisLoad + '%', Math.round(thisWeekDemand) + 'h / ' + Math.round(thisWeekSupply) + 'h', loadColor)
-      + card('📊', 'Engpässe nächste 4 Wochen', bottlenecks.length + ' Stück', bottlenecks.length ? bottlenecks.slice(0,3).map(function(b){return 'KW' + b.kw + ' ' + b.gewerk;}).join(' · ') : 'keine Überlastung', bottlenecks.length ? '#dc2626' : '#15803d')
-      + card('⚠', 'Größte Überlastung', maxOver ? '+' + maxOver.over + 'h' : '—', maxOver ? maxOver.gewerk + ' · KW ' + maxOver.kw : 'alles im grünen Bereich', maxOver ? '#dc2626' : '#15803d');
+        card(loadIcon, 'Auslastung diese Woche (KW ' + nowKW + ')', thisLoad + '%', Math.round(thisWeekDemand) + 'h / ' + Math.round(thisWeekSupply) + 'h', loadColor, "kapJumpToCalendar(false)")
+      + card('📊', 'Engpässe nächste 4 Wochen', bottlenecks.length + ' Stück', bottlenecks.length ? bottlenecks.slice(0,3).map(function(b){return 'KW' + b.kw + ' ' + b.gewerk;}).join(' · ') : 'keine Überlastung', bottlenecks.length ? '#dc2626' : '#15803d', "kapJumpToCalendar(true)")
+      + card('⚠', 'Größte Überlastung', maxOver ? '+' + maxOver.over + 'h' : '—', maxOver ? maxOver.gewerk + ' · KW ' + maxOver.kw : 'alles im grünen Bereich', maxOver ? '#dc2626' : '#15803d', "kapJumpToCalendar(true)");
   }
   window.renderKapaCockpit = renderKapaCockpit;
+
+  // Klick auf Cockpit-Karte → Kalender-Subtab öffnen, optional "Nur Überlast"-Filter
+  window.kapJumpToCalendar = function (overloadOnly) {
+    // Subtab Kalender aktivieren
+    if (typeof window.showKapSub === 'function') {
+      var tab = document.querySelector('.kap-subtab[data-sub="kal"]');
+      window.showKapSub('kal', tab);
+    }
+    // Filter setzen
+    var btn = document.getElementById(overloadOnly ? 'kal-filter-overload' : 'kal-filter-all');
+    if (btn && typeof window.setKalFilter === 'function') {
+      window.setKalFilter(overloadOnly ? 'overload' : 'all', btn);
+    }
+    // Sanft hoch zur Tabelle scrollen
+    setTimeout(function(){
+      var anchor = document.getElementById('kap-kal-table');
+      if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 100);
+  };
 
   window.addEmployee = function(){
     employees.push({id:'ma'+Date.now(), name:'Neuer Mitarbeiter', gewerke:[], std:40, von:23, bis:52});
