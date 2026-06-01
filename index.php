@@ -5769,22 +5769,7 @@ window.openUrlaubModal = function(cell) {
   <button class="bo-filter" data-group="verant" data-val="offen" onclick="setFilter('verant','offen',this)"
     style="padding:3px 12px;border-radius:20px;border:1.5px solid #94a3b840;background:#f8fafc;color:#64748b;font-size:11px;font-weight:700;cursor:pointer">offen</button>
   <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:8px">Status:</span>
-  <select id="bo-status-filter" onchange="renderOrders()"
-    style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:11px;color:#374151">
-    <option value="">Alle Status</option>
-    <option value="geplant">geplant</option>
-    <option value="Angebot angefordert">Angebot angefordert</option>
-    <option value="Angebot erhalten">Angebot erhalten</option>
-    <option value="Angebot geprüft">Angebot geprüft</option>
-    <option value="Angebot freigegeben">Angebot freigegeben</option>
-    <option value="AB erhalten">AB erhalten</option>
-    <option value="bestellt">bestellt</option>
-    <option value="Lieferung ausstehend">Lieferung ausstehend</option>
-    <option value="kommt in KW">kommt in KW</option>
-    <option value="geliefert">geliefert</option>
-    <option value="laufend">laufend</option>
-    <option value="ausstehend">ausstehend</option>
-  </select>
+  <span id="bo-status-pills" style="display:contents"></span>
   <span style="font-size:11px;font-weight:600;color:#64748b;margin-left:8px">Gewerk:</span>
   <select id="bo-gewerk-filter" onchange="renderOrders()"
     style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:11px;color:#374151">
@@ -6163,7 +6148,10 @@ function setFilter(group, val, btn) {
 }
 
 function renderOrders() {
-  boFilters.status = (document.getElementById('bo-status-filter')||{}).value || '';
+  // Status-Pills initial befüllen (idempotent)
+  var spCont = document.getElementById('bo-status-pills');
+  if (spCont && !spCont.firstChild && typeof window.renderStatusPills === 'function') window.renderStatusPills();
+  // Status wird per Pills gesetzt (setStatusFilter) → boFilters.status bleibt persistent
   boFilters.gewerk = (document.getElementById('bo-gewerk-filter')||{}).value || '';
   boFilters.search = ((document.getElementById('bo-search')||{}).value || '').toLowerCase();
   boFilters.ghkat  = ((document.getElementById('bo-gh-filter')||{}).value || '');
@@ -6266,29 +6254,44 @@ function renderOrders() {
 }
 
 function renderSummaryBadges(filtered) {
-  var byVerant = {};
-  filtered.forEach(function(o) {
-    byVerant[o.verantwortlicher] = (byVerant[o.verantwortlicher]||0) + 1;
-  });
-  var byStatus = {};
-  filtered.forEach(function(o) { byStatus[o.status] = (byStatus[o.status]||0) + 1; });
-  var vColors = {"DIB": "#2563eb", "HEG": "#16a34a", "EGA": "#d97706", "Architronik": "#7c3aed", "offen": "#94a3b8"};
-  var sColors = {"geliefert": ["#dcfce7", "#15803d"], "bestellt": ["#dbeafe", "#2563eb"], "laufend": ["#fef3c7", "#b45309"], "geplant": ["#f1f5f9", "#64748b"], "ausstehend": ["#fee2e2", "#dc2626"]};
-
   var el = document.getElementById('bo-summary');
   if (!el) return;
   var html = '<span style="font-size:11px;color:#64748b;align-self:center">' + filtered.length + ' Einträge</span>';
-  Object.keys(byVerant).forEach(function(v) {
-    var c = vColors[v]||'#64748b';
-    html += '<span style="background:' + c + '18;color:' + c + ';border:1px solid ' + c + '30;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">'
-      + v + ': ' + byVerant[v] + '</span>';
-  });
-  var urgentCount = filtered.filter(function(o){return o.status==='ausstehend' || o.status==='Lieferung ausstehend';}).length;
+  // Klickbarer Schnellfilter "X ausstehend" (filtert auf Status="ausstehend")
+  var urgentCount = boOrders.filter(function(o){return o.status==='ausstehend' || o.status==='Lieferung ausstehend';}).length;
   if (urgentCount > 0) {
-    html += '<span style="background:#fee2e2;color:#dc2626;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700">⚠ ' + urgentCount + ' ausstehend</span>';
+    html += '<button onclick="setStatusFilter(\'ausstehend\')" title="Auf ausstehend filtern" '
+      + 'style="background:#fee2e2;color:#dc2626;border:1px solid #dc262630;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">'
+      + '⚠ ' + urgentCount + ' ausstehend</button>';
   }
   el.innerHTML = html;
 }
+
+// Status-Filter per Pill
+window.setStatusFilter = function (val) {
+  boFilters.status = (boFilters.status === val) ? '' : val;
+  renderStatusPills();
+  renderOrders();
+};
+
+// Status-Filter-Pills rendern (aus BO_STATUS_LIST)
+window.renderStatusPills = function () {
+  var cont = document.getElementById('bo-status-pills');
+  if (!cont) return;
+  var cur = boFilters.status || '';
+  var html = '<button onclick="setStatusFilter(\'\')" class="bo-status-pill" '
+    + 'style="padding:3px 10px;border-radius:14px;border:1.5px solid ' + (cur === '' ? '#2563eb' : '#e2e8f0') + ';'
+    + 'background:' + (cur === '' ? '#2563eb' : '#fff') + ';color:' + (cur === '' ? '#fff' : '#64748b') + ';'
+    + 'font-size:11px;font-weight:600;cursor:pointer">Alle</button>';
+  (window.BO_STATUS_LIST || []).forEach(function (s) {
+    var active = (cur === s.v);
+    html += '<button onclick="setStatusFilter(\'' + s.v.replace(/'/g, "\\'") + '\')" class="bo-status-pill" data-val="' + s.v + '" '
+      + 'style="padding:3px 10px;border-radius:14px;border:1.5px solid ' + s.fg + (active ? '' : '40') + ';'
+      + 'background:' + (active ? s.fg : s.bg) + ';color:' + (active ? '#fff' : s.fg) + ';'
+      + 'font-size:11px;font-weight:600;cursor:pointer">' + s.v + '</button>';
+  });
+  cont.innerHTML = html;
+};
 
 function fillGewerkDropdown() {
   var sel = document.getElementById('bo-gewerk-filter');
