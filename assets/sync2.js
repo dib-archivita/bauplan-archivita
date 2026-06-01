@@ -18,16 +18,29 @@
   const API = 'api/sync.php';
   const POLL_MS = 5000;
 
-  // Status-Maps (gespiegelt vom Haupt-Script)
+  // Status-Maps (gespiegelt vom Haupt-Script, inkl. neuer Stufen)
   const STATUS_LABELS = {
-    'geplant':'—', 'laufend':'laufend', 'abgeschlossen':'✓',
-    'fortschritt_50':'50%', 'fortschritt_75':'75%', 'fortschritt_90':'90%',
-    'verzögert':'⚠', 'priorität':'Priorität', 'fertig':'✓',
+    'geplant':'—', 'vorbereitung':'Vorbereitung',
+    'laufend':'laufend', 'begonnen':'begonnen',
+    'fortschritt_25':'25 %', 'fortschritt_50':'50 %',
+    'fortschritt_75':'75 %', 'fortschritt_90':'90 %',
+    'abnahme':'Abnahme',
+    'abgeschlossen':'✓ fertig', 'fertig':'✓ fertig',
+    'pausiert':'⏸ Pause',
+    'verzögert':'⚠ verzögert',
+    'abgebrochen':'✕ abgebrochen',
+    'priorität':'Priorität',
   };
   const STATUS_CSS = {
-    'geplant':'status-planned','laufend':'status-wip','abgeschlossen':'status-done',
-    'fortschritt_50':'status-wip','fortschritt_75':'status-wip','fortschritt_90':'status-wip',
-    'verzögert':'status-delayed','priorität':'status-prio','fertig':'status-done',
+    'geplant':'status-planned','vorbereitung':'status-planned',
+    'laufend':'status-wip','begonnen':'status-wip',
+    'fortschritt_25':'status-wip','fortschritt_50':'status-wip',
+    'fortschritt_75':'status-wip','fortschritt_90':'status-wip',
+    'abnahme':'status-wip',
+    'abgeschlossen':'status-done','fertig':'status-done',
+    'pausiert':'status-delayed','verzögert':'status-delayed',
+    'abgebrochen':'status-cancelled',
+    'priorität':'status-prio',
   };
 
   let lastSync = null;

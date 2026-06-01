@@ -723,10 +723,10 @@
     let done = 0, wip = 0, delayed = 0, planned = 0;
     tasks.forEach(t => {
       const s = t.getAttribute('data-status') || '';
-      if (s === 'fertig' || /^fortschritt_100/.test(s)) done++;
-      else if (s === 'verzögert') delayed++;
-      else if (s === 'laufend' || /^fortschritt_\d/.test(s)) wip++;
-      else planned++;
+      if (s === 'fertig' || s === 'abgeschlossen' || /^fortschritt_100/.test(s)) done++;
+      else if (s === 'verzögert' || s === 'pausiert') delayed++;
+      else if (s === 'laufend' || s === 'begonnen' || s === 'abnahme' || /^fortschritt_\d/.test(s)) wip++;
+      else planned++;  // geplant, vorbereitung, abgebrochen, etc.
     });
     // Stat-Card-Nummer suchen und updaten (basiert auf Header-Struktur)
     document.querySelectorAll('.card').forEach(card => {

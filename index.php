@@ -6786,41 +6786,94 @@ function startProgressObserver() {
 }
 
 // ── Status-Badge klickbar machen (Toggle) ────────────────────────────────────
-var STATUS_CYCLE = [
-  'geplant', 'laufend', 'fortschritt_50', 'fortschritt_75',
-  'fortschritt_90', 'abgeschlossen', 'verzögert'
+// Status-Optionen für das Dropdown (Hauptzeitplan). Reihenfolge = Workflow.
+var STATUS_OPTIONS = [
+  { v: 'geplant',         l: '—',              c: 'status-planned',   dot: '#94a3b8' },
+  { v: 'vorbereitung',    l: 'Vorbereitung',   c: 'status-planned',   dot: '#94a3b8' },
+  { v: 'begonnen',        l: 'begonnen',       c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'fortschritt_25',  l: '25 %',           c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'fortschritt_50',  l: '50 %',           c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'fortschritt_75',  l: '75 %',           c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'fortschritt_90',  l: '90 %',           c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'abnahme',         l: 'Abnahme',        c: 'status-wip',       dot: '#f59e0b' },
+  { v: 'abgeschlossen',   l: '✓ fertig',       c: 'status-done',      dot: '#16a34a' },
+  { v: 'pausiert',        l: '⏸ Pause',        c: 'status-delayed',   dot: '#dc2626' },
+  { v: 'verzögert',       l: '⚠ verzögert',    c: 'status-delayed',   dot: '#dc2626' },
+  { v: 'abgebrochen',     l: '✕ abgebrochen',  c: 'status-cancelled', dot: '#64748b' },
 ];
-var STATUS_LABELS = {
-  'geplant':'—', 'laufend':'laufend', 'abgeschlossen':'✓',
-  'fortschritt_50':'50%', 'fortschritt_75':'75%', 'fortschritt_90':'90%',
-  'verzögert':'⚠'
-};
-var STATUS_CSS = {
-  'geplant':'status-planned','laufend':'status-wip','abgeschlossen':'status-done',
-  'fortschritt_50':'status-wip','fortschritt_75':'status-wip','fortschritt_90':'status-wip',
-  'verzögert':'status-delayed'
-};
+var STATUS_LABELS = {};
+var STATUS_CSS = {};
+STATUS_OPTIONS.forEach(function(s){ STATUS_LABELS[s.v] = s.l; STATUS_CSS[s.v] = s.c; });
+// Altlasten — alte Statuswerte abwärtskompatibel mappen
+STATUS_LABELS['laufend'] = 'laufend';   STATUS_CSS['laufend'] = 'status-wip';
+STATUS_LABELS['fertig']  = '✓ fertig';  STATUS_CSS['fertig']  = 'status-done';
+STATUS_LABELS['priorität']= 'Priorität'; STATUS_CSS['priorität']= 'status-prio';
+window.STATUS_OPTIONS = STATUS_OPTIONS;
+window.STATUS_LABELS = STATUS_LABELS;
+window.STATUS_CSS = STATUS_CSS;
 
-document.addEventListener('click', function(e) {
-  var badge = e.target.closest('.status-badge');
-  if (!badge) return;
-  var row = badge.closest('tr.task-row');
-  if (!row) return;
-  var cur = row.dataset.status || 'geplant';
-  var idx = STATUS_CYCLE.indexOf(cur);
-  var next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+function applyStatus(row, next) {
+  if (!row || !next) return;
+  var badge = row.querySelector('.status-badge');
   row.dataset.status = next;
-  badge.textContent = STATUS_LABELS[next] || next;
-  badge.className = 'status-badge ' + (STATUS_CSS[next] || 'status-planned');
-  // localStorage speichern
+  if (badge) {
+    badge.textContent = STATUS_LABELS[next] || next;
+    badge.className = 'status-badge ' + (STATUS_CSS[next] || 'status-planned');
+  }
+  var bar = row.querySelector('.gantt-bar');
+  if (bar) {
+    bar.className = bar.className.replace(/\bstatus-\S+/g, '').trim() + ' ' + (STATUS_CSS[next] || 'status-planned');
+  }
   var tid = row.dataset.tid;
   if (tid) {
     var saved = JSON.parse(localStorage.getItem('task-statuses') || '{}');
     saved[tid] = next;
     localStorage.setItem('task-statuses', JSON.stringify(saved));
   }
-  updateHeaderProgress();
-  updateAllUnitProgress();
+  if (typeof updateHeaderProgress === 'function') updateHeaderProgress();
+  if (typeof updateAllUnitProgress === 'function') updateAllUnitProgress();
+}
+window.applyStatus = applyStatus;
+
+function showStatusDropdown(badge, row) {
+  // Existierende schließen
+  document.querySelectorAll('.status-dropdown').forEach(function(d){ d.remove(); });
+  var cur = row.dataset.status || 'geplant';
+  var dd = document.createElement('div');
+  dd.className = 'status-dropdown';
+  dd.style.cssText = 'position:absolute;z-index:99999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 28px rgba(15,23,42,.18);padding:4px;min-width:170px;font-size:11px';
+  STATUS_OPTIONS.forEach(function(s) {
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:6px 8px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:8px;' + (s.v === cur ? 'background:#f1f5f9;font-weight:700' : '');
+    item.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + s.dot + '"></span>'
+      + '<span>' + s.l + '</span>';
+    item.addEventListener('mouseenter', function(){ if (s.v !== cur) item.style.background = '#f8fafc'; });
+    item.addEventListener('mouseleave', function(){ if (s.v !== cur) item.style.background = ''; });
+    item.addEventListener('click', function(e){
+      e.stopPropagation();
+      applyStatus(row, s.v);
+      dd.remove();
+    });
+    dd.appendChild(item);
+  });
+  document.body.appendChild(dd);
+  var rect = badge.getBoundingClientRect();
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  setTimeout(function(){
+    document.addEventListener('click', function close(){ dd.remove(); document.removeEventListener('click', close); });
+  }, 10);
+}
+window.showStatusDropdown = showStatusDropdown;
+
+document.addEventListener('click', function(e) {
+  var badge = e.target.closest('.status-badge');
+  if (!badge) return;
+  var row = badge.closest('tr.task-row');
+  if (!row) return;
+  e.stopPropagation();
+  e.preventDefault();
+  showStatusDropdown(badge, row);
 });
 
 // Gespeicherte Status wiederherstellen
@@ -6882,9 +6935,9 @@ function restoreTaskStatuses() {
       var taskName = nameCell.textContent.trim();
       var newStatus = row.getAttribute('data-status') || '';
       var orderStatus = null;
-      if (newStatus === 'abgeschlossen') orderStatus = 'geliefert';
-      else if (newStatus === 'laufend' || newStatus.indexOf('fortschritt_') === 0) orderStatus = 'laufend';
-      else if (newStatus === 'verzögert') orderStatus = 'ausstehend';
+      if (newStatus === 'abgeschlossen' || newStatus === 'fertig') orderStatus = 'geliefert';
+      else if (newStatus === 'begonnen' || newStatus === 'laufend' || newStatus === 'abnahme' || newStatus.indexOf('fortschritt_') === 0) orderStatus = 'laufend';
+      else if (newStatus === 'verzögert' || newStatus === 'pausiert') orderStatus = 'ausstehend';
       if (!orderStatus) return;
       var orders = JSON.parse(localStorage.getItem('bo-orders-v3') || '[]');
       var changed = 0;
@@ -8362,10 +8415,28 @@ window.togglePanel = function() {
   var times = loadTimes();
   var activeGw = '';
 
-  // Status-Zyklus inkl. "Projekt begonnen" (laufend) und "abgeschlossen"
-  var CYCLE = ['geplant', 'laufend', 'fortschritt_50', 'fortschritt_75', 'abgeschlossen'];
-  var DOT_BG = { geplant: '#94a3b8', laufend: '#f59e0b', fortschritt_50: '#f59e0b', fortschritt_75: '#f59e0b', abgeschlossen: '#16a34a' };
-  var DOT_LBL = { geplant: '·', laufend: '▶', fortschritt_50: '½', fortschritt_75: '¾', abgeschlossen: '✓' };
+  // Status-Zyklus für Klick auf Dot (kurz, nur Meilensteine — Feinabstufung über Dropdown im Hauptplan)
+  var CYCLE = ['geplant', 'begonnen', 'fortschritt_50', 'fortschritt_75', 'abgeschlossen'];
+  var DOT_BG = {
+    geplant:'#94a3b8', vorbereitung:'#94a3b8',
+    laufend:'#f59e0b', begonnen:'#f59e0b',
+    fortschritt_25:'#f59e0b', fortschritt_50:'#f59e0b',
+    fortschritt_75:'#f59e0b', fortschritt_90:'#f59e0b',
+    abnahme:'#f59e0b',
+    abgeschlossen:'#16a34a', fertig:'#16a34a',
+    pausiert:'#dc2626', verzögert:'#dc2626',
+    abgebrochen:'#64748b',
+  };
+  var DOT_LBL = {
+    geplant:'·', vorbereitung:'·',
+    laufend:'▶', begonnen:'▶',
+    fortschritt_25:'¼', fortschritt_50:'½',
+    fortschritt_75:'¾', fortschritt_90:'9',
+    abnahme:'A',
+    abgeschlossen:'✓', fertig:'✓',
+    pausiert:'⏸', verzögert:'⚠',
+    abgebrochen:'✕',
+  };
 
   function fmt(ts) { if (!ts) return ''; try { return new Date(ts).toLocaleDateString('de-DE') + ' ' + new Date(ts).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}); } catch(e){return ts;} }
 
