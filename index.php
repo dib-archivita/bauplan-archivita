@@ -5535,14 +5535,55 @@ window.openUrlaubModal = function(cell) {
     var h = 0; for (var i=0; i<s.length; i++) h = (h*31 + s.charCodeAt(i)) | 0;
     var hue = Math.abs(h) % 360; return 'hsl(' + hue + ' 65% 50%)';
   }
-  function urlaubListHtml(urls) {
-    if (!urls || !urls.length) return '<span style="color:#cbd5e1;font-size:11px;font-style:italic">keine Urlaube</span>';
+  // KW + Jahr → ISO-Datum des Wochen-Montags (YYYY-MM-DD)
+  function kwYearToISODate(kw, year) {
+    var jan4 = new Date(Date.UTC(year, 0, 4));
+    var dayOfWeek = (jan4.getUTCDay() + 6) % 7; // 0=Mo
+    var monday = new Date(jan4);
+    monday.setUTCDate(jan4.getUTCDate() - dayOfWeek + (kw - 1) * 7);
+    return monday.toISOString().slice(0, 10);
+  }
+  // Datum (YYYY-MM-DD, TT.MM.YYYY oder TT.MM) → {kw, year}
+  function parseFlexDate(s) {
+    s = (s || '').trim();
+    if (!s) return null;
+    // YYYY-MM-DD
+    var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    var d;
+    if (m) d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+    else {
+      // TT.MM.YYYY oder TT.MM
+      m = s.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
+      if (!m) return null;
+      var yr = m[3] ? +m[3] : new Date().getFullYear();
+      if (yr < 100) yr += 2000;
+      d = new Date(Date.UTC(yr, +m[2]-1, +m[1]));
+    }
+    if (isNaN(d.getTime())) return null;
+    // ISO-Woche
+    var target = new Date(d.valueOf());
+    var dayNr = (d.getUTCDay() + 6) % 7;
+    target.setUTCDate(target.getUTCDate() - dayNr + 3);
+    var jan4 = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+    var iso = 1 + Math.ceil((target - jan4) / 86400000 / 7);
+    return { kw: iso, year: target.getUTCFullYear() };
+  }
+  function fmtKw(u) {
+    return 'KW ' + u.vonKw + (u.vonYear !== u.bisYear ? '/' + u.vonYear : '')
+      + ' – KW ' + u.bisKw + '/' + u.bisYear;
+  }
+
+  function urlaubListHtml(urls, empIdx) {
+    if (!urls || !urls.length) return '<span style="color:#cbd5e1;font-size:11px;font-style:italic">keine Urlaube · "+ Urlaub" zum Hinzufügen</span>';
     return urls.map(function(u, i){
-      return '<span class="urlaub-pill" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px">'
-        + 'KW ' + u.vonKw + '/' + u.vonYear + ' – KW ' + u.bisKw + '/' + u.bisYear
-        + '<button data-uidx="' + i + '" class="urlaub-del" style="background:none;border:none;color:#b45309;cursor:pointer;font-size:11px;padding:0 0 0 2px">×</button>'
+      return '<span class="urlaub-pill" data-eidx="' + empIdx + '" data-uidx="' + i + '" '
+        + 'style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px;cursor:pointer" '
+        + 'title="Klick zum Bearbeiten">'
+        + fmtKw(u)
+        + '<button data-uidx="' + i + '" class="urlaub-del" title="Löschen" style="background:none;border:none;color:#b45309;cursor:pointer;font-size:11px;padding:0 0 0 4px;line-height:1">×</button>'
       + '</span>';
-    }).join('');
+    }).join('')
+    + '<div class="urlaub-editor" data-eidx="' + empIdx + '" style="display:none"></div>';
   }
 
   function renderMA() {
@@ -5590,7 +5631,7 @@ window.openUrlaubModal = function(cell) {
             + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">🏖 Urlaub / Abwesenheit</div>'
             + '<button onclick="kapAddUrlaub(' + idx + ')" style="background:transparent;border:1px dashed #cbd5e1;color:#2563eb;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer">+ Urlaub</button>'
           + '</div>'
-          + '<div class="kap-urlaub-list" data-idx="' + idx + '">' + urlaubListHtml(e.urlaub || []) + '</div>'
+          + '<div class="kap-urlaub-list" data-idx="' + idx + '">' + urlaubListHtml(e.urlaub || [], idx) + '</div>'
         + '</div>'
       + '</div>';
     }).join('');
@@ -5618,7 +5659,7 @@ window.openUrlaubModal = function(cell) {
         renderMA(); renderKalender(); renderKapaCockpit();
       });
     });
-    // Wire urlaub × delete buttons
+    // Wire urlaub × delete buttons + Pill-Klick zum Bearbeiten
     cont.querySelectorAll('.urlaub-del').forEach(function(btn){
       btn.addEventListener('click', function(e){
         e.stopPropagation();
@@ -5630,33 +5671,57 @@ window.openUrlaubModal = function(cell) {
         renderMA(); renderKalender(); renderKapaCockpit();
       });
     });
+    cont.querySelectorAll('.urlaub-pill').forEach(function(pill){
+      pill.addEventListener('click', function(e){
+        if (e.target.classList.contains('urlaub-del')) return;
+        e.stopPropagation();
+        openUrlaubEditor(+this.dataset.eidx, +this.dataset.uidx);
+      });
+    });
   }
 
-  // Urlaub via Datums-Picker hinzufügen
-  window.kapAddUrlaub = function (idx) {
-    var emp = employees[idx];
+  // Inline-Editor unter der Urlaubs-Liste anzeigen (zum Hinzufügen oder Bearbeiten)
+  function openUrlaubEditor(empIdx, urlIdx) {
+    var emp = employees[empIdx];
     if (!emp) return;
-    var from = prompt('Urlaub VON (Datum YYYY-MM-DD):');
-    if (!from) return;
-    var to = prompt('Urlaub BIS (Datum YYYY-MM-DD):', from);
-    if (!to) return;
-    function toKWYear(s) {
-      var d = new Date(s + 'T12:00:00');
-      if (isNaN(d.getTime())) return null;
-      var target = new Date(d.valueOf());
-      var dayNr = (d.getDay() + 6) % 7;
-      target.setDate(target.getDate() - dayNr + 3);
-      var jan4 = new Date(target.getFullYear(), 0, 4);
-      var iso = 1 + Math.ceil((target - jan4) / 86400000 / 7);
-      return { kw: iso, year: target.getFullYear() };
-    }
-    var a = toKWYear(from), b2 = toKWYear(to);
-    if (!a || !b2) { alert('Ungültiges Datum'); return; }
-    emp.urlaub = emp.urlaub || [];
-    emp.urlaub.push({ vonKw: a.kw, vonYear: a.year, bisKw: b2.kw, bisYear: b2.year });
-    saveEmployees(employees);
-    renderMA(); renderKalender(); renderKapaCockpit();
-  };
+    var list = document.querySelector('.kap-urlaub-list[data-idx="' + empIdx + '"]');
+    if (!list) return;
+    var ed = list.querySelector('.urlaub-editor');
+    if (!ed) return;
+    var existing = (typeof urlIdx === 'number') ? (emp.urlaub || [])[urlIdx] : null;
+    var fromISO = existing ? kwYearToISODate(existing.vonKw, existing.vonYear) : '';
+    var toISO   = existing ? kwYearToISODate(existing.bisKw, existing.bisYear) : '';
+    ed.style.display = '';
+    ed.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;padding:8px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px';
+    ed.innerHTML =
+        '<span style="font-size:10px;font-weight:700;color:#64748b">' + (existing ? '✏ Bearbeiten' : '＋ Neuer Urlaub') + '</span>'
+      + '<input class="ur-from" type="date" value="' + fromISO + '" style="border:1px solid #e2e8f0;border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit">'
+      + '<span style="font-size:11px;color:#64748b">bis</span>'
+      + '<input class="ur-to" type="date" value="' + toISO + '" style="border:1px solid #e2e8f0;border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit">'
+      + '<button class="ur-save" style="background:#16a34a;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer">✓ speichern</button>'
+      + '<button class="ur-cancel" style="background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:5px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer">abbrechen</button>';
+
+    ed.querySelector('.ur-cancel').onclick = function(){ ed.style.display = 'none'; ed.innerHTML = ''; };
+    ed.querySelector('.ur-save').onclick = function(){
+      var fv = ed.querySelector('.ur-from').value;
+      var tv = ed.querySelector('.ur-to').value;
+      var a = parseFlexDate(fv), b2 = parseFlexDate(tv);
+      if (!a || !b2) { alert('Bitte gültiges Von- und Bis-Datum auswählen.'); return; }
+      // Sortieren falls falsch herum
+      var aC = ky2c(a.kw, a.year), bC = ky2c(b2.kw, b2.year);
+      if (bC < aC) { var tmp = a; a = b2; b2 = tmp; }
+      emp.urlaub = emp.urlaub || [];
+      var rec = { vonKw: a.kw, vonYear: a.year, bisKw: b2.kw, bisYear: b2.year };
+      if (typeof urlIdx === 'number') emp.urlaub[urlIdx] = rec;
+      else emp.urlaub.push(rec);
+      saveEmployees(employees);
+      renderMA(); renderKalender(); renderKapaCockpit();
+    };
+  }
+
+  // Öffentliche Funktion vom "+ Urlaub"-Button (neuer Urlaub)
+  window.kapAddUrlaub = function (idx) { openUrlaubEditor(idx); };
+  window.kapEditUrlaub = function (idx, uidx) { openUrlaubEditor(idx, uidx); };
 
   // Gastromatic-Import-Stub
   window.kapImportGastromatic = function () {
