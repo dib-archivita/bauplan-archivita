@@ -972,12 +972,28 @@ tr.task-row[data-status="priorität"] .gantt-bar {
 function showTab(name, el) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  el.classList.add('active');
+  var tc = document.getElementById('tab-'+name);
+  if (tc) tc.classList.add('active');
+  if (el) el.classList.add('active');
+  else {
+    // Wenn ohne el aufgerufen (z.B. beim Wiederherstellen), passenden Tab-Button finden
+    var tabBtn = document.querySelector('.tab[onclick*="showTab(\'' + name + '\'"]');
+    if (tabBtn) tabBtn.classList.add('active');
+  }
+  try { localStorage.setItem('active-tab', name); } catch(e) {}
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
   if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
   if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
+// Beim Laden: zuletzt aktiven Tab wiederherstellen
+document.addEventListener('DOMContentLoaded', function () {
+  try {
+    var saved = localStorage.getItem('active-tab');
+    if (saved && saved !== 'hauptwerk' && document.getElementById('tab-' + saved)) {
+      showTab(saved, null);
+    }
+  } catch (e) {}
+});
 
 // Status-Übersichtsbalken je Tab anpassen
 window.updateTabSummary = function (tabName) {
