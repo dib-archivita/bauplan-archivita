@@ -6072,6 +6072,18 @@ window.openUrlaubModal = function(cell) {
   window.renderKalender = renderKalender;
   window.renderMA       = renderMA;
   window.loadEmployees  = loadEmployees;
+  // Cascade-Rename: alle Mitarbeiter-Gewerk-Einträge umbenennen
+  window.cascadeRenameKapEmployees = function (oldName, newName) {
+    var changed = 0;
+    employees.forEach(function(e){
+      if (!e.gewerke) return;
+      for (var i = 0; i < e.gewerke.length; i++) {
+        if (e.gewerke[i] === oldName) { e.gewerke[i] = newName; changed++; }
+      }
+    });
+    if (changed > 0) { saveEmployees(employees); renderMA(); renderKalender(); renderKapaCockpit(); }
+  };
+
   // Reload nach Remote-Sync (employees ist Closure-Variable → von außen nicht setzbar)
   window.kapReload = function () {
     try {
@@ -8250,6 +8262,36 @@ window.addEventListener('DOMContentLoaded', function(){
     b = Math.round(b*0.18 + 255*0.82);
     return '#' + [r,g,b].map(function(x){var h=x.toString(16); return h.length===1?'0'+h:h;}).join('');
   }
+  // Wenn ein Gewerk umbenannt wird: alle Referenzen mitschleppen (Aufgaben, Bestellungen, Mitarbeiter)
+  function cascadeRenameGewerk(oldName, newName) {
+    if (!oldName || !newName || oldName === newName) return;
+    // 1) Hauptzeitplan-Aufgaben mit data-gewerk=oldName → applyGewerk(newName) → updates DOM + Sync
+    var tmpG = { name: newName, bg: '#f1f5f9', fg: '#475569' };
+    var found = GEWERKE.find(function(g){ return g.name === newName; });
+    if (found) tmpG = found;
+    document.querySelectorAll('tr.task-row[data-gewerk="' + (window.CSS && CSS.escape ? CSS.escape(oldName) : oldName.replace(/"/g,'\\"')) + '"]').forEach(function(tr){
+      var span = tr.querySelector('.gewerk-badge') || (tr.children[2] && tr.children[2].querySelector('span'));
+      if (span && typeof window.applyGewerk === 'function') window.applyGewerk(span, tr, tmpG);
+      else tr.setAttribute('data-gewerk', newName);
+    });
+    // 2) Bestellungen
+    if (window.boOrders && window.boOrders.length) {
+      var anyOrder = false;
+      window.boOrders.forEach(function(o){ if (o.gewerk === oldName) { o.gewerk = newName; anyOrder = true; } });
+      if (anyOrder) {
+        var json = JSON.stringify(window.boOrders);
+        localStorage.setItem('bo-orders-v3', json);
+        if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
+        if (typeof window.renderOrders === 'function') window.renderOrders();
+        if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
+      }
+    }
+    // 3) Mitarbeiter (Closure-Variable in der Kapa-IIFE)
+    if (typeof window.cascadeRenameKapEmployees === 'function') {
+      window.cascadeRenameKapEmployees(oldName, newName);
+    }
+  }
+
   // Gewerke-Verwaltungs-Modal
   window.openGewerkeManager = function () {
     var existing = document.getElementById('gewerke-manager-overlay');
@@ -8289,8 +8331,15 @@ window.addEventListener('DOMContentLoaded', function(){
           var i = +this.dataset.i, f = this.dataset.f;
           if (!GEWERKE[i]) return;
           var v = this.value;
-          if (f === 'name') GEWERKE[i].name = v.trim();
-          else if (f === 'fg') { GEWERKE[i].fg = v; GEWERKE[i].bg = softenHex(v); }
+          if (f === 'name') {
+            var oldName = GEWERKE[i].name;
+            var newName = v.trim();
+            if (newName && newName !== oldName) {
+              // Alle Referenzen mit umbenennen (Aufgaben, Bestellungen, Mitarbeiter)
+              cascadeRenameGewerk(oldName, newName);
+              GEWERKE[i].name = newName;
+            }
+          } else if (f === 'fg') { GEWERKE[i].fg = v; GEWERKE[i].bg = softenHex(v); }
           window.saveGewerkeList();
           window.populateGewerkSelects();
           refresh();
