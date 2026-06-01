@@ -6234,7 +6234,10 @@ function renderOrders() {
       + '<td style="padding:5px 8px">' + statusSel + '</td>'
       + '<td style="padding:5px 10px;text-align:right;font-weight:600;color:#2563eb;font-size:11px">' + (o.betrag ? o.betrag.toLocaleString('de-DE') + ' €' : '—') + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (o.hinweis||'') + '</td>'
-      + '<td style="padding:5px 8px;text-align:center"><button onclick="editOrder(\'' + o.id + '\')" style="padding:2px 8px;font-size:10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;background:#f8fafc">✏</button></td>'
+      + '<td style="padding:5px 8px;text-align:center;white-space:nowrap">'
+      +   '<button onclick="editOrder(\'' + o.id + '\')" title="Bearbeiten" style="padding:2px 8px;font-size:10px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;background:#f8fafc;margin-right:2px">✏</button>'
+      +   '<button onclick="deleteOrder(\'' + o.id + '\')" title="Löschen" style="padding:2px 8px;font-size:10px;border:1px solid #fecaca;border-radius:4px;cursor:pointer;background:#fff;color:#dc2626">✕</button>'
+      + '</td>'
       + '</tr>';
   }).join('') || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">Keine Einträge gefunden</td></tr>';
 
@@ -6312,6 +6315,18 @@ function openAddOrder() {
   var prev = document.getElementById('bo-m-kw-lief-preview'); if (prev) prev.textContent = '';
   document.getElementById('bo-m-tod').checked = false;
   document.getElementById('bo-modal').style.display = 'flex';
+}
+
+function deleteOrder(id) {
+  var idx = boOrders.findIndex(function(x){ return x.id === id; });
+  if (idx < 0) return;
+  var o = boOrders[idx];
+  if (!confirm('Bestellung "' + (o.name || o.id) + '" wirklich löschen?')) return;
+  boOrders.splice(idx, 1);
+  var json = JSON.stringify(boOrders);
+  localStorage.setItem('bo-orders-v3', json);
+  if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
+  renderOrders();
 }
 
 function editOrder(id) {
