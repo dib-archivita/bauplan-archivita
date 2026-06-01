@@ -264,6 +264,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
   box-shadow: 0 2px 8px rgba(22,163,74,.4); display: flex;
   align-items: center; justify-content: center;
 }
+/* FAB-Buttons nur im Hauptzeitplan zeigen */
+body:not([data-active-tab="hauptwerk"]) #today-fab,
+body:not([data-active-tab="hauptwerk"]) #btn-toggle-panel,
+body:not([data-active-tab="hauptwerk"]) .btn-new-task { display: none !important; }
 
 
 /* ── Gewerke Multi-Select ── */
@@ -980,6 +984,8 @@ function showTab(name, el) {
     var tabBtn = document.querySelector('.tab[onclick*="showTab(\'' + name + '\'"]');
     if (tabBtn) tabBtn.classList.add('active');
   }
+  // Body-Attribut für CSS-basierte FAB-Steuerung
+  document.body.dataset.activeTab = name;
   try { localStorage.setItem('active-tab', name); } catch(e) {}
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
   if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
@@ -988,6 +994,8 @@ function showTab(name, el) {
 }
 // Beim Laden: zuletzt aktiven Tab wiederherstellen
 document.addEventListener('DOMContentLoaded', function () {
+  // Standard-Tab-Attribut setzen (CSS-Anker für FAB-Visibility)
+  if (!document.body.dataset.activeTab) document.body.dataset.activeTab = 'hauptwerk';
   try {
     var saved = localStorage.getItem('active-tab');
     if (saved && saved !== 'hauptwerk' && document.getElementById('tab-' + saved)) {
