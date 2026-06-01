@@ -6307,12 +6307,13 @@ function renderSummaryBadges(filtered) {
     return o.kw && nowKW && o.kw < nowKW && o.status !== 'geliefert';
   }).length;
   var active = !!boFilters.overdue;
-  if (lateCount > 0) {
-    html += '<button onclick="setOverdueFilter()" title="Bis-KW überschritten und noch nicht geliefert" '
-      + 'style="background:' + (active ? '#dc2626' : '#fee2e2') + ';color:' + (active ? '#fff' : '#dc2626') + ';'
-      + 'border:1px solid #dc262630;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">'
-      + '⚠ ' + lateCount + ' verzögert</button>';
-  }
+  var greyed = (lateCount === 0);
+  html += '<button onclick="setOverdueFilter()" title="Bestellungen, deren bis-KW (' + (nowKW ? 'aktuell KW ' + nowKW : '?') + ') überschritten ist und die noch nicht geliefert sind" '
+    + 'style="background:' + (active ? '#dc2626' : (greyed ? '#f1f5f9' : '#fee2e2')) + ';'
+    + 'color:' + (active ? '#fff' : (greyed ? '#64748b' : '#dc2626')) + ';'
+    + 'border:1px solid ' + (greyed ? '#cbd5e1' : '#dc262630') + ';'
+    + 'border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">'
+    + (greyed ? '' : '⚠ ') + lateCount + ' verzögert</button>';
   el.innerHTML = html;
 }
 
