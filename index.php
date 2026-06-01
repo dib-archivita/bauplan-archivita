@@ -6172,7 +6172,7 @@ if (!boOrders) {
   if (changed > 0) localStorage.setItem('bo-orders-v3', JSON.stringify(boOrders));
 })();
 
-var boFilters = { verant: '', status: '', gewerk: '', search: '' };
+var boFilters = { verant: '', status: '', gewerk: '', search: '', overdue: false };
 
 function setFilter(group, val, btn) {
   boFilters[group] = val;
@@ -6193,9 +6193,13 @@ function renderOrders() {
   boFilters.search = ((document.getElementById('bo-search')||{}).value || '').toLowerCase();
   boFilters.ghkat  = ((document.getElementById('bo-gh-filter')||{}).value || '');
 
+  var nowKW = (window.dateToContKW && boFilters.overdue) ? window.dateToContKW(new Date().toISOString().slice(0,10)) : 0;
   var filtered = boOrders.filter(function(o) {
     if (boFilters.verant && o.verantwortlicher !== boFilters.verant) return false;
     if (boFilters.status && o.status !== boFilters.status) return false;
+    if (boFilters.overdue) {
+      if (!(o.kw && nowKW && o.kw < nowKW && o.status !== 'geliefert')) return false;
+    }
     if (boFilters.gewerk && o.gewerk !== boFilters.gewerk) return false;
     if (boFilters.ghkat) {
       var isGH = o.id && o.id.startsWith('GH');
@@ -6297,15 +6301,26 @@ function renderSummaryBadges(filtered) {
   var el = document.getElementById('bo-summary');
   if (!el) return;
   var html = '<span style="font-size:11px;color:#64748b;align-self:center">' + filtered.length + ' Einträge</span>';
-  // Klickbarer Schnellfilter "X ausstehend" (filtert auf Status="ausstehend")
-  var urgentCount = boOrders.filter(function(o){return o.status==='ausstehend' || o.status==='Lieferung ausstehend';}).length;
-  if (urgentCount > 0) {
-    html += '<button onclick="setStatusFilter(\'ausstehend\')" title="Auf ausstehend filtern" '
-      + 'style="background:#fee2e2;color:#dc2626;border:1px solid #dc262630;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">'
-      + '⚠ ' + urgentCount + ' ausstehend</button>';
+  // Klickbarer Schnellfilter "X verzögert" — Bestellungen, deren bis-KW überschritten ist und noch nicht geliefert
+  var nowKW = window.dateToContKW ? window.dateToContKW(new Date().toISOString().slice(0,10)) : 0;
+  var lateCount = boOrders.filter(function(o){
+    return o.kw && nowKW && o.kw < nowKW && o.status !== 'geliefert';
+  }).length;
+  var active = !!boFilters.overdue;
+  if (lateCount > 0) {
+    html += '<button onclick="setOverdueFilter()" title="Bis-KW überschritten und noch nicht geliefert" '
+      + 'style="background:' + (active ? '#dc2626' : '#fee2e2') + ';color:' + (active ? '#fff' : '#dc2626') + ';'
+      + 'border:1px solid #dc262630;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">'
+      + '⚠ ' + lateCount + ' verzögert</button>';
   }
   el.innerHTML = html;
 }
+
+// Toggle "verzögert"-Schnellfilter
+window.setOverdueFilter = function () {
+  boFilters.overdue = !boFilters.overdue;
+  renderOrders();
+};
 
 // Status-Filter per Pill
 window.setStatusFilter = function (val) {
