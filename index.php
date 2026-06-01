@@ -7415,6 +7415,7 @@ function startProgressObserver() {
 // Status-Optionen für das Dropdown (Hauptzeitplan). Reihenfolge = Workflow.
 var STATUS_OPTIONS = [
   { v: 'geplant',         l: '—',              c: 'status-planned',   dot: '#94a3b8' },
+  { v: 'priorität',       l: '⭐ Priorität',    c: 'status-prio',      dot: '#ea580c' },
   { v: 'vorbereitung',    l: 'Vorbereitung',   c: 'status-planned',   dot: '#94a3b8' },
   { v: 'begonnen',        l: 'begonnen',       c: 'status-wip',       dot: '#f59e0b' },
   { v: 'fortschritt_25',  l: '25 %',           c: 'status-wip',       dot: '#f59e0b' },
@@ -9173,6 +9174,107 @@ window.togglePanel = function() {
 <script src="assets/changes.js"></script>
 <script src="assets/history-modal.js"></script>
 <script src="assets/sync2.js"></script>
+<script>
+/* ===== Kapa-Heatmap-Strip im Hauptzeitplan: zeigt Auslastung pro KW für aktiven Gewerk-Filter ===== */
+(function () {
+  var PX_PER_WEEK = 42;
+  var ORIGIN_KW   = 19;
+  function getEmployees() {
+    try { return JSON.parse(localStorage.getItem('kap-mitarbeiter-v10') || '[]') || []; } catch (e) { return []; }
+  }
+  function gnormHP(g) {
+    if (!g) return '';
+    return (typeof window.mapGewerk === 'function') ? window.mapGewerk(g) : g;
+  }
+  function tasksByKwForGewerk(targetG) {
+    var map = {};
+    document.querySelectorAll('#tab-hauptwerk tr.task-row').forEach(function (tr) {
+      var g = gnormHP(tr.getAttribute('data-gewerk') || '');
+      if (targetG !== 'all' && g !== targetG) return;
+      var bar = tr.querySelector('.gantt-bar');
+      if (!bar || !bar.style.width) return;
+      var left = parseInt(bar.style.left, 10) || 0;
+      var width = parseInt(bar.style.width, 10) || 0;
+      if (!width) return;
+      var startKw = ORIGIN_KW + Math.round(left / PX_PER_WEEK);
+      var weeks = Math.max(1, Math.round(width / PX_PER_WEEK));
+      var tid = tr.getAttribute('data-tid');
+      var mh = parseInt(localStorage.getItem('task-mh-' + tid) || '40', 10);
+      var perWeek = mh / weeks;
+      for (var k = 0; k < weeks; k++) map[startKw + k] = (map[startKw + k] || 0) + perWeek;
+    });
+    return map;
+  }
+  function capacityByKwForGewerk(targetG) {
+    var map = {};
+    var emps = getEmployees();
+    emps.forEach(function (emp) {
+      (emp.gewerke || []).forEach(function (gw0) {
+        var gw = gnormHP(gw0);
+        if (targetG !== 'all' && gw !== targetG) return;
+        var per = (emp.std || 0) / Math.max(1, (emp.gewerke || []).length);
+        for (var kw = emp.von || 23; kw <= (emp.bis || 52); kw++) map[kw] = (map[kw] || 0) + per;
+      });
+    });
+    return map;
+  }
+  function renderHeatStrip() {
+    var head = document.querySelector('#tab-hauptwerk .gantt-kw-header');
+    if (!head) return;
+    var strip = document.getElementById('kapa-heat-strip');
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.id = 'kapa-heat-strip';
+      strip.style.cssText = 'position:relative;height:6px;width:3768px;margin-left:-168px;margin-bottom:2px;pointer-events:none';
+      head.parentNode.insertBefore(strip, head);
+    }
+    var targetG = (typeof window.activeGewerk !== 'undefined' && window.activeGewerk && window.activeGewerk !== 'all') ? window.activeGewerk : 'all';
+    var demand = tasksByKwForGewerk(targetG);
+    var supply = capacityByKwForGewerk(targetG);
+    var html = '';
+    for (var kw = 23; kw <= 104; kw++) {
+      var d = demand[kw] || 0, s = supply[kw] || 0;
+      var col = 'transparent';
+      if (s > 0 && d > s) col = '#dc262680';      // rot — Überlast
+      else if (s > 0 && d / s > 0.8) col = '#f59e0b80'; // gelb — voll
+      else if (d > 0) col = '#16a34a55';                // grün — Auslastung
+      if (col === 'transparent') continue;
+      var left = (kw - ORIGIN_KW) * PX_PER_WEEK;
+      var pct = s > 0 ? Math.round(d / s * 100) : 0;
+      html += '<div title="KW ' + kw + ' · ' + targetG + ' · ' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + pct + '%)" '
+        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';border-radius:1px"></div>';
+    }
+    strip.innerHTML = html;
+  }
+  window.renderKapaHeatStrip = renderHeatStrip;
+  // Auf Filter-/Status-/Bar-Änderungen reagieren
+  ['DOMContentLoaded'].forEach(function(ev){ document.addEventListener(ev, function(){ setTimeout(renderHeatStrip, 400); }); });
+  window.addEventListener('load', function(){ setTimeout(renderHeatStrip, 400); });
+  // Klick auf Filter-Pills (window.filterGewerk wird genutzt) → refresh
+  var origFilter = window.filterGewerk;
+  if (typeof origFilter === 'function') {
+    window.filterGewerk = function(g) { origFilter(g); renderHeatStrip(); };
+  } else {
+    // erst später definiert — verzögert wrappen
+    setTimeout(function(){
+      if (typeof window.filterGewerk === 'function') {
+        var orig = window.filterGewerk;
+        window.filterGewerk = function(g) { orig(g); renderHeatStrip(); };
+      }
+    }, 800);
+  }
+  // Bar-Drag-End löst Mutation auf Bar-style → MutationObserver
+  setTimeout(function() {
+    var ganttArea = document.querySelector('#tab-hauptwerk .gantt-wrap');
+    if (!ganttArea) return;
+    var t;
+    var obs = new MutationObserver(function() {
+      clearTimeout(t); t = setTimeout(renderHeatStrip, 250);
+    });
+    obs.observe(ganttArea, { subtree: true, attributes: true, attributeFilter: ['style', 'data-status'] });
+  }, 1000);
+})();
+</script>
 <script>
 /* ===== Generischer KV-Sync für Neben-Tabs (Bestellungen, Budget, Kapazität, TODs, Einheiten) ===== */
 (function () {
