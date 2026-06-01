@@ -856,7 +856,7 @@ tr.task-row[data-status="priorität"] .gantt-bar {
 </div>
 </div>
 
-<div class="summary">
+<div class="summary" id="header-summary">
   <div class="card done"><div class="num" id="hdr-done">—</div><div class="lbl">Abgeschlossen</div></div>
   <div class="card wip"><div class="num" id="hdr-wip">—</div><div class="lbl">In Arbeit</div></div>
   <div class="card planned"><div class="num" id="hdr-plan">—</div><div class="lbl">Geplant</div></div>
@@ -975,7 +975,51 @@ function showTab(name, el) {
   document.getElementById('tab-'+name).classList.add('active');
   el.classList.add('active');
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
+  if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
+
+// Status-Übersichtsbalken je Tab anpassen
+window.updateTabSummary = function (tabName) {
+  var bar = document.getElementById('header-summary');
+  if (!bar) return;
+  // Tabs ohne sinnvolle Status-Statistik → Balken ausblenden
+  var hideTabs = ['kosten', 'kapazitaet', 'wohnungen', 'todos'];
+  if (hideTabs.indexOf(tabName) !== -1) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+
+  function set(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  function setLbl(card, txt) { var l = card.querySelector('.lbl'); if (l) l.textContent = txt; }
+
+  if (tabName === 'bestellungen') {
+    var done = 0, wip = 0, planned = 0, delayed = 0;
+    (window.boOrders || []).forEach(function(o){
+      var s = o.status || '';
+      if (s === 'geliefert') done++;
+      else if (s === 'ausstehend' || s === 'Lieferung ausstehend') delayed++;
+      else if (s === 'laufend' || s === 'bestellt' || s === 'AB erhalten' || s === 'Angebot freigegeben') wip++;
+      else planned++;  // geplant + Angebot angefordert/erhalten/geprüft
+    });
+    set('hdr-done', done); set('hdr-wip', wip); set('hdr-plan', planned); set('hdr-delay', delayed);
+    // Labels für Bestellungen leicht angepasst
+    var cards = bar.querySelectorAll('.card');
+    if (cards[0]) setLbl(cards[0], 'Geliefert');
+    if (cards[1]) setLbl(cards[1], 'In Arbeit');
+    if (cards[2]) setLbl(cards[2], 'In Vorbereitung');
+    if (cards[3]) setLbl(cards[3], 'Ausstehend');
+    // Fortschrittsbalken
+    var total = done + wip + planned + delayed;
+    var fill = document.getElementById('hdr-prog-fill');
+    if (fill) fill.style.width = (total ? Math.round(done/total*100) : 0) + '%';
+  } else {
+    // Hauptzeitplan: ursprüngliche Labels wiederherstellen + recount
+    var cards2 = bar.querySelectorAll('.card');
+    if (cards2[0]) setLbl(cards2[0], 'Abgeschlossen');
+    if (cards2[1]) setLbl(cards2[1], 'In Arbeit');
+    if (cards2[2]) setLbl(cards2[2], 'Geplant');
+    if (cards2[3]) setLbl(cards2[3], 'Verzögert');
+    if (typeof window.__recountStats === 'function') window.__recountStats();
+  }
+};
 
 var activeGewerk = 'all';
 var activeStatus = null;
