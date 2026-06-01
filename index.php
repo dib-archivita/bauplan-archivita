@@ -1184,13 +1184,24 @@ function scrollToCard(id) {
 })();
 
 
-// Auto-scroll Gantt zum Projektstart (Anfang Juni 2026 = KW23)
-// 4 Wochen × 42 px Wochenbreite = 168 px Offset; KW19–22 bleiben bei Bedarf nach links scrollbar erreichbar
-window.addEventListener('load', function() {
-  document.querySelectorAll('.gantt-wrap').forEach(function(wrap) {
-    wrap.scrollLeft = 168;
+// Projektstart = Anfang Juni 2026 = KW23. KW19–22 sind nicht mehr erreichbar.
+// Wir scrollen initial auf 168 px (4 Wochen × 42 px) und sperren den Bereich davor.
+(function () {
+  var KW23_PX = 168;
+  function lockScroll(wrap) {
+    if (!wrap || wrap.dataset.kw23Locked) return;
+    wrap.dataset.kw23Locked = '1';
+    wrap.scrollLeft = KW23_PX;
+    wrap.addEventListener('scroll', function () {
+      if (wrap.scrollLeft < KW23_PX) wrap.scrollLeft = KW23_PX;
+    }, { passive: true });
+  }
+  window.addEventListener('load', function () {
+    document.querySelectorAll('.gantt-wrap').forEach(lockScroll);
   });
-});
+  // Falls .gantt-wrap später dynamisch eingebunden wird
+  setTimeout(function () { document.querySelectorAll('.gantt-wrap').forEach(lockScroll); }, 600);
+})();
 
 
 // (WEG HBO Override entfernt – Tab existiert nicht mehr)
