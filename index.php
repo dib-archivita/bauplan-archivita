@@ -8224,12 +8224,21 @@ window.addEventListener('DOMContentLoaded', function(){
   }
   var GEWERKE = loadGewerke();
   window.GEWERKE = GEWERKE;
+  // Liste alphabetisch sortieren (deutsch, ignore-case)
+  function sortGewerke() {
+    GEWERKE.sort(function(a, b){
+      return (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' });
+    });
+  }
   // Liste persistieren + synchronisieren
   window.saveGewerkeList = function () {
+    sortGewerke();
     var json = JSON.stringify(GEWERKE);
     localStorage.setItem('gewerke-list-v1', json);
     if (window.__syncKV) window.__syncKV('gewerke-list-v1', json);
   };
+  // Initial sortieren
+  sortGewerke();
   // Neues Gewerk hinzufügen (überall verfügbar)
   window.addGewerk = function (name, bg, fg) {
     name = (name || '').trim();
@@ -8423,6 +8432,7 @@ window.addEventListener('DOMContentLoaded', function(){
       if (!Array.isArray(arr)) return;
       GEWERKE.length = 0;
       arr.forEach(function(g){ GEWERKE.push(g); });
+      sortGewerke();
       window.populateGewerkSelects();
     } catch (e) {}
   };
