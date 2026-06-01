@@ -990,6 +990,7 @@ function showTab(name, el) {
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
   if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
   if (name === 'kosten' && typeof window.renderBudgetCustom === 'function') window.renderBudgetCustom();
+  if (name === 'kosten' && typeof window.makeBudgetPositionsEditable === 'function') window.makeBudgetPositionsEditable();
   if (name === 'kapazitaet' && typeof window.renderKapaCockpit === 'function') window.renderKapaCockpit();
   if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
@@ -1003,6 +1004,10 @@ document.addEventListener('DOMContentLoaded', function () {
       showTab(saved, null);
     }
   } catch (e) {}
+  // Budget-Positionen einmalig initialisieren (Overrides anwenden + editierbar machen)
+  if (typeof window.makeBudgetPositionsEditable === 'function') {
+    setTimeout(window.makeBudgetPositionsEditable, 200);
+  }
 });
 
 // Status-Übersichtsbalken je Tab anpassen
@@ -6335,6 +6340,49 @@ function loadCostValues() {
   });
   COST_SECTIONS.forEach(function(sec) { updateCostSection(sec.id); });
 }
+
+// Positionen-Namen in den Budget-Tabellen editierbar machen + Overrides anwenden
+window.makeBudgetPositionsEditable = function () {
+  document.querySelectorAll('#tab-kosten div[id^="block-"] tbody tr').forEach(function (tr) {
+    var nameCell = tr.children[0];
+    var input = tr.querySelector('input[data-section]');
+    if (!nameCell || !input) return;
+    var posId = input.id;
+    if (!posId) return;
+    var key = 'cost-name-' + posId;
+    // Override anwenden
+    var saved = localStorage.getItem(key);
+    if (saved !== null && saved !== nameCell.textContent.trim()) {
+      nameCell.textContent = saved;
+    }
+    if (nameCell.dataset.editInit === '1') return;
+    nameCell.dataset.editInit = '1';
+    nameCell.contentEditable = 'true';
+    nameCell.style.cursor = 'text';
+    nameCell.style.outline = 'none';
+    nameCell.addEventListener('focus', function(){ this.style.background = '#eff6ff'; });
+    nameCell.addEventListener('blur', function(){
+      this.style.background = '';
+      var v = (this.textContent || '').replace(/\s+/g,' ').trim();
+      if (!v) return;
+      localStorage.setItem(key, v);
+      if (window.__syncKV) window.__syncKV(key, v);
+    });
+    nameCell.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    });
+  });
+};
+// Eingehende Override für eine Position übernehmen
+window.__applyBudgetPositionName = function (posId, name) {
+  if (!posId) return;
+  var input = document.getElementById(posId);
+  if (!input) return;
+  var tr = input.closest('tr');
+  if (!tr) return;
+  var nameCell = tr.children[0];
+  if (nameCell && nameCell.textContent.trim() !== name) nameCell.textContent = name;
+};
 function resetCostDefaults() {
   if (!confirm('Alle Kosten auf Standardwerte zurücksetzen?')) return;
   localStorage.removeItem('cost-values');
@@ -9106,7 +9154,7 @@ window.togglePanel = function() {
 (function () {
   // Welche localStorage-Keys über die DB synchronisiert werden (Kern-Plan läuft separat über overrides!)
   var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1', 'task-times-v1', 'budget-custom-v1'];
-  var PREFIX = ['task-mh-', 'todo-kw-'];
+  var PREFIX = ['task-mh-', 'todo-kw-', 'cost-name-'];
   function isSynced(key) {
     if (!key) return false;
     if (EXACT.indexOf(key) !== -1) return true;
@@ -9161,6 +9209,9 @@ window.togglePanel = function() {
         if (typeof window.__applyGewerkeKV === 'function') window.__applyGewerkeKV(value);
       } else if (key === 'task-times-v1') {
         if (typeof window.__applyTaskTimesKV === 'function') window.__applyTaskTimesKV(value);
+      } else if (key.indexOf('cost-name-') === 0) {
+        var posId = key.replace('cost-name-', '');
+        if (typeof window.__applyBudgetPositionName === 'function') window.__applyBudgetPositionName(posId, value);
       } else if (key.indexOf('todo-kw-') === 0) {
         var kw = key.replace('todo-kw-', '');
         var el = document.getElementById('manual-kw' + kw);
