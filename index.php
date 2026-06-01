@@ -983,6 +983,7 @@ function showTab(name, el) {
   try { localStorage.setItem('active-tab', name); } catch(e) {}
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
   if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
+  if (name === 'kapazitaet' && typeof window.renderKapaCockpit === 'function') window.renderKapaCockpit();
   if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
 // Beim Laden: zuletzt aktiven Tab wiederherstellen
@@ -5193,12 +5194,16 @@ function filterWohnNew(mode, btn) {
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div>
       <h1 style="font-size:16px;font-weight:800;color:#1e293b;margin:0">👷 Kapazitätsplanung</h1>
-      <p style="font-size:11px;color:#64748b;margin:4px 0 0">Mitarbeiter, Mannstunden, Wochenkapazität – Daten werden lokal im Browser gespeichert</p>
+      <p style="font-size:11px;color:#64748b;margin:4px 0 0">Mitarbeiter, Mannstunden, Wochenkapazität — Sync über die DB</p>
     </div>
     <div style="display:flex;gap:8px">
+      <button onclick="kapImportGastromatic()" title="Importiert Urlaube aus dem Dienstplaner Gastromatic — Anbindung wird vorbereitet" style="padding:6px 12px;border-radius:6px;border:1px dashed #cbd5e1;background:#fff;font-size:11px;cursor:pointer;color:#64748b">📥 Urlaub aus Gastromatic (in Vorbereitung)</button>
       <button onclick="exportKap()" style="padding:6px 12px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;font-size:11px;cursor:pointer">📤 Export CSV</button>
     </div>
   </div>
+
+  <!-- COCKPIT: KPI-Karten -->
+  <div id="kap-cockpit" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
 
   <!-- TABS innerhalb des Kapazität-Tabs -->
   <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid #e2e8f0">
@@ -5207,37 +5212,25 @@ function filterWohnNew(mode, btn) {
     <div class="kap-subtab" data-sub="zu" onclick="showKapSub('zu',this)" style="padding:8px 16px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">🔗 Aufgaben-Zuordnung</div>
   </div>
 
-  <!-- SUB-TAB 1: Mitarbeiter-Verwaltung -->
+  <!-- SUB-TAB 1: Mitarbeiter-Karten -->
   <div id="kap-sub-ma" class="kap-sub" style="display:block">
-    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <h2 style="font-size:14px;font-weight:700;margin:0">👥 Mitarbeiter</h2>
       <button onclick="addEmployee()" style="padding:6px 14px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">+ Mitarbeiter</button>
     </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-      <table id="kap-ma-table" style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:#f8fafc">
-            <th style="padding:8px 10px;text-align:left;font-size:10px;color:#64748b;font-weight:700">Name</th>
-            <th style="padding:8px 10px;text-align:left;font-size:10px;color:#64748b;font-weight:700">Gewerke (klick → wählen)</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700">Std/Woche</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700">Ab KW</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700">Ab Jahr</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700">Bis KW</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700">Bis Jahr</th>
-            <th style="padding:8px 10px;text-align:left;font-size:10px;color:#64748b;font-weight:700">Urlaub / Abwesenheit</th>
-            <th style="padding:8px 10px;text-align:center;font-size:10px;color:#64748b;font-weight:700"></th>
-          </tr>
-        </thead>
-        <tbody id="kap-ma-tbody"></tbody>
-      </table>
-    </div>
-    <div style="margin-top:8px;font-size:10px;color:#94a3b8">💡 Tipp: Klick auf jedes Feld zum Bearbeiten. Mehrere Gewerke per Komma trennen.</div>
-
+    <div id="kap-ma-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+    <div style="margin-top:8px;font-size:10px;color:#94a3b8">💡 Tipp: Auf einen Wert klicken zum Bearbeiten. Gewerk-Tags klicken öffnet den Picker.</div>
   </div>
 
   <!-- SUB-TAB 2: Kalender / Auslastung -->
   <div id="kap-sub-kal" class="kap-sub" style="display:none">
-    <h2 style="font-size:14px;font-weight:700;margin:0 0 12px">📅 Wochen-Auslastung pro Gewerk</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px">
+      <h2 style="font-size:14px;font-weight:700;margin:0">📅 Wochen-Auslastung pro Gewerk</h2>
+      <div style="display:flex;gap:4px">
+        <button id="kal-filter-all"      onclick="setKalFilter('all',this)"      class="kal-filter active" style="padding:3px 11px;border-radius:14px;border:1.5px solid #2563eb;background:#2563eb;color:#fff;font-size:11px;font-weight:600;cursor:pointer">Alle KW</button>
+        <button id="kal-filter-overload" onclick="setKalFilter('overload',this)" class="kal-filter" style="padding:3px 11px;border-radius:14px;border:1.5px solid #dc262640;background:#fff;color:#dc2626;font-size:11px;font-weight:600;cursor:pointer">⚠ Nur Überlast</button>
+      </div>
+    </div>
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:auto;max-height:600px">
       <table id="kap-kal-table" style="width:100%;border-collapse:collapse;font-size:11px;min-width:1400px">
         <thead id="kap-kal-thead"></thead>
@@ -5535,62 +5528,221 @@ window.openUrlaubModal = function(cell) {
 
 
   // ── Mitarbeiter-Tabelle rendern ──────────────────────────────────────
-  function renderMA() {
-    var tbody = document.getElementById('kap-ma-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = employees.map(function(e, idx){
-      return '<tr style="border-bottom:1px solid #f1f5f9">'
-        + '<td style="padding:6px 10px"><input value="' + escapeHtml(e.name) + '" data-idx="' + idx + '" data-field="name" class="kap-edit" style="border:none;background:transparent;font-size:12px;font-weight:600;width:100%;padding:2px 4px"></td>'
-        + '<td style="padding:6px 10px"><div class="gw-picker-badges" data-idx="' + idx + '" onclick="openGewerkPicker(this)">' + gwBadgesHtml(e.gewerke) + '</div></td>'
-        + '<td style="padding:6px 10px;text-align:center"><input type="number" min="0" max="80" value="' + e.std + '" data-idx="' + idx + '" data-field="std" class="kap-edit" style="width:60px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px"></td>'
-        + '<td style="padding:6px 10px;text-align:center"><input type="number" min="1" max="52" value="' + c2ky(e.von).kw + '" data-idx="' + idx + '" data-field="von_kw" class="kap-edit" style="width:50px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px"></td>'
-        + '<td style="padding:6px 10px;text-align:center"><select data-idx="' + idx + '" data-field="von_year" class="kap-edit" style="width:70px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px"><option value="2026"' + (c2ky(e.von).year === 2026 ? ' selected' : '') + '>2026</option><option value="2027"' + (c2ky(e.von).year === 2027 ? ' selected' : '') + '>2027</option><option value="2028"' + (c2ky(e.von).year === 2028 ? ' selected' : '') + '>2028</option></select></td>'
-        + '<td style="padding:6px 10px;text-align:center"><input type="number" min="1" max="52" value="' + c2ky(e.bis).kw + '" data-idx="' + idx + '" data-field="bis_kw" class="kap-edit" style="width:50px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px"></td>'
-        + '<td style="padding:6px 10px;text-align:center"><select data-idx="' + idx + '" data-field="bis_year" class="kap-edit" style="width:70px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px"><option value="2026"' + (c2ky(e.bis).year === 2026 ? ' selected' : '') + '>2026</option><option value="2027"' + (c2ky(e.bis).year === 2027 ? ' selected' : '') + '>2027</option><option value="2028"' + (c2ky(e.bis).year === 2028 ? ' selected' : '') + '>2028</option></select></td>'
-        + '<td style="padding:6px 10px"><div class="urlaub-cell" data-idx="' + idx + '" onclick="openUrlaubModal(this)">' + urlaubBadgesHtml(e.urlaub || []) + '</div></td>'
-        + '<td style="padding:6px 10px;text-align:center"><button onclick="delEmployee(' + idx + ')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:10px">🗑</button></td>'
-        + '</tr>';
+  function initials(n) {
+    return (n||'?').split(/\s+/).map(function(p){return p[0]||'';}).join('').slice(0,2).toUpperCase();
+  }
+  function colorFromString(s) {
+    var h = 0; for (var i=0; i<s.length; i++) h = (h*31 + s.charCodeAt(i)) | 0;
+    var hue = Math.abs(h) % 360; return 'hsl(' + hue + ' 65% 50%)';
+  }
+  function urlaubListHtml(urls) {
+    if (!urls || !urls.length) return '<span style="color:#cbd5e1;font-size:11px;font-style:italic">keine Urlaube</span>';
+    return urls.map(function(u, i){
+      return '<span class="urlaub-pill" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px;margin-bottom:3px">'
+        + 'KW ' + u.vonKw + '/' + u.vonYear + ' – KW ' + u.bisKw + '/' + u.bisYear
+        + '<button data-uidx="' + i + '" class="urlaub-del" style="background:none;border:none;color:#b45309;cursor:pointer;font-size:11px;padding:0 0 0 2px">×</button>'
+      + '</span>';
     }).join('');
-    // Wire inputs
-    tbody.querySelectorAll('.kap-edit').forEach(function(inp){
+  }
+
+  function renderMA() {
+    var cont = document.getElementById('kap-ma-cards');
+    if (!cont) return;
+    cont.innerHTML = employees.map(function(e, idx) {
+      var v = c2ky(e.von), b = c2ky(e.bis);
+      var ini = initials(e.name);
+      var ac = colorFromString(e.id || e.name || ('e'+idx));
+      return '<div class="kap-card" data-idx="' + idx + '" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:10px;position:relative">'
+        // Header: Avatar + Name + Delete
+        + '<div style="display:flex;align-items:center;gap:10px">'
+          + '<div style="width:36px;height:36px;border-radius:50%;background:' + ac + ';color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + ini + '</div>'
+          + '<input value="' + escapeHtml(e.name) + '" data-idx="' + idx + '" data-field="name" class="kap-edit" style="flex:1;border:none;background:transparent;font-size:14px;font-weight:700;color:#1e293b;outline:none;padding:2px;border-bottom:1px dashed transparent" onfocus="this.style.borderBottomColor=\'#cbd5e1\'" onblur="this.style.borderBottomColor=\'transparent\'">'
+          + '<button onclick="delEmployee(' + idx + ')" title="Mitarbeiter löschen" style="background:transparent;border:none;color:#cbd5e1;cursor:pointer;font-size:14px;line-height:1;padding:4px">🗑</button>'
+        + '</div>'
+        // Gewerke
+        + '<div>'
+          + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Gewerke</div>'
+          + '<div class="gw-picker-badges" data-idx="' + idx + '" onclick="openGewerkPicker(this)" style="cursor:pointer;min-height:24px">' + gwBadgesHtml(e.gewerke) + '</div>'
+        + '</div>'
+        // Std + Von/Bis kompakt
+        + '<div style="display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:11px">'
+          + '<span style="color:#94a3b8;font-weight:600">Stunden/Wo.</span>'
+          + '<div><input type="number" min="0" max="80" value="' + e.std + '" data-idx="' + idx + '" data-field="std" class="kap-edit" style="width:60px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 6px"></div>'
+          + '<span style="color:#94a3b8;font-weight:600">Verfügbar</span>'
+          + '<div style="display:flex;align-items:center;gap:4px;font-size:11px">'
+            + 'KW <input type="number" min="1" max="52" value="' + v.kw + '" data-idx="' + idx + '" data-field="von_kw" class="kap-edit" style="width:46px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
+            + '/ <select data-idx="' + idx + '" data-field="von_year" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
+              + '<option value="2026"' + (v.year===2026?' selected':'') + '>2026</option>'
+              + '<option value="2027"' + (v.year===2027?' selected':'') + '>2027</option>'
+              + '<option value="2028"' + (v.year===2028?' selected':'') + '>2028</option>'
+            + '</select>'
+            + '– KW <input type="number" min="1" max="52" value="' + b.kw + '" data-idx="' + idx + '" data-field="bis_kw" class="kap-edit" style="width:46px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
+            + '/ <select data-idx="' + idx + '" data-field="bis_year" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
+              + '<option value="2026"' + (b.year===2026?' selected':'') + '>2026</option>'
+              + '<option value="2027"' + (b.year===2027?' selected':'') + '>2027</option>'
+              + '<option value="2028"' + (b.year===2028?' selected':'') + '>2028</option>'
+            + '</select>'
+          + '</div>'
+        + '</div>'
+        // Urlaub-Liste
+        + '<div>'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+            + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">🏖 Urlaub / Abwesenheit</div>'
+            + '<button onclick="kapAddUrlaub(' + idx + ')" style="background:transparent;border:1px dashed #cbd5e1;color:#2563eb;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer">+ Urlaub</button>'
+          + '</div>'
+          + '<div class="kap-urlaub-list" data-idx="' + idx + '">' + urlaubListHtml(e.urlaub || []) + '</div>'
+        + '</div>'
+      + '</div>';
+    }).join('');
+    // Wire inputs in cards
+    cont.querySelectorAll('.kap-edit').forEach(function(inp){
       inp.addEventListener('change', function(){
         var idx = +this.dataset.idx;
         var f = this.dataset.field;
-        var e = employees[idx];
-        if (f === 'gewerke') e.gewerke = this.value.split(',').map(function(s){return s.trim();}).filter(Boolean);
-        else if (f === 'std') e.std = +this.value;
+        var emp = employees[idx];
+        if (f === 'std') emp.std = +this.value;
         else if (f === 'von_kw' || f === 'von_year') {
-          // Rekonstruiere kontinuierliche KW aus dem aktuellen UI
-          var row = this.closest('tr');
-          var kw = parseInt(row.querySelector('[data-field="von_kw"]').value, 10);
-          var yr = parseInt(row.querySelector('[data-field="von_year"]').value, 10);
-          e.von = ky2c(kw, yr);
+          var card = this.closest('.kap-card');
+          var kw = parseInt(card.querySelector('[data-field="von_kw"]').value, 10);
+          var yr = parseInt(card.querySelector('[data-field="von_year"]').value, 10);
+          emp.von = ky2c(kw, yr);
         }
         else if (f === 'bis_kw' || f === 'bis_year') {
-          var row = this.closest('tr');
-          var kw = parseInt(row.querySelector('[data-field="bis_kw"]').value, 10);
-          var yr = parseInt(row.querySelector('[data-field="bis_year"]').value, 10);
-          e.bis = ky2c(kw, yr);
+          var card2 = this.closest('.kap-card');
+          var kw2 = parseInt(card2.querySelector('[data-field="bis_kw"]').value, 10);
+          var yr2 = parseInt(card2.querySelector('[data-field="bis_year"]').value, 10);
+          emp.bis = ky2c(kw2, yr2);
         }
-        else e[f] = this.value;
+        else emp[f] = this.value;
         saveEmployees(employees);
-        renderKalender();
+        renderMA(); renderKalender(); renderKapaCockpit();
+      });
+    });
+    // Wire urlaub × delete buttons
+    cont.querySelectorAll('.urlaub-del').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = +this.closest('.kap-urlaub-list').dataset.idx;
+        var uidx = +this.dataset.uidx;
+        employees[idx].urlaub = employees[idx].urlaub || [];
+        employees[idx].urlaub.splice(uidx, 1);
+        saveEmployees(employees);
+        renderMA(); renderKalender(); renderKapaCockpit();
       });
     });
   }
 
+  // Urlaub via Datums-Picker hinzufügen
+  window.kapAddUrlaub = function (idx) {
+    var emp = employees[idx];
+    if (!emp) return;
+    var from = prompt('Urlaub VON (Datum YYYY-MM-DD):');
+    if (!from) return;
+    var to = prompt('Urlaub BIS (Datum YYYY-MM-DD):', from);
+    if (!to) return;
+    function toKWYear(s) {
+      var d = new Date(s + 'T12:00:00');
+      if (isNaN(d.getTime())) return null;
+      var target = new Date(d.valueOf());
+      var dayNr = (d.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNr + 3);
+      var jan4 = new Date(target.getFullYear(), 0, 4);
+      var iso = 1 + Math.ceil((target - jan4) / 86400000 / 7);
+      return { kw: iso, year: target.getFullYear() };
+    }
+    var a = toKWYear(from), b2 = toKWYear(to);
+    if (!a || !b2) { alert('Ungültiges Datum'); return; }
+    emp.urlaub = emp.urlaub || [];
+    emp.urlaub.push({ vonKw: a.kw, vonYear: a.year, bisKw: b2.kw, bisYear: b2.year });
+    saveEmployees(employees);
+    renderMA(); renderKalender(); renderKapaCockpit();
+  };
+
+  // Gastromatic-Import-Stub
+  window.kapImportGastromatic = function () {
+    alert(
+      '📥 Urlaubs-Import aus Gastromatic\n\n' +
+      'Diese Anbindung ist in Vorbereitung.\n\n' +
+      'Was wir dafür brauchen:\n' +
+      '• API-Endpoint + API-Key von Gastromatic\n' +
+      '• Mapping: Gastromatic-Mitarbeiter ↔ Mitarbeiter im Dashboard\n' +
+      '  (z.B. über E-Mail-Adresse oder externe ID)\n\n' +
+      'Sobald die Daten verfügbar sind, baue ich den Sync\n' +
+      'als Hintergrund-Job (z.B. nächtlich) — Urlaube werden\n' +
+      'dann automatisch in die Mitarbeiterkarten übernommen.'
+    );
+  };
+
+  // Heatmap-Filter (Alle / Nur Überlast)
+  var kalFilter = 'all';
+  window.setKalFilter = function (mode, btn) {
+    kalFilter = mode;
+    document.querySelectorAll('.kal-filter').forEach(function(b){
+      var on = (b === btn);
+      b.classList.toggle('active', on);
+      if (on) { b.style.background = (mode==='overload' ? '#dc2626' : '#2563eb'); b.style.color = '#fff'; b.style.borderColor = (mode==='overload' ? '#dc2626' : '#2563eb'); }
+      else { b.style.background = '#fff'; b.style.color = (b.id === 'kal-filter-overload' ? '#dc2626' : '#2563eb'); b.style.borderColor = (b.id === 'kal-filter-overload' ? '#dc262640' : '#2563eb'); }
+    });
+    renderKalender();
+  };
+
+  // Cockpit: 3 KPI-Karten — Aktuelle Woche / Engpässe / größte Überlast
+  function renderKapaCockpit() {
+    var el = document.getElementById('kap-cockpit');
+    if (!el) return;
+    var demand = tasksByGewerkAndKw();
+    var supply = capacityByGewerkAndKw();
+    var nowKW = window.dateToContKW ? window.dateToContKW(new Date().toISOString().slice(0,10)) : 0;
+
+    var gewerke = getAllGewerke();
+    var thisWeekDemand = 0, thisWeekSupply = 0;
+    gewerke.forEach(function(g){
+      thisWeekDemand += (demand[g]||{})[nowKW] || 0;
+      thisWeekSupply += (supply[g]||{})[nowKW] || 0;
+    });
+    var thisLoad = thisWeekSupply > 0 ? Math.round(thisWeekDemand / thisWeekSupply * 100) : 0;
+
+    var bottlenecks = []; // {kw, gewerk, overload}
+    for (var dk = 0; dk < 4; dk++) {
+      var kw = nowKW + dk;
+      gewerke.forEach(function(g){
+        var d = (demand[g]||{})[kw] || 0;
+        var s = (supply[g]||{})[kw] || 0;
+        if (s > 0 && d > s) bottlenecks.push({ kw: kw, gewerk: g, over: Math.round((d - s)) });
+      });
+    }
+    bottlenecks.sort(function(a,b){ return b.over - a.over; });
+
+    var maxOver = bottlenecks.length ? bottlenecks[0] : null;
+
+    function card(icon, lbl, value, sub, color) {
+      return '<div style="background:#fff;border:1.5px solid ' + color + '30;border-radius:10px;padding:12px 16px;flex:1;min-width:200px">'
+        + '<div style="font-size:18px">' + icon + '</div>'
+        + '<div style="font-size:18px;font-weight:800;color:' + color + ';line-height:1.2">' + value + '</div>'
+        + '<div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-top:2px">' + lbl + '</div>'
+        + '<div style="font-size:10px;color:#94a3b8">' + sub + '</div>'
+      + '</div>';
+    }
+
+    var loadColor = thisLoad > 100 ? '#dc2626' : thisLoad > 80 ? '#d97706' : '#15803d';
+    var loadIcon = thisLoad > 100 ? '🔴' : thisLoad > 80 ? '🟡' : '🟢';
+    el.innerHTML =
+        card(loadIcon, 'Auslastung diese Woche (KW ' + nowKW + ')', thisLoad + '%', Math.round(thisWeekDemand) + 'h / ' + Math.round(thisWeekSupply) + 'h', loadColor)
+      + card('📊', 'Engpässe nächste 4 Wochen', bottlenecks.length + ' Stück', bottlenecks.length ? bottlenecks.slice(0,3).map(function(b){return 'KW' + b.kw + ' ' + b.gewerk;}).join(' · ') : 'keine Überlastung', bottlenecks.length ? '#dc2626' : '#15803d')
+      + card('⚠', 'Größte Überlastung', maxOver ? '+' + maxOver.over + 'h' : '—', maxOver ? maxOver.gewerk + ' · KW ' + maxOver.kw : 'alles im grünen Bereich', maxOver ? '#dc2626' : '#15803d');
+  }
+  window.renderKapaCockpit = renderKapaCockpit;
+
   window.addEmployee = function(){
     employees.push({id:'ma'+Date.now(), name:'Neuer Mitarbeiter', gewerke:[], std:40, von:23, bis:52});
     saveEmployees(employees);
-    renderMA();
-    renderKalender();
+    renderMA(); renderKalender(); renderKapaCockpit();
   };
   window.delEmployee = function(idx){
     if (!confirm('Mitarbeiter "' + employees[idx].name + '" löschen?')) return;
     employees.splice(idx,1);
     saveEmployees(employees);
-    renderMA();
-    renderKalender();
+    renderMA(); renderKalender(); renderKapaCockpit();
   };
 
   // ── Kalender: Wochen-Auslastung pro Gewerk ─────────────────────────
@@ -5680,9 +5832,22 @@ window.openUrlaubModal = function(cell) {
     head += '</tr>';
     thead.innerHTML = head;
 
+    // "Nur Überlast"-Filter: Gewerke ohne irgendeine überlastete KW im Zeitraum überspringen
+    var visibleGewerke = gewerke;
+    if (kalFilter === 'overload') {
+      visibleGewerke = gewerke.filter(function(gw){
+        for (var kk = rng.start; kk <= rng.end; kk++) {
+          var dd = (demand[gw]||{})[kk] || 0;
+          var ss = (supply[gw]||{})[kk] || 0;
+          if (ss > 0 && dd > ss) return true;
+        }
+        return false;
+      });
+    }
+
     // Body
     var body = '';
-    gewerke.forEach(function(gw){
+    visibleGewerke.forEach(function(gw){
       body += '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:5px 10px;font-weight:600;font-size:11px;position:sticky;left:0;background:#fff;border-right:1px solid #e2e8f0">' + gw + '</td>';
       for (var kw = rng.start; kw <= rng.end; kw++) {
         var d = (demand[gw] || {})[kw] || 0;
@@ -5704,6 +5869,9 @@ window.openUrlaubModal = function(cell) {
       }
       body += '</tr>';
     });
+    if (!visibleGewerke.length) {
+      body = '<tr><td colspan="' + (rng.end - rng.start + 2) + '" style="padding:20px;text-align:center;color:#15803d;font-size:12px">✓ Keine Überlastungen — alle Gewerke im Plan.</td></tr>';
+    }
     tbody.innerHTML = body;
   }
 
@@ -5808,6 +5976,7 @@ window.openUrlaubModal = function(cell) {
       employees = loadEmployees();
       renderMA();
       renderKalender();
+      renderKapaCockpit();
     } catch (e) {}
   };
 })();
