@@ -288,6 +288,14 @@
     row.setAttribute('data-task-type', 'other');
     row.setAttribute('data-tid', tid);
     row.setAttribute('data-custom', '1');
+    // Default-Balken: ab aktueller KW, Dauer 4 Wochen
+    const PX_PER_WEEK = 42;
+    const ORIGIN_KW = 19;
+    const nowContKW = (typeof window.dateToContKW === 'function')
+      ? (window.dateToContKW(new Date().toISOString().slice(0,10)) || 23)
+      : 23;
+    const barLeft = Math.max(0, (nowContKW - ORIGIN_KW)) * PX_PER_WEEK;
+    const barWidth = 4 * PX_PER_WEEK;
     row.innerHTML = `
       <td class="task-name-cell" contenteditable="${isEditorOptimistic() ? 'true' : 'false'}">Neue Aufgabe</td>
       <td><span class="status-badge status-planned">—</span></td>
@@ -295,7 +303,7 @@
         <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">+ Gewerk</span>
       </td>
       <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px" contenteditable="${isEditorOptimistic() ? 'true' : 'false'}">—</td>
-      <td><div class="gantt-row-inner" style="width:${tableWidth}px"></div></td>
+      <td><div class="gantt-row-inner" style="width:${tableWidth}px"><div class="gantt-bar status-planned" style="left:${barLeft}px;width:${barWidth}px"></div></div></td>
     `;
     // Nach LETZTER bestehender task-row dieses Sections einfügen (sonst direkt nach section-row)
     let insertAfter = sectionRow;
@@ -332,7 +340,7 @@
       row.setAttribute('data-client-id', tid);
       window.PlanSync.pushCustomAdd('task', tid, 'section-idx-' + secIdx,
         insertAfter.classList.contains('task-row') ? insertAfter.getAttribute('data-tid') : 'section-idx-' + secIdx,
-        { name: 'Neue Aufgabe', status: 'geplant', gewerk: '', firma: '' });
+        { name: 'Neue Aufgabe', status: 'geplant', gewerk: '', firma: '', bar_left: barLeft, bar_width: barWidth });
     }
 
     // Undo-Eintrag

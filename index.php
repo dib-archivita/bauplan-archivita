@@ -9344,24 +9344,27 @@ window.togglePanel = function() {
     if (!strip) {
       strip = document.createElement('div');
       strip.id = 'kapa-heat-strip';
-      strip.style.cssText = 'position:relative;height:6px;width:3768px;margin-left:-168px;margin-bottom:2px;pointer-events:none';
+      strip.style.cssText = 'position:relative;height:18px;width:3768px;margin-left:-168px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
       head.parentNode.insertBefore(strip, head);
     }
     var targetG = (typeof window.activeGewerk !== 'undefined' && window.activeGewerk && window.activeGewerk !== 'all') ? window.activeGewerk : 'all';
     var demand = tasksByKwForGewerk(targetG);
     var supply = capacityByKwForGewerk(targetG);
-    var html = '';
+    var lblText = (targetG === 'all') ? 'ALLE GEWERKE' : targetG.toUpperCase();
+    // Mini-Label links (sticky-haft im Header-Wrapper)
+    var html = '<div style="position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;padding:0 8px;background:#1e293b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;z-index:2;border-right:1px solid #334155">📊 ' + lblText + '</div>';
     for (var kw = 23; kw <= 104; kw++) {
       var d = demand[kw] || 0, s = supply[kw] || 0;
-      var col = 'transparent';
-      if (s > 0 && d > s) col = '#dc262680';      // rot — Überlast
-      else if (s > 0 && d / s > 0.8) col = '#f59e0b80'; // gelb — voll
-      else if (d > 0) col = '#16a34a55';                // grün — Auslastung
-      if (col === 'transparent') continue;
+      var col = '#f8fafc', fg = '#94a3b8', txt = '';
+      if (s > 0 && d > s) { col = '#dc2626'; fg = '#fff'; txt = Math.round(d/s*100) + '%'; }
+      else if (s > 0 && d / s > 0.8) { col = '#f59e0b'; fg = '#7c2d12'; txt = Math.round(d/s*100) + '%'; }
+      else if (d > 0 && s > 0) { col = '#86efac'; fg = '#14532d'; txt = Math.round(d/s*100) + '%'; }
+      else if (d === 0 && s > 0) { col = '#f0fdf4'; }       // Kapa frei
+      else { col = '#f8fafc'; }
       var left = (kw - ORIGIN_KW) * PX_PER_WEEK;
       var pct = s > 0 ? Math.round(d / s * 100) : 0;
       html += '<div title="KW ' + kw + ' · ' + targetG + ' · ' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + pct + '%)" '
-        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';border-radius:1px"></div>';
+        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff">' + txt + '</div>';
     }
     strip.innerHTML = html;
   }
