@@ -975,6 +975,7 @@ function showTab(name, el) {
   document.getElementById('tab-'+name).classList.add('active');
   el.classList.add('active');
   if (name === 'bestellungen' && typeof renderOrders === 'function') renderOrders();
+  if (name === 'kosten' && typeof window.renderCostOrders === 'function') window.renderCostOrders();
   if (typeof window.updateTabSummary === 'function') window.updateTabSummary(name);
 }
 
@@ -5123,6 +5124,9 @@ function filterWohnNew(mode, btn) {
 <!-- SUMMARY KARTEN -->
 <div id="cost-summary-cards" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px"></div>
 
+<!-- BESTELLUNGEN-ÜBERSICHT (automatisch aus Bestellungen) -->
+<div id="cost-orders-overview" style="background:#fff;border:1.5px solid #16a34a30;border-radius:10px;margin-bottom:20px;overflow:hidden"></div>
+
 <!-- PLAUSIBILITÄT -->
 <div id="cost-plausibility" style="background:#fff;border:1.5px solid #2563eb20;border-radius:10px;margin-bottom:20px;overflow:hidden">
   <div style="padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe">
@@ -6203,6 +6207,7 @@ window.setOrderField = function (id, key, value) {
   localStorage.setItem('bo-orders-v3', json);
   if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
   if (typeof renderOrders === 'function') renderOrders();
+  if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
   // Status-Änderung an passende Hauptplan-Aufgaben weitergeben
   if (key === 'status' && typeof window.syncOrderToTasks === 'function') {
     window.syncOrderToTasks(boOrders[idx]);
@@ -6400,6 +6405,90 @@ window.renderStatusPills = function () {
   cont.innerHTML = html;
 };
 
+// Verbindliche Bestellungen in der Budgetplanung darstellen
+// Verbindlich = ab Status "AB erhalten" (Vertrag fixiert) bis "geliefert"; davor = Schätzung
+var BO_CONFIRMED_STATES = ['AB erhalten', 'bestellt', 'Lieferung ausstehend', 'geliefert', 'laufend'];
+function fmtEUR(v) { return (v || 0).toLocaleString('de-DE', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' €'; }
+
+window.renderCostOrders = function () {
+  var el = document.getElementById('cost-orders-overview');
+  if (!el) return;
+  var orders = (window.boOrders || []).slice();
+  if (!orders.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  var groups = {};
+  orders.forEach(function (o) {
+    var g = o.gewerk || 'Ohne Gewerk';
+    if (!groups[g]) groups[g] = { confirmed: 0, estimated: 0, rows: [] };
+    var confirmed = BO_CONFIRMED_STATES.indexOf(o.status) !== -1;
+    groups[g][confirmed ? 'confirmed' : 'estimated'] += (o.betrag || 0);
+    groups[g].rows.push({ o: o, confirmed: confirmed });
+  });
+
+  var totalConfirmed = 0, totalEstimated = 0;
+  orders.forEach(function (o) {
+    var c = BO_CONFIRMED_STATES.indexOf(o.status) !== -1;
+    if (c) totalConfirmed += (o.betrag || 0);
+    else totalEstimated += (o.betrag || 0);
+  });
+  var grand = totalConfirmed + totalEstimated;
+  var pctConfirmed = grand > 0 ? Math.round(totalConfirmed / grand * 100) : 0;
+
+  var gMap = {}; (window.GEWERKE || []).forEach(function(g){ gMap[g.name] = g; });
+
+  var html = ''
+    + '<div style="padding:12px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+    +   '<div>'
+    +     '<div style="font-size:13px;font-weight:800;color:#14532d">📦 Verbindliche Bestellungen — automatisch aus Bestelltab</div>'
+    +     '<div style="font-size:10px;color:#15803d;margin-top:2px">Plausible Beträge (basieren auf Auftragsbestätigung) vs. Schätzungen</div>'
+    +   '</div>'
+    +   '<div style="display:flex;gap:6px;align-items:center;font-size:11px">'
+    +     '<span style="background:#dcfce7;color:#15803d;border:1px solid #16a34a40;border-radius:8px;padding:3px 10px;font-weight:700">✓ verbindlich: ' + fmtEUR(totalConfirmed) + '</span>'
+    +     '<span style="background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:8px;padding:3px 10px;font-weight:700">~ Schätzung: ' + fmtEUR(totalEstimated) + '</span>'
+    +     '<span style="background:#1e293b;color:#fff;border-radius:8px;padding:3px 10px;font-weight:800">Σ ' + fmtEUR(grand) + '</span>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="padding:8px 16px;background:#fff;border-bottom:1px solid #f0fdf4">'
+    +   '<div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;display:flex">'
+    +     '<div style="background:#16a34a;width:' + pctConfirmed + '%"></div>'
+    +     '<div style="background:#cbd5e1;width:' + (100-pctConfirmed) + '%"></div>'
+    +   '</div>'
+    +   '<div style="font-size:9px;color:#64748b;margin-top:3px;text-align:right">' + pctConfirmed + '% verbindlich</div>'
+    + '</div>';
+
+  Object.keys(groups).sort().forEach(function (gName) {
+    var g = groups[gName];
+    var meta = gMap[gName] || { bg: '#f1f5f9', fg: '#64748b' };
+    html += '<div style="border-bottom:1px solid #f1f5f9">'
+      + '<div style="padding:8px 16px;background:#fafafa;display:flex;align-items:center;justify-content:space-between">'
+      +   '<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#1e293b">'
+      +     '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + meta.fg + '"></span>' + gName
+      +   '</span>'
+      +   '<span style="font-size:11px;color:#64748b">'
+      +     '<span style="color:#15803d;font-weight:700">✓ ' + fmtEUR(g.confirmed) + '</span>'
+      +     ' &nbsp;·&nbsp; ~ ' + fmtEUR(g.estimated)
+      +   '</span>'
+      + '</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    g.rows.sort(function(a,b){ return (b.o.betrag||0) - (a.o.betrag||0); }).forEach(function (r) {
+      var o = r.o, conf = r.confirmed;
+      var badge = conf
+        ? '<span style="background:#dcfce7;color:#15803d;border:1px solid #16a34a40;border-radius:6px;padding:1px 6px;font-size:9px;font-weight:700">✓ verbindlich</span>'
+        : '<span style="background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:6px;padding:1px 6px;font-size:9px;font-weight:700">~ Schätzung</span>';
+      html += '<tr style="border-top:1px solid #f8fafc">'
+        + '<td style="padding:5px 16px;color:#94a3b8;font-size:10px;width:54px">' + o.id + '</td>'
+        + '<td style="padding:5px 8px;color:#1e293b">' + (o.name || '') + '</td>'
+        + '<td style="padding:5px 8px">' + badge + '</td>'
+        + '<td style="padding:5px 8px;color:#64748b;font-size:10px;white-space:nowrap">' + (o.status || '') + '</td>'
+        + '<td style="padding:5px 16px;text-align:right;font-weight:700;color:' + (conf ? '#15803d' : '#64748b') + '">' + fmtEUR(o.betrag) + '</td>'
+        + '</tr>';
+    });
+    html += '</table></div>';
+  });
+  el.innerHTML = html;
+};
+
 function fillGewerkDropdown() {
   var sel = document.getElementById('bo-gewerk-filter');
   if (!sel || sel.dataset.filled === '1') return;
@@ -6431,6 +6520,7 @@ function deleteOrder(id) {
   localStorage.setItem('bo-orders-v3', json);
   if (window.__syncKV) window.__syncKV('bo-orders-v3', json);
   renderOrders();
+  if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
 }
 
 function editOrder(id) {
@@ -8377,6 +8467,7 @@ window.togglePanel = function() {
       if (key === 'bo-orders-v3') {
         window.boOrders = JSON.parse(value || 'null') || window.boOrders;
         if (typeof window.renderOrders === 'function') window.renderOrders();
+        if (typeof window.renderCostOrders === 'function') window.renderCostOrders();
       } else if (key === 'cost-values') {
         if (typeof window.loadCostValues === 'function') window.loadCostValues();
       } else if (key === 'unit-costs') {
