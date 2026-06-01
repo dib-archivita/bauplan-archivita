@@ -6032,7 +6032,15 @@ function getAllSectionTotals() {
 function updateCostSummary() {
   var fmt = function(n) { return n.toLocaleString('de-DE') + ' €'; };
   var totals = getAllSectionTotals();
-  var netto = Object.values(totals).reduce(function(a,b) { return a+b; }, 0);
+  var sectionsSum = Object.values(totals).reduce(function(a,b) { return a+b; }, 0);
+  // Bestellungen-Summe (zusätzlich zu den Sektions-Schätzungen)
+  var ordersTotal = 0, ordersConfirmed = 0;
+  (window.boOrders || []).forEach(function(o){
+    var v = o.betrag || 0;
+    ordersTotal += v;
+    if (window.BO_CONFIRMED_STATES && window.BO_CONFIRMED_STATES.indexOf(o.status) !== -1) ordersConfirmed += v;
+  });
+  var netto = sectionsSum + ordersTotal;
   var reserve = Math.round(netto * 0.08);
   var mwst = Math.round((netto + reserve) * 0.19);
   var brutto = netto + reserve + mwst;
@@ -6065,7 +6073,11 @@ function updateCostSummary() {
         + '<td style="padding:6px 10px;text-align:right;font-weight:600;color:#2563eb;font-size:11px">' + fmt(t) + '</td>'
         + '</tr>';
     }).join('');
-    rows += '<tr style="background:#f8fafc"><td style="padding:7px 10px;font-weight:700;font-size:12px;color:#1e293b">Netto-Summe</td>'
+    if (ordersTotal > 0) {
+      rows += '<tr style="background:#f0fdf4"><td style="padding:6px 10px;font-size:11px;color:#15803d">+ 📦 Bestellungen (' + fmt(ordersConfirmed) + ' verbindlich)</td>'
+        + '<td style="padding:6px 10px;text-align:right;font-size:11px;color:#15803d;font-weight:700">' + fmt(ordersTotal) + '</td></tr>';
+    }
+    rows += '<tr style="background:#f8fafc"><td style="padding:7px 10px;font-weight:700;font-size:12px;color:#1e293b">Netto-Summe (inkl. Bestellungen)</td>'
       + '<td style="padding:7px 10px;text-align:right;font-weight:700;font-size:12px;color:#2563eb">' + fmt(netto) + '</td></tr>';
     rows += '<tr><td style="padding:6px 10px;font-size:11px;color:#7c3aed">+ Reserve 8%</td>'
       + '<td style="padding:6px 10px;text-align:right;font-size:11px;color:#7c3aed">' + fmt(reserve) + '</td></tr>';
@@ -6408,6 +6420,7 @@ window.renderStatusPills = function () {
 // Verbindliche Bestellungen in der Budgetplanung darstellen
 // Verbindlich = ab Status "AB erhalten" (Vertrag fixiert) bis "geliefert"; davor = Schätzung
 var BO_CONFIRMED_STATES = ['AB erhalten', 'bestellt', 'Lieferung ausstehend', 'geliefert', 'laufend'];
+window.BO_CONFIRMED_STATES = BO_CONFIRMED_STATES;
 function fmtEUR(v) { return (v || 0).toLocaleString('de-DE', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' €'; }
 
 window.renderCostOrders = function () {
@@ -6471,7 +6484,8 @@ window.renderCostOrders = function () {
       +   '</span>'
       + '</div>'
       + '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-    g.rows.sort(function(a,b){ return (b.o.betrag||0) - (a.o.betrag||0); }).forEach(function (r) {
+    g.rows.sort(function(a,b){ return (b.o.betrag||0) - (a.o.betrag||0); });
+    g.rows.forEach(function (r) {
       var o = r.o, conf = r.confirmed;
       var badge = conf
         ? '<span style="background:#dcfce7;color:#15803d;border:1px solid #16a34a40;border-radius:6px;padding:1px 6px;font-size:9px;font-weight:700">✓ verbindlich</span>'
@@ -6487,6 +6501,8 @@ window.renderCostOrders = function () {
     html += '</table></div>';
   });
   el.innerHTML = html;
+  // Top-Gesamtsummen mit aktualisieren
+  if (typeof updateCostSummary === 'function') updateCostSummary();
 };
 
 function fillGewerkDropdown() {
