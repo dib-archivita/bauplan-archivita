@@ -5296,7 +5296,8 @@ function filterWohnNew(mode, btn) {
     {name:'Sonstige',            bg:'#f1f5f9', fg:'#64748b'},
   ];
   function gwColors(name) {
-    var g = GEWERKE_LIST.find(function(x){return x.name === name;});
+    var list = window.GEWERKE || GEWERKE_LIST;
+    var g = list.find(function(x){return x.name === name;});
     return g || {bg:'#f1f5f9', fg:'#64748b'};
   }
   function gwBadgesHtml(arr) {
@@ -5408,7 +5409,8 @@ window.openUrlaubModal = function(cell) {
     var dd = document.createElement('div');
     dd.className = 'gw-multi-dropdown';
 
-    GEWERKE_LIST.forEach(function(g){
+    (window.GEWERKE || GEWERKE_LIST).forEach(function(g){
+      if (!g.name) return;
       var lbl = document.createElement('label');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -5864,7 +5866,7 @@ window.openUrlaubModal = function(cell) {
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">Gewerk</label>
-        <input id="bo-m-gewerk" type="text" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box">
+        <select id="bo-m-gewerk" onchange="if(this.value==='__add__'){ var nm=prompt('Neues Gewerk:'); if(nm){ window.addGewerk(nm); this.value=nm; } else { this.value=''; } }" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box"></select>
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b">Kategorie</label>
@@ -6205,6 +6207,16 @@ function renderOrders() {
     var urgentStyle = isUrgent ? 'background:#fff8f0;' : '';
     var ghBadge = (o.id && o.id.startsWith('GH')) ? '<span style="background:#0891b218;color:#0891b2;border:1px solid #0891b230;padding:1px 4px;border-radius:3px;font-size:9px;font-weight:700;margin-left:4px">GH</span>' : '';
 
+    // Gewerk-Dropdown (live aus window.GEWERKE, mit "+ Neues Gewerk…")
+    var gNames = (window.GEWERKE || []).map(function(g){ return g.name; }).filter(function(n){ return n; });
+    if (o.gewerk && gNames.indexOf(o.gewerk) === -1) gNames.unshift(o.gewerk);
+    var gMeta = (window.GEWERKE || []).find(function(g){ return g.name === o.gewerk; }) || { bg:'#f1f5f9', fg:'#475569' };
+    var gewerkSel = '<select onchange="if(this.value===\'__add__\'){var nm=prompt(\'Neues Gewerk:\'); if(nm){ window.addGewerk(nm); setOrderField(\'' + o.id + '\',\'gewerk\',nm);} else { renderOrders(); } } else { setOrderField(\'' + o.id + '\',\'gewerk\',this.value); }" '
+      + 'style="background:' + gMeta.bg + ';color:' + gMeta.fg + ';border:1px solid ' + gMeta.fg + '30;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700;cursor:pointer;max-width:130px">'
+      + gNames.map(function(n){ return '<option value="' + esc(n) + '"' + (n === o.gewerk ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('')
+      + '<option value="__add__" style="font-style:italic;color:#2563eb">+ Neues Gewerk…</option>'
+      + '</select>';
+
     // Status-Dropdown
     var statusSel = '<select onchange="setOrderField(\'' + o.id + '\',\'status\',this.value)" style="background:' + sMeta.bg + ';color:' + sMeta.fg + ';border:1px solid ' + sMeta.fg + '30;border-radius:4px;padding:2px 4px;font-size:10px;font-weight:700;cursor:pointer">'
       + (window.BO_STATUS_LIST || []).map(function(s){
@@ -6236,7 +6248,7 @@ function renderOrders() {
     return '<tr style="border-bottom:1px solid #f1f5f9;' + urgentStyle + '">'
       + '<td style="padding:5px 8px;font-size:10px;color:#94a3b8">' + o.id + '</td>'
       + '<td style="padding:5px 10px;font-size:11px;color:#1e293b;font-weight:' + (isUrgent?'700':'400') + '">' + esc(o.name) + ghBadge + '</td>'
-      + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.gewerk) + '</td>'
+      + '<td style="padding:5px 8px">' + gewerkSel + '</td>'
       + '<td style="padding:5px 8px">' + verantSel + '</td>'
       + '<td style="padding:5px 8px;font-size:10px;color:#64748b">' + esc(o.firma) + '</td>'
       + '<td style="padding:5px 8px;text-align:center">' + kwBadge + '</td>'
@@ -7549,20 +7561,8 @@ window.addEventListener('DOMContentLoaded', function(){
       </div>
       <div>
         <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Gewerk</label>
-        <select id="nt-gewerk" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
+        <select id="nt-gewerk" onchange="if(this.value==='__add__'){ var nm=prompt('Neues Gewerk:'); if(nm){ window.addGewerk(nm); this.value=nm; } else { this.value=''; } }" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
           <option value="">—</option>
-          <option>Sanitär/Heizung</option>
-          <option>Elektro</option>
-          <option>Maler/Gipser</option>
-          <option>Trockenbau</option>
-          <option>Bodenbelag</option>
-          <option>Fliesen</option>
-          <option>Estrich</option>
-          <option>Schreiner/Endmontage</option>
-          <option>Brandschutz</option>
-          <option>Dach/Fassade</option>
-          <option>Planung/Architekt</option>
-          <option>Sonstige</option>
         </select>
       </div>
       <div>
@@ -7602,8 +7602,8 @@ window.addEventListener('DOMContentLoaded', function(){
 
 <script id="inline-edit-engine">
 (function(){
-  // ── Gewerk-Liste mit Farben ──────────────────────────────────────────
-  var GEWERKE = [
+  // ── Gewerk-Liste mit Farben (gemeinsam für Hauptplan + Bestellungen + Kapazität) ──
+  var DEFAULT_GEWERKE = [
     {name:'Sanitär/Heizung', bg:'#dbeafe', fg:'#2563eb'},
     {name:'Elektro',         bg:'#fed7aa', fg:'#d97706'},
     {name:'Maler/Gipser',    bg:'#fed7aa', fg:'#ea580c'},
@@ -7616,9 +7616,100 @@ window.addEventListener('DOMContentLoaded', function(){
     {name:'Dach/Fassade',    bg:'#d1fae5', fg:'#065f46'},
     {name:'Planung/Architekt',bg:'#e0e7ff', fg:'#4338ca'},
     {name:'Sonstige',        bg:'#f1f5f9', fg:'#64748b'},
-    {name:'',                bg:'#f1f5f9', fg:'#64748b'},
   ];
+  function harvestExtraGewerke(arr) {
+    var have = {};
+    arr.forEach(function(g){ have[g.name] = true; });
+    // aus Bestellungen
+    (window.boOrders || []).forEach(function(o){
+      if (o.gewerk && !have[o.gewerk]) {
+        arr.push({ name: o.gewerk, bg: '#f1f5f9', fg: '#475569' });
+        have[o.gewerk] = true;
+      }
+    });
+    // aus Hauptplan-Zeilen
+    document.querySelectorAll('tr.task-row').forEach(function(tr){
+      var g = tr.getAttribute('data-gewerk');
+      if (g && !have[g]) {
+        arr.push({ name: g, bg: '#f1f5f9', fg: '#475569' });
+        have[g] = true;
+      }
+    });
+  }
+  function loadGewerke() {
+    var arr;
+    try {
+      var saved = JSON.parse(localStorage.getItem('gewerke-list-v1') || 'null');
+      arr = (Array.isArray(saved) && saved.length) ? saved.slice() : DEFAULT_GEWERKE.slice();
+    } catch (e) { arr = DEFAULT_GEWERKE.slice(); }
+    harvestExtraGewerke(arr);
+    return arr;
+  }
+  var GEWERKE = loadGewerke();
   window.GEWERKE = GEWERKE;
+  // Liste persistieren + synchronisieren
+  window.saveGewerkeList = function () {
+    var json = JSON.stringify(GEWERKE);
+    localStorage.setItem('gewerke-list-v1', json);
+    if (window.__syncKV) window.__syncKV('gewerke-list-v1', json);
+  };
+  // Neues Gewerk hinzufügen (überall verfügbar)
+  window.addGewerk = function (name, bg, fg) {
+    name = (name || '').trim();
+    if (!name) return null;
+    var ex = GEWERKE.find(function(g){ return g.name === name; });
+    if (ex) return ex;
+    var g = { name: name, bg: bg || '#f1f5f9', fg: fg || '#475569' };
+    GEWERKE.push(g);
+    window.saveGewerkeList();
+    window.populateGewerkSelects();
+    return g;
+  };
+  // Alle Gewerk-Dropdowns/Re-Render auf einen Stand bringen
+  window.populateGewerkSelects = function () {
+    var names = GEWERKE.map(function(g){return g.name;}).filter(function(n){return n;});
+    var opts = names.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+    var addOpt = '<option value="__add__" style="font-style:italic;color:#2563eb">+ Neues Gewerk…</option>';
+    // Bestellungen-Filter
+    var f = document.getElementById('bo-gewerk-filter');
+    if (f) {
+      var cur = f.value;
+      f.innerHTML = '<option value="">Alle Gewerke</option>' + opts;
+      if (cur && names.indexOf(cur) !== -1) f.value = cur;
+    }
+    // Bestellungen-Modal
+    var m = document.getElementById('bo-m-gewerk');
+    if (m && m.tagName === 'SELECT') {
+      var cur2 = m.value;
+      m.innerHTML = opts + addOpt;
+      if (cur2 && names.indexOf(cur2) !== -1) m.value = cur2;
+    }
+    // Neue-Aufgabe-Modal
+    var n = document.getElementById('nt-gewerk');
+    if (n) {
+      var cur3 = n.value;
+      n.innerHTML = '<option value="">—</option>' + opts + addOpt;
+      if (cur3 && names.indexOf(cur3) !== -1) n.value = cur3;
+    }
+    // Bestellungen-Inline-Dropdowns aktualisieren
+    if (typeof renderOrders === 'function') renderOrders();
+  };
+  // Eingehender KV-Update auf gewerke-list-v1 → Liste tauschen + überall neu rendern
+  window.__applyGewerkeKV = function (value) {
+    try {
+      var arr = JSON.parse(value || '[]');
+      if (!Array.isArray(arr)) return;
+      GEWERKE.length = 0;
+      arr.forEach(function(g){ GEWERKE.push(g); });
+      window.populateGewerkSelects();
+    } catch (e) {}
+  };
+  // Beim Laden alle Selects initial befüllen
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ window.populateGewerkSelects(); });
+  } else {
+    setTimeout(window.populateGewerkSelects, 50);
+  }
 
   // ── 1. Task-Name Cells contenteditable machen ──────────────────────
   function makeNameEditable() {
@@ -7716,7 +7807,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.gewerk-dropdown').forEach(function(d){ d.remove(); });
     var dd = document.createElement('div');
     dd.className = 'gewerk-dropdown';
-    GEWERKE.forEach(function(g){
+    (window.GEWERKE || GEWERKE).forEach(function(g){
       var item = document.createElement('div');
       item.textContent = g.name || '(kein)';
       item.style.color = g.fg;
@@ -7727,6 +7818,24 @@ window.addEventListener('DOMContentLoaded', function(){
       });
       dd.appendChild(item);
     });
+    // + Neues Gewerk…
+    var addItem = document.createElement('div');
+    addItem.textContent = '+ Neues Gewerk…';
+    addItem.style.color = '#2563eb';
+    addItem.style.fontStyle = 'italic';
+    addItem.style.borderTop = '1px solid #e2e8f0';
+    addItem.style.marginTop = '4px';
+    addItem.style.paddingTop = '6px';
+    addItem.addEventListener('click', function(e){
+      e.stopPropagation();
+      var nm = prompt('Neues Gewerk:');
+      if (nm) {
+        var g = window.addGewerk(nm);
+        if (g) applyGewerk(span, tr, g);
+      }
+      dd.remove();
+    });
+    dd.appendChild(addItem);
     document.body.appendChild(dd);
     var rect = span.getBoundingClientRect();
     dd.style.left = rect.left + 'px';
@@ -8052,7 +8161,7 @@ window.togglePanel = function() {
 /* ===== Generischer KV-Sync für Neben-Tabs (Bestellungen, Budget, Kapazität, TODs, Einheiten) ===== */
 (function () {
   // Welche localStorage-Keys über die DB synchronisiert werden (Kern-Plan läuft separat über overrides!)
-  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry'];
+  var EXACT = ['bo-orders-v3', 'cost-values', 'unit-costs', 'kap-mitarbeiter-v10', 'unit-registry', 'gewerke-list-v1'];
   var PREFIX = ['task-mh-', 'todo-kw-'];
   function isSynced(key) {
     if (!key) return false;
@@ -8099,6 +8208,8 @@ window.togglePanel = function() {
         try { window.UNIT_REGISTRY = JSON.parse(value || '[]'); } catch (e) {}
         if (typeof window.kapReload === 'function') window.kapReload();
         else if (typeof window.renderKalender === 'function') window.renderKalender();
+      } else if (key === 'gewerke-list-v1') {
+        if (typeof window.__applyGewerkeKV === 'function') window.__applyGewerkeKV(value);
       } else if (key.indexOf('todo-kw-') === 0) {
         var kw = key.replace('todo-kw-', '');
         var el = document.getElementById('manual-kw' + kw);
