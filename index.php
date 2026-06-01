@@ -5591,17 +5591,27 @@ window.openUrlaubModal = function(cell) {
     return pills + '<div class="urlaub-editor" data-eidx="' + empIdx + '" style="display:none"></div>';
   }
 
+  function fmtDateShort(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('de-DE', {day:'2-digit', month:'short', year:'numeric'});
+    } catch (e) { return iso; }
+  }
+
   function renderMA() {
     var cont = document.getElementById('kap-ma-cards');
     if (!cont) return;
     cont.innerHTML = employees.map(function(e, idx) {
       var v = c2ky(e.von), b = c2ky(e.bis);
+      var vonISO = kwYearToISODate(v.kw, v.year);
+      var bisISO = kwYearToISODate(b.kw, b.year);
       var ini = initials(e.name);
       var ac = colorFromString(e.id || e.name || ('e'+idx));
-      return '<div class="kap-card" data-idx="' + idx + '" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:10px;position:relative">'
+      return '<div class="kap-card" data-idx="' + idx + '" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:12px;position:relative">'
         // Header: Avatar + Name + Delete
         + '<div style="display:flex;align-items:center;gap:10px">'
-          + '<div style="width:36px;height:36px;border-radius:50%;background:' + ac + ';color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + ini + '</div>'
+          + '<div style="width:38px;height:38px;border-radius:50%;background:' + ac + ';color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + ini + '</div>'
           + '<input value="' + escapeHtml(e.name) + '" data-idx="' + idx + '" data-field="name" class="kap-edit" style="flex:1;border:none;background:transparent;font-size:14px;font-weight:700;color:#1e293b;outline:none;padding:2px;border-bottom:1px dashed transparent" onfocus="this.style.borderBottomColor=\'#cbd5e1\'" onblur="this.style.borderBottomColor=\'transparent\'">'
           + '<button onclick="delEmployee(' + idx + ')" title="Mitarbeiter löschen" style="background:transparent;border:none;color:#cbd5e1;cursor:pointer;font-size:14px;line-height:1;padding:4px">🗑</button>'
         + '</div>'
@@ -5610,24 +5620,20 @@ window.openUrlaubModal = function(cell) {
           + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Gewerke</div>'
           + '<div class="gw-picker-badges" data-idx="' + idx + '" onclick="openGewerkPicker(this)" style="cursor:pointer;min-height:24px">' + gwBadgesHtml(e.gewerke) + '</div>'
         + '</div>'
-        // Std + Von/Bis kompakt
-        + '<div style="display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:11px">'
-          + '<span style="color:#94a3b8;font-weight:600">Stunden/Wo.</span>'
-          + '<div><input type="number" min="0" max="80" value="' + e.std + '" data-idx="' + idx + '" data-field="std" class="kap-edit" style="width:60px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 6px"></div>'
-          + '<span style="color:#94a3b8;font-weight:600">Verfügbar</span>'
-          + '<div style="display:flex;align-items:center;gap:4px;font-size:11px">'
-            + 'KW <input type="number" min="1" max="52" value="' + v.kw + '" data-idx="' + idx + '" data-field="von_kw" class="kap-edit" style="width:46px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
-            + '/ <select data-idx="' + idx + '" data-field="von_year" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
-              + '<option value="2026"' + (v.year===2026?' selected':'') + '>2026</option>'
-              + '<option value="2027"' + (v.year===2027?' selected':'') + '>2027</option>'
-              + '<option value="2028"' + (v.year===2028?' selected':'') + '>2028</option>'
-            + '</select>'
-            + '– KW <input type="number" min="1" max="52" value="' + b.kw + '" data-idx="' + idx + '" data-field="bis_kw" class="kap-edit" style="width:46px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
-            + '/ <select data-idx="' + idx + '" data-field="bis_year" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:4px;font-size:11px;padding:3px 4px">'
-              + '<option value="2026"' + (b.year===2026?' selected':'') + '>2026</option>'
-              + '<option value="2027"' + (b.year===2027?' selected':'') + '>2027</option>'
-              + '<option value="2028"' + (b.year===2028?' selected':'') + '>2028</option>'
-            + '</select>'
+        // Stunden + Verfügbar via Datums-Picker
+        + '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">'
+          + '<div>'
+            + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Stunden / Woche</div>'
+            + '<input type="number" min="0" max="80" value="' + e.std + '" data-idx="' + idx + '" data-field="std" class="kap-edit" style="width:72px;text-align:center;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:700;padding:4px 6px">'
+          + '</div>'
+          + '<div style="flex:1;min-width:160px">'
+            + '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Verfügbar von – bis</div>'
+            + '<div style="display:flex;align-items:center;gap:4px">'
+              + '<input type="date" value="' + vonISO + '" data-idx="' + idx + '" data-field="von_date" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:5px;font-size:11px;padding:3px 5px;font-family:inherit;flex:1;min-width:0">'
+              + '<span style="color:#94a3b8">–</span>'
+              + '<input type="date" value="' + bisISO + '" data-idx="' + idx + '" data-field="bis_date" class="kap-edit" style="border:1px solid #e2e8f0;border-radius:5px;font-size:11px;padding:3px 5px;font-family:inherit;flex:1;min-width:0">'
+            + '</div>'
+            + '<div style="font-size:9px;color:#94a3b8;margin-top:3px">KW ' + v.kw + '/' + v.year + ' – KW ' + b.kw + '/' + b.year + '</div>'
           + '</div>'
         + '</div>'
         // Urlaub-Liste
@@ -5647,17 +5653,13 @@ window.openUrlaubModal = function(cell) {
         var f = this.dataset.field;
         var emp = employees[idx];
         if (f === 'std') emp.std = +this.value;
-        else if (f === 'von_kw' || f === 'von_year') {
-          var card = this.closest('.kap-card');
-          var kw = parseInt(card.querySelector('[data-field="von_kw"]').value, 10);
-          var yr = parseInt(card.querySelector('[data-field="von_year"]').value, 10);
-          emp.von = ky2c(kw, yr);
+        else if (f === 'von_date') {
+          var ky = parseFlexDate(this.value);
+          if (ky) emp.von = ky2c(ky.kw, ky.year);
         }
-        else if (f === 'bis_kw' || f === 'bis_year') {
-          var card2 = this.closest('.kap-card');
-          var kw2 = parseInt(card2.querySelector('[data-field="bis_kw"]').value, 10);
-          var yr2 = parseInt(card2.querySelector('[data-field="bis_year"]').value, 10);
-          emp.bis = ky2c(kw2, yr2);
+        else if (f === 'bis_date') {
+          var ky2 = parseFlexDate(this.value);
+          if (ky2) emp.bis = ky2c(ky2.kw, ky2.year);
         }
         else emp[f] = this.value;
         saveEmployees(employees);
