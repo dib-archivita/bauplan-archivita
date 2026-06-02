@@ -1238,54 +1238,23 @@ function scrollToCard(id) {
 })();
 
 
-// Projektstart = Anfang Juni 2026 = KW23. KW 19–22 werden physisch entfernt (margin + width).
-// Today-Line wird ebenfalls verschoben damit Alignment stimmt.
+// Hauptzeitplan: Scroll-Lock auf KW23 (links davon nicht erreichbar)
+// KW 19–22 sind nur über horizontalen Scroll im Plan ausgeblendet, NICHT layout-shift
 (function () {
-  var SHIFT = 168;
-  function shiftEl(el) {
-    if (!el || el.dataset.kw23Shifted === '1') return;
-    el.dataset.kw23Shifted = '1';
-    el.style.marginLeft = '-' + SHIFT + 'px';
-    var w = parseInt(el.style.width || el.offsetWidth || '0', 10);
-    if (w > SHIFT) el.style.width = (w - SHIFT) + 'px';
+  var KW23_PX = 168;
+  function lockScroll(wrap) {
+    if (!wrap || wrap.dataset.kw23Locked) return;
+    wrap.dataset.kw23Locked = '1';
+    wrap.scrollLeft = KW23_PX;
+    wrap.addEventListener('scroll', function () {
+      if (wrap.scrollLeft < KW23_PX) wrap.scrollLeft = KW23_PX;
+    }, { passive: true });
   }
-  function applyShift() {
-    document.querySelectorAll('.gantt-kw-header, .gantt-monat-header, .gantt-row-inner').forEach(shiftEl);
-    // Today-Line um SHIFT nach links versetzen (sie sitzt im Table, nicht im Wrap)
-    document.querySelectorAll('.today-line, #today-line-global, #today-line-gh').forEach(function (l) {
-      if (l.dataset.kw23Shifted === '1') return;
-      l.dataset.kw23Shifted = '1';
-      l.style.transform = 'translateX(-' + SHIFT + 'px)';
-    });
-    // Heat-Strip ggf. ebenfalls anpassen (er wird dynamisch erzeugt)
-    var strip = document.getElementById('kapa-heat-strip');
-    if (strip && strip.dataset.kw23Shifted !== '1') {
-      strip.dataset.kw23Shifted = '1';
-      strip.style.marginLeft = '-' + SHIFT + 'px';
-      var sw = parseInt(strip.style.width || '0', 10);
-      if (sw > SHIFT) strip.style.width = (sw - SHIFT) + 'px';
-    }
-    document.querySelectorAll('.gantt-wrap').forEach(function (wrap) { wrap.scrollLeft = 0; });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyShift);
-  else applyShift();
-  window.addEventListener('load', applyShift);
-  setTimeout(applyShift, 600);
-  setTimeout(applyShift, 1500);
-  // Wenn Today-Line neu gezeichnet wird, sie wieder verschieben
-  if (typeof window.updateTodayLine === 'function') {
-    var origUpdate = window.updateTodayLine;
-    window.updateTodayLine = function () {
-      origUpdate.apply(this, arguments);
-      setTimeout(function () {
-        document.querySelectorAll('.today-line, #today-line-global, #today-line-gh').forEach(function (l) {
-          if (l.dataset.kw23Shifted === '1') return;
-          l.dataset.kw23Shifted = '1';
-          l.style.transform = 'translateX(-' + SHIFT + 'px)';
-        });
-      }, 30);
-    };
-  }
+  function init() { document.querySelectorAll('.gantt-wrap').forEach(lockScroll); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+  window.addEventListener('load', init);
+  setTimeout(init, 600);
 })();
 
 
