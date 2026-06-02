@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v81** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v82** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -87,7 +87,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 - ✅ Heat-Strip im Hauptzeitplan oben (nur bei aktivem Gewerk-Filter): Auslastungs-% pro KW farbig
 - ✅ Cascade-Shift bei Bar-Drag fällt auf Gewerk zurück wenn kein `data-unit`
 - ✅ Neue Aufgaben bekommen Default-Balken (current KW + 4 Wochen)
-- ✅ Hauptzeitplan startet visuell mit ScrollLeft=168 → KW 23 / Juni (Scroll-Lock auf engen Screens)
+- ✅ Hauptzeitplan startet visuell bei KW23 (left:0, seit v81 echte Migration — kein Scroll-Lock mehr)
+- ✅ **Tages-Grid (v82)**: feine Tageslinien (alle 6px = 1 Tag) + kräftigere Wochenlinie (42px) + Wochenend-Schattierung in `.gantt-row-inner` (reines CSS-Overlay, keine Balken-/DB-Änderung). Folgeoption falls Tage zu schmal: Umschalter Wochen-/breite Tagesansicht (Variante C, noch nicht gebaut).
 
 ## ⚠️ Aktuelle Tradeoffs / offene Punkte
 
@@ -153,4 +154,4 @@ PREFIX = ['task-mh-', 'todo-kw-', 'cost-name-']
 
 ---
 
-**Letzte Hand-Off (v81)**: KW 19–22 endgültig entfernt per Quell-Migration (ORIGIN_KW 19→23, alle Koordinaten −168, Header neu generiert, DB-`bar_left`-Migration). Lokal verifiziert (Header-Div-Balance, Konstanten, geklemmte KW22-Balken). **Noch live zu prüfen**: User-Screenshot Hauptzeitplan auf Wide-Screen — KW23 muss linker Rand sein, Today-Line + Sticky-Spalten korrekt, gedraggte Balken nicht verschoben. Danach offen: User-Accounts / Excel-Import / Gastromatic / Mail.
+**Letzte Hand-Off (v81)**: KW 19–22 endgültig entfernt per Quell-Migration (ORIGIN_KW 19→23, alle Koordinaten −168, Header neu generiert, DB-`bar_left`-Migration). Lokal verifiziert (Header-Div-Balance, Konstanten, geklemmte KW22-Balken). **Noch live zu prüfen**: User-Screenshot Hauptzeitplan auf Wide-Screen — KW23 muss linker Rand sein, Today-Line + Sticky-Spalten korrekt, gedraggte Balken nicht verschoben. v82 ergänzt Tages-Grid (lokal im Harness `_gridtest.html`/Preview verifiziert, gelöscht). Danach offen: User-Accounts / Excel-Import / Gastromatic / Mail.
