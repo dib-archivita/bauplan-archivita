@@ -414,6 +414,8 @@
     if (undoStack.length > MAX_UNDO) undoStack.shift();
     updateUndoFab();
   }
+  // Auch von außerhalb (Bar-Editor / Drag-Engine in index.php) nutzbar machen
+  window.pushUndo = pushUndo;
   function updateUndoFab() {
     const fab = document.getElementById('se-undo-fab');
     if (!fab) return;

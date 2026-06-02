@@ -161,11 +161,17 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
    Gilt per CSS-Klasse → wirkt automatisch auch auf dynamisch erzeugte Zeilen. ── */
 body.day-view #tab-hauptwerk .gantt-timeline-header,
 body.day-view #tab-hauptwerk .gantt-kw-header,
+body.day-view #tab-hauptwerk .gantt-day-header,
 body.day-view #main-gantt .gantt-row-inner { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; }
 /* Texte/Labels gegen-skalieren, damit sie nicht gestreckt werden */
 body.day-view #tab-hauptwerk .kw-label,
 body.day-view #tab-hauptwerk .month-label,
-body.day-view #main-gantt .gantt-bar .bar-label { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
+body.day-view #tab-hauptwerk .gantt-day-header > span { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
+/* Balken-Text: gegen-skalieren UND auf volle (gestreckte) Balkenbreite bringen, sonst nur ein Drittel sichtbar */
+body.day-view #main-gantt .gantt-bar .bar-label { right: auto; width: calc(100% * var(--gantt-z,1)); transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
+/* Wochentag-Header (Mo–So) nur in der Tagesansicht zeigen */
+.gantt-day-header { display: none; }
+body.day-view #tab-hauptwerk .gantt-day-header { display: block; }
 
 /* ── Today line ── */
 .today-line{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:20;pointer-events:none}
@@ -1136,8 +1142,22 @@ window.updateGewerkPills = updateGewerkPills;
 // nur die Darstellung wird gestreckt + die Gantt-Spalte verbreitert (für Scroll).
 window.GANTT_Z = 1;
 function toggleDayView() { setDayView(!document.body.classList.contains('day-view')); }
+// Wochentag-Kopf (Mo–So) einmalig erzeugen; nur in Tagesansicht sichtbar (CSS).
+// Tag 0 = KW23-Montag (1. Juni 2026). 82 Wochen × 7 Tage.
+function ensureDayHeader() {
+  var kwh = document.querySelector('#tab-hauptwerk .gantt-kw-header');
+  if (!kwh || kwh.parentNode.querySelector('.gantt-day-header')) return;
+  var wd = ['Mo','Di','Mi','Do','Fr','Sa','So'], days = 82 * 7, html = '';
+  for (var n = 0; n < days; n++) html += '<span style="position:absolute;top:0;left:' + (n*6) + 'px;width:18px;height:14px;font-size:8px;line-height:14px;text-align:center;color:#94a3b8;font-weight:600;overflow:hidden">' + wd[n%7] + '</span>';
+  var dh = document.createElement('div');
+  dh.className = 'gantt-day-header';
+  dh.style.cssText = 'position:relative;height:14px;width:3600px;border-bottom:1px solid #f1f5f9';
+  dh.innerHTML = html;
+  kwh.parentNode.insertBefore(dh, kwh.nextSibling);
+}
 function setDayView(on) {
   var Z = 3;  // 42*3 = 126px/Woche = 18px/Tag
+  ensureDayHeader();
   document.body.classList.toggle('day-view', on);
   window.GANTT_Z = on ? Z : 1;
   document.body.style.setProperty('--gantt-z', window.GANTT_Z);
@@ -1159,8 +1179,8 @@ function setDayView(on) {
 }
 window.toggleDayView = toggleDayView;
 window.setDayView = setDayView;
-// Beim Laden gespeicherte Ansicht wiederherstellen
-(function(){ try { if (localStorage.getItem('gantt-dayview') === '1') setTimeout(function(){ setDayView(true); }, 400); } catch(e){} })();
+// Beim Laden Ansicht wiederherstellen — Tagesansicht ist Standard (außer explizit abgewählt).
+(function(){ try { var pref = localStorage.getItem('gantt-dayview'); if (pref === '1' || pref === null) setTimeout(function(){ setDayView(true); }, 400); } catch(e){} })();
 
 function filterStatus(st, btn) {
   activeStatus = (st === null) ? null : (activeStatus === st ? null : st);
@@ -8069,24 +8089,12 @@ window.addEventListener('DOMContentLoaded', function(){
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
       <div>
-        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Start KW</label>
-        <input id="be-start" type="number" min="1" max="52" oninput="beRecalc()" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Beginn (Datum)</label>
+        <input id="be-von" type="date" oninput="beRecalc()" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Dauer (Wochen)</label>
-        <input id="be-duration" type="number" min="1" max="52" step="1" oninput="beRecalc()" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
-      </div>
-    </div>
-
-    <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:14px">
-      <label style="font-size:11px;font-weight:700;color:#92400e;display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        🎯 Deadline-Modus
-        <span style="font-weight:400;color:#b45309;font-size:10px">— wenn gesetzt, wird Start automatisch berechnet</span>
-      </label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:11px;color:#92400e">Fertig bis KW:</label>
-        <input id="be-deadline" type="number" min="1" max="80" oninput="beDeadlineChange()" placeholder="z.B. 32" style="width:80px;padding:5px 8px;border:1.5px solid #fde68a;border-radius:5px;font-size:12px;background:#fff">
-        <button onclick="beClearDeadline()" style="padding:4px 8px;font-size:10px;background:#fff;border:1px solid #fde68a;border-radius:4px;cursor:pointer;color:#92400e">Deadline löschen</button>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Ende (Datum, inkl.)</label>
+        <input id="be-bis" type="date" oninput="beRecalc()" style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
       </div>
     </div>
 
@@ -8116,6 +8124,8 @@ window.addEventListener('DOMContentLoaded', function(){
   // Plan-Koordinaten: left:0 = KW23 = 1. Juni 2026
   var ORIGIN_KW = 23;
   var PX_PER_WEEK = 42;
+  var PX_PER_DAY = PX_PER_WEEK / 7;             // 6 px = 1 Tag (tag-genaue Planung)
+  var ORIGIN_DATE = new Date(2026, 5, 1, 12);   // 1. Juni 2026 (KW23 Mo) = left:0
 
   var currentBar = null;
   var currentTid = null;
@@ -8123,6 +8133,29 @@ window.addEventListener('DOMContentLoaded', function(){
 
   function pxToKw(px) { return ORIGIN_KW + Math.round(px / PX_PER_WEEK); }
   function kwToPx(kw) { return (kw - ORIGIN_KW) * PX_PER_WEEK; }
+  // Datum ↔ px (1 Tag = 6 px). left:0 = 1. Juni 2026.
+  function pxFromDate(str) { if (!str) return null; var d = new Date(str + 'T12:00:00'); if (isNaN(d.getTime())) return null; return Math.round((d - ORIGIN_DATE) / 86400000) * PX_PER_DAY; }
+  function dateFromPx(px) { var days = Math.round(px / PX_PER_DAY); var d = new Date(ORIGIN_DATE.getTime() + days * 86400000); var m = ('0' + (d.getMonth() + 1)).slice(-2), dd = ('0' + d.getDate()).slice(-2); return d.getFullYear() + '-' + m + '-' + dd; }
+  function fmtDate(str) { if (!str) return '?'; var p = str.split('-'); return p[2] + '.' + p[1] + '.' + p[0].slice(2); }
+  window.ganttDayLabel = function (px) { return fmtDate(dateFromPx(px)); };  // px → "dd.mm.yy" (für Drag-Tooltip)
+  // Balken setzen + persistieren + (optional) syncen — gemeinsam für Editor, Drag & Undo
+  window.ganttSetBar = function (bar, left, width, doSync) {
+    if (!bar) return;
+    left = Math.round(left); width = Math.round(width);
+    bar.style.left = left + 'px';
+    bar.style.width = width + 'px';
+    var pl = parseInt(bar.dataset.planLeft, 10), pw = parseInt(bar.dataset.planWidth, 10);
+    if (!isNaN(pl) && !isNaN(pw)) bar.classList.toggle('shifted', left !== pl || width !== pw);
+    var tr = bar.closest('tr.task-row'); if (!tr) return;
+    var tid = tr.getAttribute('data-tid') || '';
+    if (tid) localStorage.setItem('bar-pos-' + tid, JSON.stringify({ left: left, width: width }));
+    if (doSync && window.PlanSync && !window.PlanSync.isApplyingRemote()) {
+      var cid = tr.getAttribute('data-client-id');
+      if (cid || tr.getAttribute('data-custom') === '1') window.PlanSync.pushCustomUpdate(cid || tid, { bar_left: left, bar_width: width });
+      else { window.PlanSync.pushOverride('task', tid, 'bar_left', String(left)); window.PlanSync.pushOverride('task', tid, 'bar_width', String(width)); }
+    }
+    if (typeof window.renderKapaHeatStrip === 'function') window.renderKapaHeatStrip();
+  };
 
   // Klick auf gantt-bar öffnet Editor
   document.addEventListener('click', function(e){
@@ -8156,17 +8189,11 @@ window.addEventListener('DOMContentLoaded', function(){
     if (!bar.dataset.planLeft) bar.dataset.planLeft = left;
     if (!bar.dataset.planWidth) bar.dataset.planWidth = width;
 
-    var startKw = pxToKw(left);
-    var durWeeks = Math.round(width / PX_PER_WEEK);
+    var durWeeks = Math.max(1, Math.round(width / PX_PER_WEEK));  // nur für MH-Hinweis
 
     document.getElementById('be-task-name').textContent = name;
-    document.getElementById('be-start').value = startKw;
-    document.getElementById('be-duration').value = durWeeks;
-    document.getElementById('be-deadline').value = '';
-
-    // Restore saved deadline
-    var savedDeadline = localStorage.getItem('bar-deadline-' + currentTid);
-    if (savedDeadline) document.getElementById('be-deadline').value = savedDeadline;
+    document.getElementById('be-von').value = dateFromPx(left);
+    document.getElementById('be-bis').value = dateFromPx(left + Math.max(0, width - PX_PER_DAY));  // letzter Tag (inkl.)
 
     // Mannstunden laden
     var mhInput = document.getElementById('be-mh');
@@ -8179,10 +8206,13 @@ window.addEventListener('DOMContentLoaded', function(){
         hint.textContent = '≈ ' + perWeek + ' Std/Woche bei ' + durWeeks + ' Wochen Dauer';
       }
       mhInput.oninput = function () {
-        var dW = parseInt(document.getElementById('be-duration').value, 10) || 1;
+        var vpx = pxFromDate(document.getElementById('be-von').value);
+        var bpx = pxFromDate(document.getElementById('be-bis').value);
+        var days = (vpx != null && bpx != null) ? (Math.round((bpx - vpx) / PX_PER_DAY) + 1) : 7;
+        var wks = Math.max(1, Math.round(days / 7));
         var v = parseInt(this.value, 10) || 0;
         var h2 = document.getElementById('be-mh-hint');
-        if (h2) h2.textContent = '≈ ' + Math.round(v / Math.max(1, dW)) + ' Std/Woche bei ' + dW + ' Wochen Dauer';
+        if (h2) h2.textContent = '≈ ' + Math.round(v / wks) + ' Std/Woche (' + days + ' Tage)';
       };
     }
 
@@ -8197,57 +8227,36 @@ window.addEventListener('DOMContentLoaded', function(){
   };
 
   window.beRecalc = function() {
-    var s = parseInt(document.getElementById('be-start').value, 10);
-    var d = parseInt(document.getElementById('be-duration').value, 10);
-    if (isNaN(s) || isNaN(d)) {
-      document.getElementById('be-info').textContent = '';
-      return;
-    }
-    var end = s + d - 1;
-    document.getElementById('be-info').innerHTML = 'Start: <b>KW ' + s + '</b> &nbsp;&nbsp;Ende: <b>KW ' + end + '</b> &nbsp;&nbsp;Dauer: <b>' + d + ' Wochen</b>';
-  };
-
-  window.beDeadlineChange = function() {
-    var dl = parseInt(document.getElementById('be-deadline').value, 10);
-    var d  = parseInt(document.getElementById('be-duration').value, 10);
-    if (isNaN(dl) || isNaN(d)) return;
-    var newStart = dl - d + 1;
-    document.getElementById('be-start').value = newStart;
-    document.getElementById('be-info').innerHTML = '🎯 Deadline-Modus: Start automatisch auf <b>KW ' + newStart + '</b> berechnet (Deadline KW ' + dl + ' − ' + d + ' Wochen + 1)';
-  };
-
-  window.beClearDeadline = function() {
-    document.getElementById('be-deadline').value = '';
-    beRecalc();
+    var von = document.getElementById('be-von').value;
+    var bis = document.getElementById('be-bis').value;
+    var vpx = pxFromDate(von), bpx = pxFromDate(bis);
+    var info = document.getElementById('be-info');
+    if (vpx == null || bpx == null) { info.textContent = ''; return; }
+    var days = Math.round((bpx - vpx) / PX_PER_DAY) + 1;
+    if (days < 1) { info.innerHTML = '<span style="color:#dc2626">⚠ Ende muss am/nach dem Beginn liegen</span>'; return; }
+    info.innerHTML = 'Beginn: <b>' + fmtDate(von) + '</b> &nbsp;&nbsp;Ende: <b>' + fmtDate(bis) + '</b> &nbsp;&nbsp;Dauer: <b>' + days + ' Tag' + (days === 1 ? '' : 'e') + '</b>';
   };
 
   window.beApply = function() {
     if (!currentBar) return;
-    var s = parseInt(document.getElementById('be-start').value, 10);
-    var d = parseInt(document.getElementById('be-duration').value, 10);
-    if (isNaN(s) || isNaN(d) || d < 1) {
-      alert('Ungültige Werte');
-      return;
-    }
-    var newLeft = kwToPx(s);
-    var newWidth = d * PX_PER_WEEK;
-    currentBar.style.left = newLeft + 'px';
-    currentBar.style.width = newWidth + 'px';
+    var vpx = pxFromDate(document.getElementById('be-von').value);
+    var bpx = pxFromDate(document.getElementById('be-bis').value);
+    if (vpx == null || bpx == null || bpx < vpx) { alert('Bitte Beginn und Ende wählen (Ende am/nach Beginn).'); return; }
+    var newLeft = Math.max(0, vpx);
+    var newWidth = (bpx - newLeft) + PX_PER_DAY;   // inkl. letztem Tag
 
-    // Markiere als verschoben wenn != Plan
-    if (newLeft !== planLeft || newWidth !== planWidth) {
-      currentBar.classList.add('shifted');
-    } else {
-      currentBar.classList.remove('shifted');
+    // Undo: vorherigen Zustand sichern (vor dem Setzen)
+    var oldLeft = parseInt(currentBar.style.left, 10) || 0;
+    var oldWidth = parseInt(currentBar.style.width, 10) || 0;
+    var barRef = currentBar;
+    if (window.pushUndo && (oldLeft !== newLeft || oldWidth !== newWidth)) {
+      window.pushUndo({ label: 'Balken-Datum geändert', undo: function () { window.ganttSetBar(barRef, oldLeft, oldWidth, true); } });
     }
 
-    // Persist
+    window.ganttSetBar(currentBar, newLeft, newWidth, true);
+
+    // Mannstunden speichern + KV-Sync → Kapa-Kalender aktualisiert sich
     if (currentTid) {
-      localStorage.setItem('bar-pos-' + currentTid, JSON.stringify({left: newLeft, width: newWidth}));
-      var dl = document.getElementById('be-deadline').value;
-      if (dl) localStorage.setItem('bar-deadline-' + currentTid, dl);
-      else localStorage.removeItem('bar-deadline-' + currentTid);
-      // Mannstunden speichern + KV-Sync → Kapa-Kalender aktualisiert sich
       var mhEl = document.getElementById('be-mh');
       if (mhEl) {
         var mhVal = String(parseInt(mhEl.value, 10) || 0);
@@ -8257,20 +8266,7 @@ window.addEventListener('DOMContentLoaded', function(){
         if (typeof window.kapReload === 'function') window.kapReload();
         else if (typeof window.renderKalender === 'function') window.renderKalender();
       }
-      // An den Live-Sync weitergeben
-      if (window.PlanSync && !window.PlanSync.isApplyingRemote()) {
-        var tr = currentBar.closest('tr.task-row');
-        var cid = tr && tr.getAttribute('data-client-id');
-        if (cid || (tr && tr.getAttribute('data-custom') === '1')) {
-          window.PlanSync.pushCustomUpdate(cid || currentTid, { bar_left: newLeft, bar_width: newWidth, deadline: dl || '' });
-        } else {
-          window.PlanSync.pushOverride('task', currentTid, 'bar_left', String(newLeft));
-          window.PlanSync.pushOverride('task', currentTid, 'bar_width', String(newWidth));
-          window.PlanSync.pushOverride('task', currentTid, 'deadline', dl || '');
-        }
-      }
     }
-
     closeBarEditor();
   };
 
@@ -8341,7 +8337,9 @@ window.addEventListener('DOMContentLoaded', function(){
   var PX_PER_WEEK = 42;
 
   function pxToKw(px) { return ORIGIN_KW + Math.round(px / PX_PER_WEEK); }
-  function snapToWeek(px) { return Math.round(px / PX_PER_WEEK) * PX_PER_WEEK; }
+  // In Tagesansicht auf Tage (6px) rasten, sonst auf Wochen (42px)
+  function snapUnit() { return (window.GANTT_Z > 1) ? (PX_PER_WEEK / 7) : PX_PER_WEEK; }
+  function snapToWeek(px) { var u = snapUnit(); return Math.round(px / u) * u; }
 
   var dragState = null; // {mode: 'drag'|'resize-l'|'resize-r', bar, startX, startLeft, startWidth, planLeft, planWidth}
   var infoDiv = null;
@@ -8423,26 +8421,32 @@ window.addEventListener('DOMContentLoaded', function(){
       newLeft = snapToWeek(dragState.startLeft + dx);
       if (newLeft < 0) newLeft = 0;
       newWidth = dragState.startWidth - (newLeft - dragState.startLeft);
-      if (newWidth < PX_PER_WEEK) {
-        newWidth = PX_PER_WEEK;
-        newLeft = dragState.startLeft + dragState.startWidth - PX_PER_WEEK;
-      }
+      var minWl = snapUnit();
+      if (newWidth < minWl) { newWidth = minWl; newLeft = dragState.startLeft + dragState.startWidth - minWl; }
     } else if (dragState.mode === 'resize-r') {
       newWidth = snapToWeek(dragState.startWidth + dx);
-      if (newWidth < PX_PER_WEEK) newWidth = PX_PER_WEEK;
+      if (newWidth < snapUnit()) newWidth = snapUnit();
     }
 
     bar.style.left = newLeft + 'px';
     bar.style.width = newWidth + 'px';
-    if (Math.abs(newLeft - dragState.startLeft) >= PX_PER_WEEK/2 ||
-        Math.abs(newWidth - dragState.startWidth) >= PX_PER_WEEK/2) {
+    if (Math.abs(newLeft - dragState.startLeft) >= snapUnit()/2 ||
+        Math.abs(newWidth - dragState.startWidth) >= snapUnit()/2) {
       dragState.moved = true;
     }
-    var startKw = pxToKw(newLeft);
-    var endKw = pxToKw(newLeft + newWidth) - 1;
-    var dur = Math.round(newWidth / PX_PER_WEEK);
-    showInfo(e.clientX, e.clientY,
-      '<b>KW ' + startKw + '–' + endKw + '</b><br>Dauer: ' + dur + ' Wochen' +
+    // Info-Tooltip: in Tagesansicht datums-/tag-genau, sonst KW/Wochen
+    var infoHtml;
+    if (window.GANTT_Z > 1 && typeof window.ganttDayLabel === 'function') {
+      var pd = PX_PER_WEEK / 7;
+      var days = Math.max(1, Math.round(newWidth / pd));
+      infoHtml = '<b>' + window.ganttDayLabel(newLeft) + ' – ' + window.ganttDayLabel(newLeft + newWidth - pd) + '</b><br>Dauer: ' + days + ' Tag' + (days === 1 ? '' : 'e');
+    } else {
+      var startKw = pxToKw(newLeft);
+      var endKw = pxToKw(newLeft + newWidth) - 1;
+      var dur = Math.round(newWidth / PX_PER_WEEK);
+      infoHtml = '<b>KW ' + startKw + '–' + endKw + '</b><br>Dauer: ' + dur + ' Wochen';
+    }
+    showInfo(e.clientX, e.clientY, infoHtml +
       (dragState.mode === 'resize-l' ? ' &nbsp;|&nbsp; ←Start' :
        dragState.mode === 'resize-r' ? ' &nbsp;|&nbsp; Ende→' : ' &nbsp;|&nbsp; ↔ Verschieben'));
   });
@@ -8484,6 +8488,14 @@ window.addEventListener('DOMContentLoaded', function(){
           }
         }
       }
+
+      // Undo: Drag/Resize rückgängig machbar (⌘Z / ↺-FAB)
+      (function () {
+        var oldL = dragState.startLeft, oldW = dragState.startWidth, barRef = bar;
+        if (window.pushUndo && (newLeft !== oldL || newWidth !== oldW)) {
+          window.pushUndo({ label: 'Balken verschoben', undo: function () { window.ganttSetBar(barRef, oldL, oldW, true); } });
+        }
+      })();
 
       // VERKETTUNG: Folge-Tasks innerhalb gleicher Einheit zeigen anbieten
       if (dragState.mode !== 'resize-r' && tr) {

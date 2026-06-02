@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v87** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v88** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -104,6 +104,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 1c. ✅ **Sticky-Header-Spaltenbug behoben (v84)**: `assets/sticky.js` `measureOriginalColumns()` maß die **erste** `tr.task-row` im DOM. Ist die versteckt (eingeklappte Section / Filter), liefert `getBoundingClientRect()` **0-Breiten** → der Clone-Header (`table-layout:fixed`) verteilt mit 0-Spalten **gleichmäßig** → riesige gleich breite Kopfspalten, die nicht zum Body passen (genau das vom User gemeldete Symptom, NACH dem v83-Body-Fix). **Fix**: erste **sichtbare** Zeile messen (`offsetParent!==null && width>0`), bei nur-0-Breiten `null` zurück (Original-colgroup-Fallback). End-to-End im Preview-Harness verifiziert: mit versteckter erster Zeile Clone=Body `[366,161,100,62,3628]`, ALIGNED. Zusammen mit v83 (Body) ist das Spaltenlayout vollständig gefixt.
 
 1d. ✅ **Wochen-/Tagesansicht-Umschalter (v87)**: Button „📅 Tagesansicht" in der Gewerk-Filter-Bar. `toggleDayView()`/`setDayView()` setzen `body.day-view` + CSS-Var `--gantt-z` (=3) + `window.GANTT_Z`. **Koordinatensystem bleibt 42px/Woche** — Tagesansicht ist reiner `scaleX`-Zoom per CSS (`body.day-view .gantt-row-inner/.gantt-kw-header/.gantt-timeline-header { transform:scaleX(var(--gantt-z)) }`), Labels + `.bar-label` gegen-skaliert (`scaleX(1/--gantt-z)`). Scroll: 0-Höhe-`.gantt-zoom-spacer` im Gantt-`th` erzwingt Spaltenbreite 3600·Z (reine `<col>`-Breite reicht im Auto-Layout nicht). Drag-Delta `/Z`, Today-Line-Position `·Z`, Heat-Strip `buildHeatCells` nutzt `PX_PER_WEEK·Z`. Persistenz via `localStorage 'gantt-dayview'`. Im Preview-Harness verifiziert (Scroll, Balken-Alignment KW40, Labels normal). Offen: Wochentag-Labels (Mo–So) noch nicht; Heat-Strips/Tagesansicht-Sticky-Header.
+
+1e. ✅ **Tag-genaues Planen (v88)**: (a) Tagesansicht ist **Standard** (`localStorage 'gantt-dayview'` null/'1' → an). (b) **Mo–So-Tageskopf** `.gantt-day-header` (574 Spans, `ensureDayHeader`), nur in Tagesansicht sichtbar, gegen-skaliert. (c) **Balken-Text** in Tagesansicht via `width:calc(100%·--gantt-z)` + Gegen-Skalierung → nicht mehr gestreckt, spannt vollen Balken. (d) **Drag/Resize tag-genau**: `snapUnit()` rastet in Tagesansicht auf 6px (1 Tag), min 1 Tag (sonst Woche); Info-Tooltip datums-/tag-genau. (e) **Bar-Editor** nutzt jetzt **Von/Bis-Datumsfelder** (`be-von`/`be-bis`, `pxFromDate`/`dateFromPx`, 1 Tag=6px, left:0=1.Juni 2026) statt KW/Wochen; Deadline-Box entfernt. (f) **Undo** für Balken-Drag/Resize/Editor: `window.pushUndo` (aus section-edit.js exponiert) + geteilter Helfer `window.ganttSetBar(bar,left,width,sync)`. PX_PER_DAY=6.
 
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 
