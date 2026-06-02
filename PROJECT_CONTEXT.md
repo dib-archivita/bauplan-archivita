@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v82** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v83** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -97,6 +97,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
    - Today-Line `ORIGIN` = 1. Juni 2026, `todayKW` Basis 23. mobile.js Heute-FAB-Origin angepasst. section-edit.js / sync2.js Breiten + ORIGIN_KW mit.
    - **DB-Migration** (`api/sync.php`): gespeicherte `bar_left` in `overrides` + `custom_items` einmalig −168 (atomar, Flag `origin_kw23_migrated` in `kv_state`, läuft beim ersten Poll, kein Doppel-Shift). Status: `GET /api/sync.php?migrate=status` (Admin).
    - Lehre: Runtime-Margin-Shift (v69/v79) scheiterte an X-Origin-Mismatch + Today-Line-Doppel-Shift + dynamischen Zeilen. Quell-Migration ist robust.
+
+1b. ✅ **Gantt-Spaltenbug behoben (v83)**: `#main-gantt` hatte 6 `<col>` aber nur 5 Zellen/Zeile — KFW-Header nutzten `colspan="5"` + Gantt-`td` (= 6 Spalten), während Task-/Header-/Section-Zeilen 5 Spalten hatten. → verwaiste Phantom-Spalte (~3600px), Gantt landete je Zeilentyp in col5/col6, Tabelle ~7950px statt ~4300, Spalten zu breit / Sticky-Header misaligned. **Fix**: orphan `<col 80px>` raus → colgroup `[auto,60,100,100,3600]` (5 Spalten), alle 6 KFW-`colspan="5"`→`colspan="4"`. Lokal mit voller Tabelle + sticky.js im Preview-Harness vorher/nachher verifiziert (7953→4326px, Header=Body). **`table-layout` bleibt `auto`** — `fixed` würde adaptive Status-Spalte (lange Status-Texte) klemmen.
 
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 

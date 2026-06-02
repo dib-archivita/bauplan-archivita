@@ -1291,7 +1291,6 @@ function scrollToCard(id) {
   <col style="width:60px">
   <col style="width:100px">
   <col style="width:100px">
-  <col style="width:80px">
   <col style="width:3600px">
 </colgroup>
 <thead>
@@ -1312,7 +1311,7 @@ function scrollToCard(id) {
 </thead>
 <tbody>
         <tr class="kfw-header-row kfw-b">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             <span class="kfw-badge kfw-b">KfW</span>
             OHG Haustechnik
           </td>
@@ -1593,7 +1592,7 @@ function scrollToCard(id) {
         </tr>
             
                 <tr class="kfw-header-row kfw-c">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             <span class="kfw-badge kfw-c">KfW</span>
             WEG Hochbau Ost (Gebäudehülle)
           </td>
@@ -2216,7 +2215,7 @@ function scrollToCard(id) {
           <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:84px" title="KW25–26"></div></div></td>
         </tr>
                         <tr class="kfw-header-row" style="background:#94a3b8">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             🏗️ PHASE 1 — W 5.2 + W 5.1 + T 5.1 · 4.OG · 364.98 m²
           </td>
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
@@ -2362,7 +2361,7 @@ function scrollToCard(id) {
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
         </tr>
         <tr class="kfw-header-row" style="background:#16a34a">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             🏗️ PHASE 2 — T 4.01 – T 4.08 · 3.OG · 397.99 m² · Estrich KW28
           </td>
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
@@ -3216,7 +3215,7 @@ function scrollToCard(id) {
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
         </tr>
                 <tr class="kfw-header-row" style="background:#d97706">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             🏗️ PHASE 3 — T 4.22 → T 4.09 (Maisonette) · 3.OG · 627.91 m² · Estrich KW33
           </td>
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
@@ -4272,7 +4271,7 @@ function scrollToCard(id) {
 
         
                         <tr class="kfw-header-row" style="background:#7c3aed">
-          <td class="task-name-cell" colspan="5">
+          <td class="task-name-cell" colspan="4">
             🏗️ PHASE 4 — W 5.3 · 4.OG · 288.14 m² (Penthouse)
           </td>
           <td><div class="gantt-row-inner" style="width:3600px"></div></td>
