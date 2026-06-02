@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v86** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v87** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -102,6 +102,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 1b. ✅ **Gantt-Spaltenbug behoben (v83)**: `#main-gantt` hatte 6 `<col>` aber nur 5 Zellen/Zeile — KFW-Header nutzten `colspan="5"` + Gantt-`td` (= 6 Spalten), während Task-/Header-/Section-Zeilen 5 Spalten hatten. → verwaiste Phantom-Spalte (~3600px), Gantt landete je Zeilentyp in col5/col6, Tabelle ~7950px statt ~4300, Spalten zu breit / Sticky-Header misaligned. **Fix**: orphan `<col 80px>` raus → colgroup `[auto,60,100,100,3600]` (5 Spalten), alle 6 KFW-`colspan="5"`→`colspan="4"`. Lokal mit voller Tabelle + sticky.js im Preview-Harness vorher/nachher verifiziert (7953→4326px, Header=Body). **`table-layout` bleibt `auto`** — `fixed` würde adaptive Status-Spalte (lange Status-Texte) klemmen.
 
 1c. ✅ **Sticky-Header-Spaltenbug behoben (v84)**: `assets/sticky.js` `measureOriginalColumns()` maß die **erste** `tr.task-row` im DOM. Ist die versteckt (eingeklappte Section / Filter), liefert `getBoundingClientRect()` **0-Breiten** → der Clone-Header (`table-layout:fixed`) verteilt mit 0-Spalten **gleichmäßig** → riesige gleich breite Kopfspalten, die nicht zum Body passen (genau das vom User gemeldete Symptom, NACH dem v83-Body-Fix). **Fix**: erste **sichtbare** Zeile messen (`offsetParent!==null && width>0`), bei nur-0-Breiten `null` zurück (Original-colgroup-Fallback). End-to-End im Preview-Harness verifiziert: mit versteckter erster Zeile Clone=Body `[366,161,100,62,3628]`, ALIGNED. Zusammen mit v83 (Body) ist das Spaltenlayout vollständig gefixt.
+
+1d. ✅ **Wochen-/Tagesansicht-Umschalter (v87)**: Button „📅 Tagesansicht" in der Gewerk-Filter-Bar. `toggleDayView()`/`setDayView()` setzen `body.day-view` + CSS-Var `--gantt-z` (=3) + `window.GANTT_Z`. **Koordinatensystem bleibt 42px/Woche** — Tagesansicht ist reiner `scaleX`-Zoom per CSS (`body.day-view .gantt-row-inner/.gantt-kw-header/.gantt-timeline-header { transform:scaleX(var(--gantt-z)) }`), Labels + `.bar-label` gegen-skaliert (`scaleX(1/--gantt-z)`). Scroll: 0-Höhe-`.gantt-zoom-spacer` im Gantt-`th` erzwingt Spaltenbreite 3600·Z (reine `<col>`-Breite reicht im Auto-Layout nicht). Drag-Delta `/Z`, Today-Line-Position `·Z`, Heat-Strip `buildHeatCells` nutzt `PX_PER_WEEK·Z`. Persistenz via `localStorage 'gantt-dayview'`. Im Preview-Harness verifiziert (Scroll, Balken-Alignment KW40, Labels normal). Offen: Wochentag-Labels (Mo–So) noch nicht; Heat-Strips/Tagesansicht-Sticky-Header.
 
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 

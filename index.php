@@ -157,6 +157,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 .gantt-bar.status-cancelled{background:var(--c-cancelled)}
 .bar-label{font-size:9px;color:#fff;padding:3px 4px;white-space:nowrap;overflow:hidden}
 
+/* ── Tagesansicht-Zoom: Koordinaten bleiben 42px/Woche, nur visuell horizontal skaliert (scaleX).
+   Gilt per CSS-Klasse → wirkt automatisch auch auf dynamisch erzeugte Zeilen. ── */
+body.day-view #tab-hauptwerk .gantt-timeline-header,
+body.day-view #tab-hauptwerk .gantt-kw-header,
+body.day-view #main-gantt .gantt-row-inner { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; }
+/* Texte/Labels gegen-skalieren, damit sie nicht gestreckt werden */
+body.day-view #tab-hauptwerk .kw-label,
+body.day-view #tab-hauptwerk .month-label,
+body.day-view #main-gantt .gantt-bar .bar-label { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
+
 /* ── Today line ── */
 .today-line{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:20;pointer-events:none}
 .today-line::before{content:"Heute";position:absolute;top:-18px;left:-14px;font-size:9px;color:#ef4444;font-weight:700;white-space:nowrap}
@@ -1120,6 +1130,38 @@ function updateGewerkPills() {
 }
 window.updateGewerkPills = updateGewerkPills;
 
+// ── Wochen-/Tagesansicht-Umschalter (Zoom) ──
+// Tagesansicht = horizontaler scaleX-Zoom per CSS-Klasse. Das Koordinatensystem
+// bleibt bei 42px/Woche (Balken, Drag, Editor, Today-Line rechnen unverändert);
+// nur die Darstellung wird gestreckt + die Gantt-Spalte verbreitert (für Scroll).
+window.GANTT_Z = 1;
+function toggleDayView() { setDayView(!document.body.classList.contains('day-view')); }
+function setDayView(on) {
+  var Z = 3;  // 42*3 = 126px/Woche = 18px/Tag
+  document.body.classList.toggle('day-view', on);
+  window.GANTT_Z = on ? Z : 1;
+  document.body.style.setProperty('--gantt-z', window.GANTT_Z);
+  // Gantt-Spalte über einen 0-Höhe-Layout-Spacer auf 3600·Z verbreitern, damit man
+  // durch alle (gestreckten) Tage scrollen kann. (Reine <col>-Breite reicht im
+  // Auto-Layout nicht zuverlässig; ein Content-Spacer erzwingt die Spaltenbreite.)
+  var th = document.querySelector('#main-gantt thead th:last-child');
+  if (th) {
+    var sp = th.querySelector('.gantt-zoom-spacer');
+    if (!sp) { sp = document.createElement('div'); sp.className = 'gantt-zoom-spacer'; sp.style.cssText = 'height:0;overflow:hidden'; th.appendChild(sp); }
+    sp.style.width = Math.round(3600 * window.GANTT_Z) + 'px';
+  }
+  var btn = document.getElementById('dayview-toggle');
+  if (btn) { btn.textContent = on ? '📆 Wochenansicht' : '📅 Tagesansicht'; btn.classList.toggle('active', on); }
+  try { localStorage.setItem('gantt-dayview', on ? '1' : '0'); } catch (e) {}
+  if (typeof window.renderKapaHeatStrip === 'function') window.renderKapaHeatStrip();
+  if (typeof window.updateTodayLine === 'function') setTimeout(window.updateTodayLine, 40);
+  window.dispatchEvent(new Event('resize'));  // Sticky-Header neu vermessen
+}
+window.toggleDayView = toggleDayView;
+window.setDayView = setDayView;
+// Beim Laden gespeicherte Ansicht wiederherstellen
+(function(){ try { if (localStorage.getItem('gantt-dayview') === '1') setTimeout(function(){ setDayView(true); }, 400); } catch(e){} })();
+
 function filterStatus(st, btn) {
   activeStatus = (st === null) ? null : (activeStatus === st ? null : st);
   document.querySelectorAll('.filter-bar [onclick*="filterStatus"]').forEach(function(b){
@@ -1297,7 +1339,8 @@ function scrollToCard(id) {
   <label>Filter Gewerk:</label>
   <button class="filter-btn active" onclick="filterGewerk('all')">Alle Gewerke</button>
   <span id="gewerk-filter-pills" style="display:contents"></span>
-  <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
+  <button class="filter-btn" id="dayview-toggle" onclick="toggleDayView()" title="Zwischen Wochen- und Tagesansicht umschalten" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #2563eb;background:#fff;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer">📅 Tagesansicht</button>
+  <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
 </div>
 <div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
@@ -8366,7 +8409,9 @@ window.addEventListener('DOMContentLoaded', function(){
   document.addEventListener('mousemove', function(e){
     if (!dragState) return;
     e.preventDefault();
-    var dx = e.clientX - dragState.startX;
+    // In Tagesansicht ist der Inhalt visuell um GANTT_Z gestreckt → Bildschirm-Delta
+    // auf Basis-Koordinaten (42px/Woche) zurückrechnen, sonst springt der Balken.
+    var dx = (e.clientX - dragState.startX) / (window.GANTT_Z || 1);
     var bar = dragState.bar;
     var newLeft = dragState.startLeft;
     var newWidth = dragState.startWidth;
@@ -9312,7 +9357,7 @@ window.togglePanel = function() {
       'top:0',
       'bottom:0',
       'height:' + table.offsetHeight + 'px',
-      'left:' + (timelineX + px) + 'px',
+      'left:' + (timelineX + px * (window.GANTT_Z || 1)) + 'px',
       'width:2px',
       'background:#ef4444',
       'z-index:25',
@@ -9422,6 +9467,7 @@ window.togglePanel = function() {
   // Eine Zellen-Reihe (KW23..104) für EIN Gewerk bauen
   function buildHeatCells(gName, demandG, supplyG) {
     var cells = '';
+    var PXW = PX_PER_WEEK * (window.GANTT_Z || 1);   // Tagesansicht-Zoom berücksichtigen
     for (var kw = 23; kw <= 104; kw++) {
       var d = (demandG[gName]||{})[kw] || 0;
       var s = (supplyG[gName]||{})[kw] || 0;
@@ -9433,10 +9479,10 @@ window.togglePanel = function() {
       else if (pct > 100) { col = '#dc2626'; fg = '#fff'; txt = Math.round(pct) + '%'; }
       else if (pct > 80) { col = '#f59e0b'; fg = '#7c2d12'; txt = Math.round(pct) + '%'; }
       else { col = '#86efac'; fg = '#14532d'; txt = Math.round(pct) + '%'; }
-      var left = (kw - ORIGIN_KW) * PX_PER_WEEK;
+      var left = (kw - ORIGIN_KW) * PXW;
       var title = 'KW ' + kw + ' · ' + gName + '\n' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + Math.round(pct) + '%)';
       cells += '<div title="' + title + '" '
-        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff;cursor:default">' + txt + '</div>';
+        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PXW - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff;cursor:default">' + txt + '</div>';
     }
     return cells;
   }
@@ -9461,7 +9507,7 @@ window.togglePanel = function() {
     sel.forEach(function (gName) {
       rows += '<tr class="kapa-heat-row">'
         + '<td colspan="4" style="padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:.4px;color:#0f172a;background:#eef2f7;border-bottom:1px solid #e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ' + gName.toUpperCase() + ' · Auslastung</td>'
-        + '<td style="padding:0;background:#eef2f7;border-bottom:1px solid #e2e8f0"><div style="position:relative;width:3600px;height:18px">' + buildHeatCells(gName, demandG, supplyG) + '</div></td>'
+        + '<td style="padding:0;background:#eef2f7;border-bottom:1px solid #e2e8f0"><div style="position:relative;width:' + Math.round(3600 * (window.GANTT_Z || 1)) + 'px;height:18px">' + buildHeatCells(gName, demandG, supplyG) + '</div></td>'
         + '</tr>';
     });
     tbody.insertAdjacentHTML('afterbegin', rows);
