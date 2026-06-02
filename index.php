@@ -9441,31 +9441,30 @@ window.togglePanel = function() {
     return cells;
   }
   function renderHeatStrip() {
-    var head = document.querySelector('#tab-hauptwerk .gantt-kw-header');
-    if (!head) return;
-    var strip = document.getElementById('kapa-heat-strip');
-    if (!strip) {
-      strip = document.createElement('div');
-      strip.id = 'kapa-heat-strip';
-      strip.style.cssText = 'position:relative;width:3600px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
-      head.parentNode.insertBefore(strip, head);
-    }
+    var table = document.getElementById('main-gantt');
+    var tbody = table && table.querySelector('tbody');
+    if (!tbody) return;
+    // Alte Heat-Zeilen + ggf. alten Header-Streifen (frühere Version) entfernen
+    tbody.querySelectorAll('tr.kapa-heat-row').forEach(function (r) { r.remove(); });
+    var oldStrip = document.getElementById('kapa-heat-strip');
+    if (oldStrip) oldStrip.remove();
     var sel = (typeof window.selectedGewerke !== 'undefined' && window.selectedGewerke) ? window.selectedGewerke : [];
-    // Ohne Gewerk-Auswahl Streifen ausblenden — sinnlos ohne Fokus
-    if (!sel.length) { strip.innerHTML = ''; strip.style.display = 'none'; return; }
-    strip.style.display = '';
+    // Ohne Gewerk-Auswahl keine Streifen — sinnlos ohne Fokus
+    if (!sel.length) return;
     var demandG = demandByGewerkKw();
     var supplyG = supplyByGewerkKw();
-    // Ein Streifen pro gewähltem Gewerk, gestapelt. Label in EIGENER Zeile ÜBER den
-    // Zellen → überdeckt die ersten KWs nicht mehr (Auslastung KW23+ sichtbar).
-    var html = '';
+    // Ein Streifen PRO gewähltem Gewerk als echte Tabellenzeile, ganz oben gestapelt.
+    // Label-Zelle (colspan=4) liegt im FESTEN Spaltenbereich (Aufgabe…Firma); die
+    // Auslastungs-Zellen sitzen in der Gantt-Spalte → fluchten exakt mit den Balken,
+    // und KW23+ ist voll sichtbar (kein Label über den ersten KWs mehr).
+    var rows = '';
     sel.forEach(function (gName) {
-      html += '<div style="position:relative;width:3600px;margin-bottom:2px">'
-        + '<div style="height:13px;display:flex;align-items:center;font-size:9px;font-weight:800;letter-spacing:.4px;color:#1e293b">📊 ' + gName.toUpperCase() + '</div>'
-        + '<div style="position:relative;height:16px;width:3600px">' + buildHeatCells(gName, demandG, supplyG) + '</div>'
-        + '</div>';
+      rows += '<tr class="kapa-heat-row">'
+        + '<td colspan="4" style="padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:.4px;color:#0f172a;background:#eef2f7;border-bottom:1px solid #e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ' + gName.toUpperCase() + ' · Auslastung</td>'
+        + '<td style="padding:0;background:#eef2f7;border-bottom:1px solid #e2e8f0"><div style="position:relative;width:3600px;height:18px">' + buildHeatCells(gName, demandG, supplyG) + '</div></td>'
+        + '</tr>';
     });
-    strip.innerHTML = html;
+    tbody.insertAdjacentHTML('afterbegin', rows);
   }
   window.renderKapaHeatStrip = renderHeatStrip;
   // Auf Filter-/Status-/Bar-Änderungen reagieren
