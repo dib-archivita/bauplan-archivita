@@ -12,8 +12,9 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v91** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v92** (Stand: SW-Cache in `sw.js`)
   - v91: `.kw-label{width}` 42→126 (vom ×3-Skript übersehen, da CSS statt inline) → KW-Header fluchtet wieder mit Tagesraster.
+  - v92: Bereichs-/Phasen-Header (`.kfw-header-row`) alle einheitlich Navy — die 4 Phasen-Farbvarianten (grün/orange/lila/grau, `[style*=...]`-Regeln) entfernt; Default-Navy-Gradient (`!important`) greift überall.
 
 ## 🔐 Auth & Rollen
 

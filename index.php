@@ -522,11 +522,8 @@ input[type=number]:focus, input[type=text]:focus, select:focus {
   font-weight: 700 !important;
 }
 
-/* Phase-Banner mit eigenen Farben */
-.kfw-header-row[style*="16a34a"] { background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%) !important; }
-.kfw-header-row[style*="d97706"] { background: linear-gradient(90deg, #d97706 0%, #f59e0b 100%) !important; }
-.kfw-header-row[style*="7c3aed"] { background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%) !important; }
-.kfw-header-row[style*="94a3b8"] { background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%) !important; }
+/* Phasen-Banner: einheitlich wie alle Bereichs-Header (Navy, siehe .kfw-header-row oben).
+   Die früheren Einzelfarben (grün/orange/lila/grau) sind entfernt — alle gleich. */
 
 /* Section-Rows: subtiler */
 .section-row td {
