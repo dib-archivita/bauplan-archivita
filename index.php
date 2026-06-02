@@ -2417,6 +2417,13 @@ function scrollToCard(id) {
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Gutachter" data-phase="haustechnik" data-unit="T_5_1" data-task-type="blowerdoor" data-tid="T_5_1-blowerdoor-1">
+          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
+          <td><span class="status-badge status-planned">—</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td>
+          <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:126px" title="Blowerdoor-Test"></div></div></td>
+        </tr>
         <tr class="kfw-header-row" style="background:#16a34a">
           <td class="task-name-cell" colspan="4">
             🏗️ PHASE 2 — T 4.01 – T 4.08 · 3.OG · 397.99 m² · Estrich KW28
@@ -2507,13 +2514,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="660" data-base-width="42" style="left:1980px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_01" data-task-type="blowerdoor" data-tid="T_4_01-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="702" data-base-width="42" style="left:2106px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_01" data-task-type="kueche" data-tid="T_4_01-kueche">
           <td class="task-name-cell">T 4.01 · Kücheneinbau</td>
@@ -2614,13 +2614,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="675" data-base-width="42" style="left:2025px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_02" data-task-type="blowerdoor" data-tid="T_4_02-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="717" data-base-width="42" style="left:2151px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_02" data-task-type="kueche" data-tid="T_4_02-kueche">
           <td class="task-name-cell">T 4.02 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -2719,13 +2712,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="690" data-base-width="42" style="left:2070px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_03" data-task-type="blowerdoor" data-tid="T_4_03-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="732" data-base-width="42" style="left:2196px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_03" data-task-type="kueche" data-tid="T_4_03-kueche">
           <td class="task-name-cell">T 4.03 · Kücheneinbau</td>
@@ -2826,13 +2812,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="705" data-base-width="42" style="left:2115px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_04" data-task-type="blowerdoor" data-tid="T_4_04-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="747" data-base-width="42" style="left:2241px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_04" data-task-type="kueche" data-tid="T_4_04-kueche">
           <td class="task-name-cell">T 4.04 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -2931,13 +2910,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="678" data-base-width="42" style="left:2034px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_05" data-task-type="blowerdoor" data-tid="T_4_05-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="720" data-base-width="42" style="left:2160px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_05" data-task-type="kueche" data-tid="T_4_05-kueche">
           <td class="task-name-cell">T 4.05 · Kücheneinbau</td>
@@ -3038,13 +3010,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="693" data-base-width="42" style="left:2079px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_06" data-task-type="blowerdoor" data-tid="T_4_06-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="735" data-base-width="42" style="left:2205px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_06" data-task-type="kueche" data-tid="T_4_06-kueche">
           <td class="task-name-cell">T 4.06 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -3144,13 +3109,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="708" data-base-width="42" style="left:2124px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_07" data-task-type="blowerdoor" data-tid="T_4_07-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="750" data-base-width="42" style="left:2250px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_07" data-task-type="kueche" data-tid="T_4_07-kueche">
           <td class="task-name-cell">T 4.07 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -3249,13 +3207,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="765" data-base-width="42" style="left:2295px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_08" data-task-type="blowerdoor" data-tid="T_4_08-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="807" data-base-width="42" style="left:2421px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_08" data-task-type="kueche" data-tid="T_4_08-kueche">
           <td class="task-name-cell">T 4.08 · Kücheneinbau</td>
@@ -3362,15 +3313,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="948" data-base-width="42" style="left:2844px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_22" data-task-type="blowerdoor" data-tid="T_4_22-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="990" data-base-width="42" style="left:2970px;width:126px"></div></div></td>
-        </tr>
-
-        
                 <tr class="section-row">
 
           <td class="section-name" colspan="4">
@@ -3455,13 +3397,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="891" data-base-width="42" style="left:2673px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_20" data-task-type="blowerdoor" data-tid="T_4_20-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="933" data-base-width="42" style="left:2799px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_20" data-task-type="kueche" data-tid="T_4_20-kueche">
           <td class="task-name-cell">T 4.20 · Kücheneinbau</td>
@@ -3562,13 +3497,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="876" data-base-width="42" style="left:2628px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_18" data-task-type="blowerdoor" data-tid="T_4_18-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="918" data-base-width="42" style="left:2754px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_18" data-task-type="kueche" data-tid="T_4_18-kueche">
           <td class="task-name-cell">T 4.18 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -3667,13 +3595,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="861" data-base-width="42" style="left:2583px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_16" data-task-type="blowerdoor" data-tid="T_4_16-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="903" data-base-width="42" style="left:2709px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_16" data-task-type="kueche" data-tid="T_4_16-kueche">
           <td class="task-name-cell">T 4.16 · Kücheneinbau</td>
@@ -3774,13 +3695,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="846" data-base-width="42" style="left:2538px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_14" data-task-type="blowerdoor" data-tid="T_4_14-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="888" data-base-width="42" style="left:2664px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_14" data-task-type="kueche" data-tid="T_4_14-kueche">
           <td class="task-name-cell">T 4.14 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -3879,13 +3793,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="831" data-base-width="42" style="left:2493px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_13" data-task-type="blowerdoor" data-tid="T_4_13-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="873" data-base-width="42" style="left:2619px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_13" data-task-type="kueche" data-tid="T_4_13-kueche">
           <td class="task-name-cell">T 4.13 · Kücheneinbau</td>
@@ -3986,13 +3893,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="816" data-base-width="42" style="left:2448px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_12" data-task-type="blowerdoor" data-tid="T_4_12-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="858" data-base-width="42" style="left:2574px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_12" data-task-type="kueche" data-tid="T_4_12-kueche">
           <td class="task-name-cell">T 4.12 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -4091,13 +3991,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="843" data-base-width="42" style="left:2529px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_11" data-task-type="blowerdoor" data-tid="T_4_11-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="885" data-base-width="42" style="left:2655px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_11" data-task-type="kueche" data-tid="T_4_11-kueche">
           <td class="task-name-cell">T 4.11 · Kücheneinbau</td>
@@ -4198,13 +4091,6 @@ function scrollToCard(id) {
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="786" data-base-width="42" style="left:2358px;width:126px"></div></div></td>
         </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_10" data-task-type="blowerdoor" data-tid="T_4_10-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="828" data-base-width="42" style="left:2484px;width:126px"></div></div></td>
-        </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_10" data-task-type="kueche" data-tid="T_4_10-kueche">
           <td class="task-name-cell">T 4.10 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
@@ -4303,13 +4189,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="780" data-base-width="42" style="left:2340px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_09" data-task-type="blowerdoor" data-tid="T_4_09-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="822" data-base-width="42" style="left:2466px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_09" data-task-type="kueche" data-tid="T_4_09-kueche">
           <td class="task-name-cell">T 4.09 · Kücheneinbau</td>
@@ -4417,13 +4296,6 @@ function scrollToCard(id) {
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="504" data-base-width="42" style="left:1512px;width:126px"></div></div></td>
-        </tr>
-        <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="W_5_3" data-task-type="blowerdoor" data-tid="W_5_3-blowerdoor-1">
-
-          <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
-          <td><span class="status-badge status-done">✓</span>
-              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="546" data-base-width="42" style="left:1638px;width:126px"></div></div></td>
         </tr>
         <tr class="section-row">
           

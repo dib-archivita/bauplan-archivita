@@ -15,6 +15,7 @@
 - Aktuelle Version: **bauplan-v92** (Stand: SW-Cache in `sw.js`)
   - v91: `.kw-label{width}` 42→126 (vom ×3-Skript übersehen, da CSS statt inline) → KW-Header fluchtet wieder mit Tagesraster.
   - v92: Bereichs-/Phasen-Header (`.kfw-header-row`) alle einheitlich Navy — die 4 Phasen-Farbvarianten (grün/orange/lila/grau, `[style*=...]`-Regeln) entfernt; Default-Navy-Gradient (`!important`) greift überall.
+  - v93: Blower-Door-Test nur noch in **T 5.1** — die 19 Apartment-Tasks (`data-task-type="blowerdoor"`, T 4.01–T 4.22 + W 5.3) entfernt, einen neuen in T 5.1 angelegt. Budget-Positionen „Blowerdoor 9 WE/14 Einh." unberührt.
 
 ## 🔐 Auth & Rollen
 
