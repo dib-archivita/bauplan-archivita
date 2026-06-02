@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v89** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v90** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -109,6 +109,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 
 1f. ⏳ **Tagesansicht-Text-Schärfe (v89)**: scaleX-Zoom rastert gegen-skalierten Text fraktioniert → leicht unscharf. v89: Full-Width-`bar-label`-Hack (v88) entfernt (verstärkte Unschärfe) → wieder einfache Gegen-Skalierung; `will-change:transform` auf Header-Containern (scharfe KW/Mo-So-Labels, wenige Layer — NICHT auf ~400 `.gantt-row-inner` wegen Layer-Explosion). **Falls Balken-Text weiter zu weich**: echte Pixel-Skalierung nötig (style.left=Basis×Z statt scaleX; berührt Sync/Drag/Editor/Demand ~13 Stellen, Basis bleibt 42px/Woche, ÷Z speichern/×Z rendern) — bewusst noch NICHT gemacht (Multi-User-Risiko, lokal nicht testbar).
 
+1g. ✅ **Fester Tages-Maßstab (v90)** — ersetzt den scaleX-Zoom (war unscharf). Koordinatensystem komplett ×3 auf **126px/Woche = 18px/Tag** migriert (echte Pixel → gestochen scharf; Tage rasten exakt in Wochen, 7×18=126). **Keine Wochenansicht/Toggle mehr** (Button + setDayView/toggleDayView/applyGanttScale/GANTT_Z-Logik + scaleX-CSS entfernt; `window.GANTT_Z=1` bleibt als No-op-Kompat). Statische Balken/Header ×3 (Skript `/tmp/scale_x3.py`), `PX_PER_WEEK 42→126` überall, Breiten 3600→10800, Mo–So-Header (`ensureDayHeader`) immer sichtbar (18px/Tag). Drag/Resize rasten auf Tage (18px). **DB-Migration ×3** (`scale_day_x3_migrated`-Flag, läuft nach KW23-Migration). Einmal-Cleanup `coord-scale-v126` verwirft alte 42-Basis-`bar-pos`-localStorage. Im Harness verifiziert (Alignment Balken↔KW, Tagesraster, Mo–So scharf).
+
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 
 3. **User-Accounts** (Architekt + 5 Worker + 5 Viewer) noch nicht angelegt — User wollte das später machen.
@@ -120,7 +122,7 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 ## 🔧 Wichtige Konstanten
 
 - `ORIGIN_KW = 23` (Projektstart-Referenz im JS; **seit v81**, davor 19) → `left:0` = KW23
-- `PX_PER_WEEK = 42` (eine Woche = 42 px in der Gantt)
+- `PX_PER_WEEK = 126` (**seit v90**, davor 42) → 1 Woche = 126 px, **1 Tag = 18 px** (fester Tages-Maßstab, echte Pixel, kein Zoom). Grid-Breite 10800 (war 3600).
 - KW 23 = 1. Juni 2026 (Projektstart, jetzt linker Rand `left:0`)
 - Heute (Stand v80): real KW von aktuellem Datum, dynamisch
 - Status-Werte siehe `STATUS_OPTIONS` Array

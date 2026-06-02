@@ -278,7 +278,7 @@
 
   function addNewTaskAfter(sectionRow) {
     const tid = generateTid();
-    const tableWidth = 3600;
+    const tableWidth = 10800;
     const row = document.createElement('tr');
     row.className = 'task-row';
     row.setAttribute('data-status', 'geplant');
@@ -289,7 +289,7 @@
     row.setAttribute('data-tid', tid);
     row.setAttribute('data-custom', '1');
     // Default-Balken: ab aktueller KW, Dauer 4 Wochen
-    const PX_PER_WEEK = 42;
+    const PX_PER_WEEK = 126;
     const ORIGIN_KW = 23;
     const nowContKW = (typeof window.dateToContKW === 'function')
       ? (window.dateToContKW(new Date().toISOString().slice(0,10)) || 23)
@@ -365,7 +365,7 @@
         <span class="section-arrow">▶</span> Neuer Bereich
         <span class="progress-pill">0/0 ✓</span>
       </td>
-      <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+      <td><div class="gantt-row-inner" style="width:10800px"></div></td>
     `;
     // Am Ende des KFW-Blocks einfügen (vor nächster kfw-header-row oder am Ende)
     let insertAfter = kfwRow;

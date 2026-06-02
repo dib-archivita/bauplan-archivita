@@ -107,6 +107,50 @@ if ($kw23Done === false) {
     }
 }
 
+// ── Einmal-Migration v90: Fester Tages-Maßstab — Balken-Koordinaten ×3 (42→126px/Woche = 18px/Tag).
+// Läuft NACH der KW23-Migration, genau einmal, atomar, vor Auslieferung der Overrides. ──
+$x3Done = $db->query("SELECT v FROM kv_state WHERE k = 'scale_day_x3_migrated'")->fetchColumn();
+if ($x3Done === false) {
+    try {
+        $db->beginTransaction();
+        $claim = $db->prepare("INSERT IGNORE INTO kv_state (k, v, updated_by) VALUES ('scale_day_x3_migrated', 'running', :uid)");
+        $claim->execute([':uid' => (int)$u['id']]);
+        if ($claim->rowCount() === 1) {
+            $ovFixed = 0; $ciFixed = 0;
+            // overrides: bar_left + bar_width ×3
+            $rows = $db->query("SELECT id, value FROM overrides WHERE field IN ('bar_left','bar_width')")->fetchAll();
+            $upd  = $db->prepare('UPDATE overrides SET value = :v WHERE id = :id');
+            foreach ($rows as $r) {
+                if (!is_numeric($r['value'])) continue;
+                $upd->execute([':v' => (string)((int)round((float)$r['value']) * 3), ':id' => $r['id']]);
+                $ovFixed++;
+            }
+            // custom_items.data (JSON): bar_left + bar_width ×3
+            $rows = $db->query("SELECT id, data FROM custom_items WHERE data LIKE '%bar_left%' OR data LIKE '%bar_width%'")->fetchAll();
+            $upd  = $db->prepare('UPDATE custom_items SET data = :d WHERE id = :id');
+            foreach ($rows as $r) {
+                $d = json_decode($r['data'] ?? '{}', true);
+                if (!is_array($d)) continue;
+                $ch = false;
+                if (isset($d['bar_left'])  && is_numeric($d['bar_left']))  { $d['bar_left']  = (int)round((float)$d['bar_left'])  * 3; $ch = true; }
+                if (isset($d['bar_width']) && is_numeric($d['bar_width'])) { $d['bar_width'] = (int)round((float)$d['bar_width']) * 3; $ch = true; }
+                if (!$ch) continue;
+                $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':id' => $r['id']]);
+                $ciFixed++;
+            }
+            $db->prepare("UPDATE kv_state SET v = :v, updated_by = :uid WHERE k = 'scale_day_x3_migrated'")
+               ->execute([':v' => json_encode(['factor' => 3, 'overrides' => $ovFixed, 'custom' => $ciFixed], JSON_UNESCAPED_UNICODE), ':uid' => (int)$u['id']]);
+            $db->commit();
+            audit_log((int)$u['id'], 'sync.migrate_scale_day_x3', 'maintenance', null, ['overrides' => $ovFixed, 'custom' => $ciFixed]);
+        } else {
+            $db->commit();
+        }
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('migrate_scale_day_x3 failed: ' . $e->getMessage());
+    }
+}
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);

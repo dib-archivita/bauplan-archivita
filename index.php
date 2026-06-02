@@ -137,12 +137,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 .month-label{position:absolute;top:0;height:18px;font-size:10px;font-weight:700;text-align:center;color:#334155;background:#f8fafc;border-right:1px solid #e2e8f0;border-bottom:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center}
 .kw-label{position:absolute;top:0;height:28px;font-size:10px;color:#475569;border-right:1px solid #e2e8f0;padding:4px 3px;overflow:hidden;width:42px;font-weight:600}
 .gantt-row-inner{position:relative;height:var(--row-h);overflow:hidden}
-/* Tages-Grid: feine Tageslinie (alle 6px = 1 Tag) + kräftigere Wochenlinie (42px) + Wochenend-Schattierung (Sa/So = letzte 12px der Woche). left:0 = KW23-Montag, daher Tag-/Wochengrenzen exakt ausgerichtet. */
+/* Tages-Grid (fester Tages-Maßstab, echte Pixel): Tageslinie 18px, kräftigere Wochenlinie 126px, Wochenend-Schattierung (Sa/So = letzte 36px der Woche). left:0 = KW23-Montag → Tag-/Wochengrenzen exakt ausgerichtet (7×18 = 126). */
 .gantt-row-inner{
   background-image:
-    repeating-linear-gradient(90deg, rgba(100,116,139,.26) 0, rgba(100,116,139,.26) 1px, transparent 1px, transparent 42px),
-    repeating-linear-gradient(90deg, rgba(148,163,184,.15) 0, rgba(148,163,184,.15) 1px, transparent 1px, transparent 6px),
-    repeating-linear-gradient(90deg, transparent 0, transparent 30px, rgba(148,163,184,.08) 30px, rgba(148,163,184,.08) 42px);
+    repeating-linear-gradient(90deg, rgba(100,116,139,.26) 0, rgba(100,116,139,.26) 1px, transparent 1px, transparent 126px),
+    repeating-linear-gradient(90deg, rgba(148,163,184,.15) 0, rgba(148,163,184,.15) 1px, transparent 1px, transparent 18px),
+    repeating-linear-gradient(90deg, transparent 0, transparent 90px, rgba(148,163,184,.08) 90px, rgba(148,163,184,.08) 126px);
 }
 .no-date-label{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:9px;color:#94a3b8;font-style:italic}
 
@@ -157,21 +157,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 .gantt-bar.status-cancelled{background:var(--c-cancelled)}
 .bar-label{font-size:9px;color:#fff;padding:3px 4px;white-space:nowrap;overflow:hidden}
 
-/* ── Tagesansicht-Zoom: Koordinaten bleiben 42px/Woche, nur visuell horizontal skaliert (scaleX).
-   Gilt per CSS-Klasse → wirkt automatisch auch auf dynamisch erzeugte Zeilen. ── */
-/* Tagesansicht-Zoom (scaleX). will-change:transform zwingt Rasterung in voller
-   Auflösung → gegen-skalierter Text bleibt scharf statt unscharf. */
-body.day-view #tab-hauptwerk .gantt-timeline-header,
-body.day-view #tab-hauptwerk .gantt-kw-header,
-body.day-view #tab-hauptwerk .gantt-day-header { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; will-change: transform; }
-body.day-view #main-gantt .gantt-row-inner { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; }
-body.day-view #tab-hauptwerk .kw-label,
-body.day-view #tab-hauptwerk .month-label,
-body.day-view #tab-hauptwerk .gantt-day-header > span,
-body.day-view #main-gantt .gantt-bar .bar-label { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
-/* Wochentag-Header (Mo–So) nur in der Tagesansicht zeigen */
-.gantt-day-header { display: none; }
-body.day-view #tab-hauptwerk .gantt-day-header { display: block; }
+/* Wochentag-Header (Mo–So) — fester Tages-Maßstab, immer sichtbar (kein Zoom/Transform mehr) */
+.gantt-day-header { display: block; }
 
 /* ── Today line ── */
 .today-line{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:20;pointer-events:none}
@@ -1136,53 +1123,37 @@ function updateGewerkPills() {
 }
 window.updateGewerkPills = updateGewerkPills;
 
-// ── Wochen-/Tagesansicht-Umschalter (Zoom) ──
-// Tagesansicht = horizontaler scaleX-Zoom per CSS-Klasse. Das Koordinatensystem
-// bleibt bei 42px/Woche (Balken, Drag, Editor, Today-Line rechnen unverändert);
-// nur die Darstellung wird gestreckt + die Gantt-Spalte verbreitert (für Scroll).
-// Tagesansicht = horizontaler scaleX-Zoom per CSS-Klasse. Koordinaten bleiben 42px/Woche
-// (Balken, Drag, Editor rechnen unverändert); will-change sorgt für scharfe Schrift.
+// ── Fester Tages-Maßstab: 126px/Woche = 18px/Tag, echte Pixel (kein Zoom/scaleX → scharf).
+// Es gibt nur EINE Ansicht (keine Wochenansicht mehr). GANTT_Z bleibt 1 (Kompat für
+// vorhandene *GANTT_Z-Stellen, die damit No-ops sind). ──
 window.GANTT_Z = 1;
-function toggleDayView() { setDayView(!document.body.classList.contains('day-view')); }
+// Einmal-Cleanup bei Umstellung auf 126px-Basis: alte (42-Basis) bar-pos-Caches verwerfen.
+// Balken-Positionen kommen aus statischem HTML + DB-Sync (beide 126-Basis).
+(function(){ try { if (localStorage.getItem('coord-scale-v126') !== '1') {
+  Object.keys(localStorage).forEach(function(k){ if (k.indexOf('bar-pos-') === 0) localStorage.removeItem(k); });
+  localStorage.setItem('coord-scale-v126', '1');
+} } catch(e){} })();
 
-// Wochentag-Kopf (Mo–So) einmalig erzeugen; nur in Tagesansicht sichtbar (CSS).
-// Tag 0 = KW23-Montag (1. Juni 2026), Basis-Koordinaten (scaleX skaliert die Anzeige).
+// Wochentag-Kopf (Mo–So), immer sichtbar. Tag 0 = KW23-Montag (1. Juni 2026), 18px/Tag.
 function ensureDayHeader() {
   var kwh = document.querySelector('#tab-hauptwerk .gantt-kw-header');
   if (!kwh || kwh.parentNode.querySelector('.gantt-day-header')) return;
   var wd = ['Mo','Di','Mi','Do','Fr','Sa','So'], days = 82 * 7, html = '';
-  for (var n = 0; n < days; n++) html += '<span style="position:absolute;top:0;left:' + (n*6) + 'px;width:18px;height:14px;font-size:8px;line-height:14px;text-align:center;color:#94a3b8;font-weight:600;overflow:hidden">' + wd[n%7] + '</span>';
+  for (var n = 0; n < days; n++) html += '<span style="position:absolute;top:0;left:' + (n*18) + 'px;width:18px;height:14px;font-size:8px;line-height:14px;text-align:center;color:#94a3b8;font-weight:600;overflow:hidden">' + wd[n%7] + '</span>';
   var dh = document.createElement('div');
   dh.className = 'gantt-day-header';
-  dh.style.cssText = 'position:relative;height:14px;width:3600px;border-bottom:1px solid #f1f5f9';
+  dh.style.cssText = 'position:relative;height:14px;width:10800px;border-bottom:1px solid #f1f5f9';
   dh.innerHTML = html;
   kwh.parentNode.insertBefore(dh, kwh.nextSibling);
 }
-
-function setDayView(on) {
-  var Z = 3;  // 42*3 = 126px/Woche = 18px/Tag
-  ensureDayHeader();
-  document.body.classList.toggle('day-view', on);
-  window.GANTT_Z = on ? Z : 1;
-  document.body.style.setProperty('--gantt-z', window.GANTT_Z);
-  // Gantt-Spalte über 0-Höhe-Layout-Spacer auf 3600·Z verbreitern (für Scroll).
-  var th = document.querySelector('#main-gantt thead th:last-child');
-  if (th) {
-    var sp = th.querySelector('.gantt-zoom-spacer');
-    if (!sp) { sp = document.createElement('div'); sp.className = 'gantt-zoom-spacer'; sp.style.cssText = 'height:0;overflow:hidden'; th.appendChild(sp); }
-    sp.style.width = Math.round(3600 * window.GANTT_Z) + 'px';
-  }
-  var btn = document.getElementById('dayview-toggle');
-  if (btn) { btn.textContent = on ? '📆 Wochenansicht' : '📅 Tagesansicht'; btn.classList.toggle('active', on); }
-  try { localStorage.setItem('gantt-dayview', on ? '1' : '0'); } catch (e) {}
-  if (typeof window.renderKapaHeatStrip === 'function') window.renderKapaHeatStrip();
-  if (typeof window.updateTodayLine === 'function') setTimeout(window.updateTodayLine, 40);
-  window.dispatchEvent(new Event('resize'));  // Sticky-Header neu vermessen
-}
-window.toggleDayView = toggleDayView;
-window.setDayView = setDayView;
-// Beim Laden Ansicht wiederherstellen — Tagesansicht ist Standard (außer explizit abgewählt).
-(function(){ try { var pref = localStorage.getItem('gantt-dayview'); if (pref === '1' || pref === null) setTimeout(function(){ setDayView(true); }, 400); } catch(e){} })();
+window.ensureDayHeader = ensureDayHeader;
+// Beim Laden erzeugen (mehrfach versucht, da Tabelle/Sticky verzögert kommen können).
+(function () {
+  function t() { ensureDayHeader(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(t, 300); });
+  else setTimeout(t, 300);
+  setTimeout(t, 1200);
+})();
 
 function filterStatus(st, btn) {
   activeStatus = (st === null) ? null : (activeStatus === st ? null : st);
@@ -1361,8 +1332,7 @@ function scrollToCard(id) {
   <label>Filter Gewerk:</label>
   <button class="filter-btn active" onclick="filterGewerk('all')">Alle Gewerke</button>
   <span id="gewerk-filter-pills" style="display:contents"></span>
-  <button class="filter-btn" id="dayview-toggle" onclick="toggleDayView()" title="Zwischen Wochen- und Tagesansicht umschalten" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #2563eb;background:#fff;color:#2563eb;font-size:11px;font-weight:600;cursor:pointer">📅 Tagesansicht</button>
-  <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
+  <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
 </div>
 <div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
   <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
@@ -1381,7 +1351,7 @@ function scrollToCard(id) {
   <col style="width:60px">
   <col style="width:100px">
   <col style="width:100px">
-  <col style="width:3600px">
+  <col style="width:10800px">
 </colgroup>
 <thead>
 <tr>
@@ -1390,10 +1360,10 @@ function scrollToCard(id) {
     <th>Gewerk</th>
     <th>Firma</th>
   <th>
-    <div class="gantt-timeline-header" style="width:3600px"><div class="month-label" style="left:0px;width:168px">Jun 26</div><div class="month-label" style="left:168px;width:168px">Jul 26</div><div class="month-label" style="left:336px;width:210px">Aug 26</div><div class="month-label" style="left:546px;width:168px">Sep 26</div><div class="month-label" style="left:714px;width:168px">Okt 26</div><div class="month-label" style="left:882px;width:210px">Nov 26</div><div class="month-label" style="left:1092px;width:168px">Dez 26</div><div class="month-label" style="left:1260px;width:210px">Jan 27</div><div class="month-label" style="left:1470px;width:168px">Feb 27</div><div class="month-label" style="left:1638px;width:168px">Mär 27</div><div class="month-label" style="left:1806px;width:168px">Apr 27</div><div class="month-label" style="left:1974px;width:210px">Mai 27</div><div class="month-label" style="left:2184px;width:168px">Jun 27</div><div class="month-label" style="left:2352px;width:168px">Jul 27</div><div class="month-label" style="left:2520px;width:210px">Aug 27</div><div class="month-label" style="left:2730px;width:168px">Sep 27</div><div class="month-label" style="left:2898px;width:210px">Okt 27</div><div class="month-label" style="left:3108px;width:168px">Nov 27</div><div class="month-label" style="left:3276px;width:168px">Dez 27</div></div>
+    <div class="gantt-timeline-header" style="width:10800px"><div class="month-label" style="left:0px;width:504px">Jun 26</div><div class="month-label" style="left:504px;width:504px">Jul 26</div><div class="month-label" style="left:1008px;width:630px">Aug 26</div><div class="month-label" style="left:1638px;width:504px">Sep 26</div><div class="month-label" style="left:2142px;width:504px">Okt 26</div><div class="month-label" style="left:2646px;width:630px">Nov 26</div><div class="month-label" style="left:3276px;width:504px">Dez 26</div><div class="month-label" style="left:3780px;width:630px">Jan 27</div><div class="month-label" style="left:4410px;width:504px">Feb 27</div><div class="month-label" style="left:4914px;width:504px">Mär 27</div><div class="month-label" style="left:5418px;width:504px">Apr 27</div><div class="month-label" style="left:5922px;width:630px">Mai 27</div><div class="month-label" style="left:6552px;width:504px">Jun 27</div><div class="month-label" style="left:7056px;width:504px">Jul 27</div><div class="month-label" style="left:7560px;width:630px">Aug 27</div><div class="month-label" style="left:8190px;width:504px">Sep 27</div><div class="month-label" style="left:8694px;width:630px">Okt 27</div><div class="month-label" style="left:9324px;width:504px">Nov 27</div><div class="month-label" style="left:9828px;width:504px">Dez 27</div></div>
 
     </div>
-    <div class="gantt-kw-header" style="width:3600px;position:relative"><div class="kw-label" style="left:0px">KW23</div><div class="kw-label" style="left:42px">KW24</div><div class="kw-label" style="left:84px">KW25</div><div class="kw-label" style="left:126px">KW26</div><div class="kw-label" style="left:168px">KW27</div><div class="kw-label" style="left:210px">KW28</div><div class="kw-label" style="left:252px">KW29</div><div class="kw-label" style="left:294px">KW30</div><div class="kw-label" style="left:336px">KW31</div><div class="kw-label" style="left:378px">KW32</div><div class="kw-label" style="left:420px">KW33</div><div class="kw-label" style="left:462px">KW34</div><div class="kw-label" style="left:504px">KW35</div><div class="kw-label" style="left:546px">KW36</div><div class="kw-label" style="left:588px">KW37</div><div class="kw-label" style="left:630px">KW38</div><div class="kw-label" style="left:672px">KW39</div><div class="kw-label" style="left:714px">KW40</div><div class="kw-label" style="left:756px">KW41</div><div class="kw-label" style="left:798px">KW42</div><div class="kw-label" style="left:840px">KW43</div><div class="kw-label" style="left:882px">KW44</div><div class="kw-label" style="left:924px">KW45</div><div class="kw-label" style="left:966px">KW46</div><div class="kw-label" style="left:1008px">KW47</div><div class="kw-label" style="left:1050px">KW48</div><div class="kw-label" style="left:1092px">KW49</div><div class="kw-label" style="left:1134px">KW50</div><div class="kw-label" style="left:1176px">KW51</div><div class="kw-label" style="left:1218px">KW52</div><div class="kw-label" style="left:1260px">KW1</div><div class="kw-label" style="left:1302px">KW2</div><div class="kw-label" style="left:1344px">KW3</div><div class="kw-label" style="left:1386px">KW4</div><div class="kw-label" style="left:1428px">KW5</div><div class="kw-label" style="left:1470px">KW6</div><div class="kw-label" style="left:1512px">KW7</div><div class="kw-label" style="left:1554px">KW8</div><div class="kw-label" style="left:1596px">KW9</div><div class="kw-label" style="left:1638px">KW10</div><div class="kw-label" style="left:1680px">KW11</div><div class="kw-label" style="left:1722px">KW12</div><div class="kw-label" style="left:1764px">KW13</div><div class="kw-label" style="left:1806px">KW14</div><div class="kw-label" style="left:1848px">KW15</div><div class="kw-label" style="left:1890px">KW16</div><div class="kw-label" style="left:1932px">KW17</div><div class="kw-label" style="left:1974px">KW18</div><div class="kw-label" style="left:2016px">KW19</div><div class="kw-label" style="left:2058px">KW20</div><div class="kw-label" style="left:2100px">KW21</div><div class="kw-label" style="left:2142px">KW22</div><div class="kw-label" style="left:2184px">KW23</div><div class="kw-label" style="left:2226px">KW24</div><div class="kw-label" style="left:2268px">KW25</div><div class="kw-label" style="left:2310px">KW26</div><div class="kw-label" style="left:2352px">KW27</div><div class="kw-label" style="left:2394px">KW28</div><div class="kw-label" style="left:2436px">KW29</div><div class="kw-label" style="left:2478px">KW30</div><div class="kw-label" style="left:2520px">KW31</div><div class="kw-label" style="left:2562px">KW32</div><div class="kw-label" style="left:2604px">KW33</div><div class="kw-label" style="left:2646px">KW34</div><div class="kw-label" style="left:2688px">KW35</div><div class="kw-label" style="left:2730px">KW36</div><div class="kw-label" style="left:2772px">KW37</div><div class="kw-label" style="left:2814px">KW38</div><div class="kw-label" style="left:2856px">KW39</div><div class="kw-label" style="left:2898px">KW40</div><div class="kw-label" style="left:2940px">KW41</div><div class="kw-label" style="left:2982px">KW42</div><div class="kw-label" style="left:3024px">KW43</div><div class="kw-label" style="left:3066px">KW44</div><div class="kw-label" style="left:3108px">KW45</div><div class="kw-label" style="left:3150px">KW46</div><div class="kw-label" style="left:3192px">KW47</div><div class="kw-label" style="left:3234px">KW48</div><div class="kw-label" style="left:3276px">KW49</div><div class="kw-label" style="left:3318px">KW50</div><div class="kw-label" style="left:3360px">KW51</div><div class="kw-label" style="left:3402px">KW52</div></div>
+    <div class="gantt-kw-header" style="width:10800px;position:relative"><div class="kw-label" style="left:0px">KW23</div><div class="kw-label" style="left:126px">KW24</div><div class="kw-label" style="left:252px">KW25</div><div class="kw-label" style="left:378px">KW26</div><div class="kw-label" style="left:504px">KW27</div><div class="kw-label" style="left:630px">KW28</div><div class="kw-label" style="left:756px">KW29</div><div class="kw-label" style="left:882px">KW30</div><div class="kw-label" style="left:1008px">KW31</div><div class="kw-label" style="left:1134px">KW32</div><div class="kw-label" style="left:1260px">KW33</div><div class="kw-label" style="left:1386px">KW34</div><div class="kw-label" style="left:1512px">KW35</div><div class="kw-label" style="left:1638px">KW36</div><div class="kw-label" style="left:1764px">KW37</div><div class="kw-label" style="left:1890px">KW38</div><div class="kw-label" style="left:2016px">KW39</div><div class="kw-label" style="left:2142px">KW40</div><div class="kw-label" style="left:2268px">KW41</div><div class="kw-label" style="left:2394px">KW42</div><div class="kw-label" style="left:2520px">KW43</div><div class="kw-label" style="left:2646px">KW44</div><div class="kw-label" style="left:2772px">KW45</div><div class="kw-label" style="left:2898px">KW46</div><div class="kw-label" style="left:3024px">KW47</div><div class="kw-label" style="left:3150px">KW48</div><div class="kw-label" style="left:3276px">KW49</div><div class="kw-label" style="left:3402px">KW50</div><div class="kw-label" style="left:3528px">KW51</div><div class="kw-label" style="left:3654px">KW52</div><div class="kw-label" style="left:3780px">KW1</div><div class="kw-label" style="left:3906px">KW2</div><div class="kw-label" style="left:4032px">KW3</div><div class="kw-label" style="left:4158px">KW4</div><div class="kw-label" style="left:4284px">KW5</div><div class="kw-label" style="left:4410px">KW6</div><div class="kw-label" style="left:4536px">KW7</div><div class="kw-label" style="left:4662px">KW8</div><div class="kw-label" style="left:4788px">KW9</div><div class="kw-label" style="left:4914px">KW10</div><div class="kw-label" style="left:5040px">KW11</div><div class="kw-label" style="left:5166px">KW12</div><div class="kw-label" style="left:5292px">KW13</div><div class="kw-label" style="left:5418px">KW14</div><div class="kw-label" style="left:5544px">KW15</div><div class="kw-label" style="left:5670px">KW16</div><div class="kw-label" style="left:5796px">KW17</div><div class="kw-label" style="left:5922px">KW18</div><div class="kw-label" style="left:6048px">KW19</div><div class="kw-label" style="left:6174px">KW20</div><div class="kw-label" style="left:6300px">KW21</div><div class="kw-label" style="left:6426px">KW22</div><div class="kw-label" style="left:6552px">KW23</div><div class="kw-label" style="left:6678px">KW24</div><div class="kw-label" style="left:6804px">KW25</div><div class="kw-label" style="left:6930px">KW26</div><div class="kw-label" style="left:7056px">KW27</div><div class="kw-label" style="left:7182px">KW28</div><div class="kw-label" style="left:7308px">KW29</div><div class="kw-label" style="left:7434px">KW30</div><div class="kw-label" style="left:7560px">KW31</div><div class="kw-label" style="left:7686px">KW32</div><div class="kw-label" style="left:7812px">KW33</div><div class="kw-label" style="left:7938px">KW34</div><div class="kw-label" style="left:8064px">KW35</div><div class="kw-label" style="left:8190px">KW36</div><div class="kw-label" style="left:8316px">KW37</div><div class="kw-label" style="left:8442px">KW38</div><div class="kw-label" style="left:8568px">KW39</div><div class="kw-label" style="left:8694px">KW40</div><div class="kw-label" style="left:8820px">KW41</div><div class="kw-label" style="left:8946px">KW42</div><div class="kw-label" style="left:9072px">KW43</div><div class="kw-label" style="left:9198px">KW44</div><div class="kw-label" style="left:9324px">KW45</div><div class="kw-label" style="left:9450px">KW46</div><div class="kw-label" style="left:9576px">KW47</div><div class="kw-label" style="left:9702px">KW48</div><div class="kw-label" style="left:9828px">KW49</div><div class="kw-label" style="left:9954px">KW50</div><div class="kw-label" style="left:10080px">KW51</div><div class="kw-label" style="left:10206px">KW52</div></div>
 
     </div>
   </th>
@@ -1405,7 +1375,7 @@ function scrollToCard(id) {
             <span class="kfw-badge kfw-b">KfW</span>
             OHG Haustechnik
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
           
@@ -1413,28 +1383,28 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Stromversorgung
             <span class="progress-pill">2/5 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="Sanitär" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-1">
           
           <td class="task-name-cell">Hausanschluss, Abwasser / Regenwasser (Entwässerungskonzept)</td>
           <td><span class="status-badge status-wip">Antrag ergänz. (SF)</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-2">
           
           <td class="task-name-cell">NSHV</td>
           <td><span class="status-badge status-wip">Bestellung (DIB)</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:702px;width:42px" title="11.04 NSHV | Bestellung (DIB) | —"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:2106px;width:126px" title="11.04 NSHV | Bestellung (DIB) | —"></div></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-3">
           
           <td class="task-name-cell">Batteriespeicher</td>
           <td><span class="status-badge status-wip">ist da</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:786px;width:42px" title="11.05 Batteriespeicher | ist da | —"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:2358px;width:126px" title="11.05 Batteriespeicher | ist da | —"></div></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1442,14 +1412,14 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Kaltwassersatz (5,02m x 2,59m, 4,1 Tonnen)
             <span class="progress-pill">4/5 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="fortschritt_75" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-4">
           
           <td class="task-name-cell">Installation</td>
           <td><span class="status-badge status-wip">75 %</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:702px;width:42px" title="12.05 Installation | 75 % | —"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:2106px;width:126px" title="12.05 Installation | 75 % | —"></div></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1457,14 +1427,14 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Wärmepumpen
             <span class="progress-pill">2/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="verzögert" data-gewerk="Heizung" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-5">
           
           <td class="task-name-cell">Sole Wasser Wärmepumpe Brigach (Überlaufwasser Erwärmung)</td>
           <td><span class="status-badge status-delayed">dauert</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-delayed" style="left:870px;width:42px" title="13.01 Sole Wasser Wärmepumpe Brigach (Überlaufwasser Erwärmung) | dauert | —"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-delayed" style="left:2610px;width:126px" title="13.01 Sole Wasser Wärmepumpe Brigach (Überlaufwasser Erwärmung) | dauert | —"></div></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1472,14 +1442,14 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Lüftungsanlagen 2+3 (Shedhalle)
             <span class="progress-pill">2/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-6">
           
           <td class="task-name-cell">Installation</td>
           <td><span class="status-badge status-wip">beginnt nach Lieferung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1487,14 +1457,14 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Lüftungskanäle / Heizungsoptimierung
             <span class="progress-pill">0/1 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-7">
           
           <td class="task-name-cell">Installation</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1502,21 +1472,21 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Regen- & Schmutzwasserleitungen
             <span class="progress-pill">0/2 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Sanitär" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-10">
           
           <td class="task-name-cell">Installation Regen + Schmutzwasserleitung</td>
           <td><span class="status-badge status-prio">Priorität</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Tiefbau" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-11">
           
           <td class="task-name-cell">Hof asphaltieren</td>
           <td><span class="status-badge status-prio">Priorität</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f5f5f4;color:#78716c;border:1px solid #78716c40">Tiefbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1524,161 +1494,161 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Aufzüge
             <span class="progress-pill">3/25 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Brandschutz" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-12">
           
           <td class="task-name-cell">- Schachtentrauchung</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-13">
           
           <td class="task-name-cell">- Demontage Sockel</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-14">
           
           <td class="task-name-cell">- Demontage Kabinen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-15">
           
           <td class="task-name-cell">- Sockel wegspitzen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="" data-task-type="tueren" data-tid="haustechnik-tueren-1">
           
           <td class="task-name-cell">- Demontage Türen und Installation Absturzsicherung</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Gerüst" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-16">
           
           <td class="task-name-cell">- Gerüst in 4. OG einsetzen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f9fafb;color:#9ca3af;border:1px solid #9ca3af40">Gerüst</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-17">
           
           <td class="task-name-cell">- Lieferung</td>
           <td><span class="status-badge status-wip">läuft</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:366px;width:1470px" title="18.10 - Lieferung | läuft | Haushahn"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:1098px;width:4410px" title="18.10 - Lieferung | läuft | Haushahn"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-18">
           
           <td class="task-name-cell">- Installation</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:1836px;width:342px" title="18.11 - Installation | — | Haushahn"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:5508px;width:1026px" title="18.11 - Installation | — | Haushahn"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-19">
           
           <td class="task-name-cell">- Demontage Aufzugsraum</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Brandschutz" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-20">
           
           <td class="task-name-cell">- Schachtentrauchung</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-21">
           
           <td class="task-name-cell">- Demontage Sockel</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-22">
           
           <td class="task-name-cell">- Demontage Kabinen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-23">
           
           <td class="task-name-cell">- Sockel wegspitzen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="" data-task-type="tueren" data-tid="haustechnik-tueren-2">
           
           <td class="task-name-cell">- Demontage Türen und Installation Absturzsicherung</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Gerüst" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-24">
           
           <td class="task-name-cell">- Gerüst in 4. OG einsetzen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f9fafb;color:#9ca3af;border:1px solid #9ca3af40">Gerüst</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-25">
           
           <td class="task-name-cell">- Decken Schlitzen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-26">
           
           <td class="task-name-cell">- Schachtverkleinerung mit CBS</td>
           <td><span class="status-badge status-wip">Auftrag? (ZOM)</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:1080px;width:42px" title="18.20 - Schachtverkleinerung mit CBS | Auftrag? (ZOM) | CBS"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:3240px;width:126px" title="18.20 - Schachtverkleinerung mit CBS | Auftrag? (ZOM) | CBS"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-27">
           
           <td class="task-name-cell">- Traversen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-28">
           
           <td class="task-name-cell">- Deckenschlitze zumachen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-29">
           
           <td class="task-name-cell">- Rahmen / Verkleinerung EG bauen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-30">
           
           <td class="task-name-cell">- Lieferung</td>
           <td><span class="status-badge status-wip">läuft</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" style="left:366px;width:1638px" title="18.24 - Lieferung | läuft | Haushahn"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:1098px;width:4914px" title="18.24 - Lieferung | läuft | Haushahn"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-31">
           
           <td class="task-name-cell">- Installation</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:2004px;width:174px" title="18.25 - Installation | — | Haushahn"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:6012px;width:522px" title="18.25 - Installation | — | Haushahn"></div></div></td>
         </tr>
             
                 <tr class="kfw-header-row kfw-c">
@@ -1686,7 +1656,7 @@ function scrollToCard(id) {
             <span class="kfw-badge kfw-c">KfW</span>
             WEG Hochbau Ost (Gebäudehülle)
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
           
@@ -1694,63 +1664,63 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Aussenwand, Fassaden
             <span class="progress-pill">1/9 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dämmung" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-43">
           
           <td class="task-name-cell">Treppenhaus Nord - Dämmelemente</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Dämmung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fenster" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-44">
           
           <td class="task-name-cell">Fenster umsetzen (Sport 1-3)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0369a1;border:1px solid #0369a140">Fenster</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fenster" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-45">
           
           <td class="task-name-cell">Fenster umsetzen (Rest)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0369a1;border:1px solid #0369a140">Fenster</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="WDVS" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-46">
           
           <td class="task-name-cell">Straßenseite - WDVS / Mix</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">WDVS</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-47">
           
           <td class="task-name-cell">Balkonseite - WDVS</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fenster" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-48">
           
           <td class="task-name-cell">Treppenhaus Nord - Fenster</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0369a1;border:1px solid #0369a140">Fenster</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fenster" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-49">
           
           <td class="task-name-cell">Straßenseite - Fenster</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0369a1;border:1px solid #0369a140">Fenster</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="WDVS" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-50">
           
           <td class="task-name-cell">Straßenseite - PR-Fassade Büro, Eingang, Kidsarea etc.</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">WDVS</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1758,49 +1728,49 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Balkone
             <span class="progress-pill">0/6 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="fortschritt_90" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-51">
           
           <td class="task-name-cell">Balkone Rückseite (3+4. OG)</td>
           <td><span class="status-badge status-wip">90 %</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-52">
           
           <td class="task-name-cell">Geländer Rückseite (3+4. OG)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-53">
           
           <td class="task-name-cell">Entwässerung Rückseite (3+4. OG)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="fortschritt_75" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-54">
           
           <td class="task-name-cell">Brüstungen heraussägen (3+4. OG)</td>
           <td><span class="status-badge status-wip">75 %</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-55">
           
           <td class="task-name-cell">Balkone Straßenseite (3. OG)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-56">
           
           <td class="task-name-cell">Geländer Straßenseite (3. OG)</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -1808,21 +1778,21 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Hebe- / Schiebeelemente
             <span class="progress-pill">0/2 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="fortschritt_80" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-57">
           
           <td class="task-name-cell">Balkon, Hebe-/Schiebeelemente - 3. OG</td>
           <td><span class="status-badge status-wip">80 %</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="fortschritt_80" data-gewerk="Schlosser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-58">
           
           <td class="task-name-cell">Balkon, Hebe-/Schiebeelemente - 4. OG</td>
           <td><span class="status-badge status-wip">80 %</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Schlosser</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         
             
@@ -1833,628 +1803,628 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> Vordach 1.OG
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-100">
           <td class="task-name-cell">UK Sandwich</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:0px;width:42px" title="KW23"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:0px;width:126px" title="KW23"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-101">
           <td class="task-name-cell">Sandwichpaneel 60 mm</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:0px;width:42px" title="KW23"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:0px;width:126px" title="KW23"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-102">
           <td class="task-name-cell">Flüssigkunststoff</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:0px;width:42px" title="KW23"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:0px;width:126px" title="KW23"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Dach Kaltwassersatz
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-103" title="Material klären">
           <td class="task-name-cell">Dämmung <span style="color:#94a3b8;font-size:10px">· Material klären</span></td>
           <td><span class="status-badge status-delayed">Material fehlt</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-delayed" style="left:84px;width:84px" title="KW25–26 · Material klären"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-delayed" style="left:252px;width:252px" title="KW25–26 · Material klären"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-104">
           <td class="task-name-cell">Flüssigkunststoff</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:0px;width:84px" title="KW23–24"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:0px;width:252px" title="KW23–24"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-105">
           <td class="task-name-cell">Wanne</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:0px;width:84px" title="KW23–24"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:0px;width:252px" title="KW23–24"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Dach Brückenbau
             <span class="progress-pill">0/2 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-106">
           <td class="task-name-cell">Rinnen</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:42px;width:84px" title="KW24–25"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:126px;width:252px" title="KW24–25"></div></div></td>
         </tr>
         <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-107" title="Bestellen">
           <td class="task-name-cell">Regenrohr <span style="color:#94a3b8;font-size:10px">· Bestellen</span></td>
           <td><span class="status-badge status-delayed">verzögert</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-delayed" style="left:126px;width:84px" title="KW26–27 · Bestellen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-delayed" style="left:378px;width:252px" title="KW26–27 · Bestellen"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Dach TH Nord
             <span class="progress-pill">0/6 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-108" title="Wann? Kran?">
           <td class="task-name-cell">Decke öffnen für Abbruch (Aufzug) <span style="color:#94a3b8;font-size:10px">· Wann? Kran?</span></td>
           <td><span class="status-badge status-prio">Priorität</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-prio" style="left:210px;width:126px" title="KW28–30 · Wann? Kran?"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-prio" style="left:630px;width:378px" title="KW28–30 · Wann? Kran?"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-109" title="Unterkonstruktion planen">
           <td class="task-name-cell">Sandwich + UK <span style="color:#94a3b8;font-size:10px">· Unterkonstruktion planen</span></td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:126px" title="KW25–27 · Unterkonstruktion planen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:378px" title="KW25–27 · Unterkonstruktion planen"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-110">
           <td class="task-name-cell">Rinnen</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:126px" title="KW25–27"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:378px" title="KW25–27"></div></div></td>
         </tr>
         <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-111" title="Bestellen">
           <td class="task-name-cell">Regenrohr <span style="color:#94a3b8;font-size:10px">· Bestellen</span></td>
           <td><span class="status-badge status-delayed">verzögert</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-delayed" style="left:168px;width:126px" title="KW27–29 · Bestellen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-delayed" style="left:504px;width:378px" title="KW27–29 · Bestellen"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-112">
           <td class="task-name-cell">Kantteile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:126px" title="KW25–27"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:378px" title="KW25–27"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-113">
           <td class="task-name-cell">ABS</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:126px" title="KW25–27"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:378px" title="KW25–27"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Ostseite — EG P.R.-Fassade
             <span class="progress-pill">0/6 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-114">
           <td class="task-name-cell">Holzkonstruktion</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-115">
           <td class="task-name-cell">Raico-Profile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-116">
           <td class="task-name-cell">Glasscheiben</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sonstige" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-117">
           <td class="task-name-cell">Jalousien</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Sonstige</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-118">
           <td class="task-name-cell">Türe</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-119">
           <td class="task-name-cell">Lamellenfenster</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Ostseite — 1.OG
             <span class="progress-pill">0/8 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-120">
           <td class="task-name-cell">Fenster versetzen 1.+2.OG</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:210px;width:168px" title="KW28–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:630px;width:504px" title="KW28–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-121" title="Prüfen">
           <td class="task-name-cell">Fensterbänke <span style="color:#94a3b8;font-size:10px">· Prüfen</span></td>
           <td><span class="status-badge status-prio">Priorität</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-prio" style="left:210px;width:168px" title="KW28–31 · Prüfen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-prio" style="left:630px;width:504px" title="KW28–31 · Prüfen"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler/Gipser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-122">
           <td class="task-name-cell">WDVS</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">Maler/Gipser</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:210px;width:168px" title="KW28–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:630px;width:504px" title="KW28–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="verzögert" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-123">
           <td class="task-name-cell">Regenrohr</td>
           <td><span class="status-badge status-delayed">Material fehlt</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-delayed" style="left:294px;width:168px" title="KW30–33"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-delayed" style="left:882px;width:504px" title="KW30–33"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sonstige" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-124">
           <td class="task-name-cell">Jalousien 1.+2.OG (Farbe?)</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#475569;border:1px solid #47556940">Sonstige</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:210px;width:168px" title="KW28–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:630px;width:504px" title="KW28–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-125" title="Besprechen / Planen">
           <td class="task-name-cell">Beleuchtung <span style="color:#94a3b8;font-size:10px">· Besprechen / Planen</span></td>
           <td><span class="status-badge status-prio">Priorität</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#b45309;border:1px solid #b4530940">Elektro</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-prio" style="left:210px;width:168px" title="KW28–31 · Besprechen / Planen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-prio" style="left:630px;width:504px" title="KW28–31 · Besprechen / Planen"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-126">
           <td class="task-name-cell">Kante Süd-Ost</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:210px;width:168px" title="KW28–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:630px;width:504px" title="KW28–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-127">
           <td class="task-name-cell">Kante Nord-Ost</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:210px;width:168px" title="KW28–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:630px;width:504px" title="KW28–31"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> 4.OG Erweiterung Terrasse
             <span class="progress-pill">0/4 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-128">
           <td class="task-name-cell">Terrassenplatte 45×90×2</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0e7ff;color:#4f46e5;border:1px solid #4f46e540">Bodenbelag</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:252px;width:126px" title="KW29–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:756px;width:378px" title="KW29–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-129">
           <td class="task-name-cell">Stelzlager</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0e7ff;color:#4f46e5;border:1px solid #4f46e540">Bodenbelag</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:252px;width:126px" title="KW29–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:756px;width:378px" title="KW29–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-130">
           <td class="task-name-cell">UK für Geländer</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:252px;width:126px" title="KW29–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:756px;width:378px" title="KW29–31"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-131">
           <td class="task-name-cell">Glasgeländer</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:252px;width:126px" title="KW29–31"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:756px;width:378px" title="KW29–31"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Westseite — TH Nord
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-132">
           <td class="task-name-cell">Sandwich + UK</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:126px;width:126px" title="KW26–28"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:378px;width:378px" title="KW26–28"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-133">
           <td class="task-name-cell">Kantteile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:126px;width:126px" title="KW26–28"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:378px;width:378px" title="KW26–28"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-134">
           <td class="task-name-cell">Fenster + Lamellenfenster</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:126px;width:126px" title="KW26–28"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:378px;width:378px" title="KW26–28"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Südseite
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-135">
           <td class="task-name-cell">Fenster 3.OG</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:168px;width:126px" title="KW27–29"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:504px;width:378px" title="KW27–29"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-136">
           <td class="task-name-cell">Sandwich + UK (TH Nord)</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:168px;width:126px" title="KW27–29"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:504px;width:378px" title="KW27–29"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-137">
           <td class="task-name-cell">Kantteile (TH Nord)</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:168px;width:126px" title="KW27–29"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:504px;width:378px" title="KW27–29"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Nordseite — Eingang TH Nord
             <span class="progress-pill">0/6 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-138">
           <td class="task-name-cell">Holzkonstruktion</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-139">
           <td class="task-name-cell">Raico-Profile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-140">
           <td class="task-name-cell">Glasscheiben</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner/Endmontage" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-141">
           <td class="task-name-cell">Türe — Dormakaba</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#b91c1c;border:1px solid #b91c1c40">Schreiner/Endmontage</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-142">
           <td class="task-name-cell">Rosenfelder</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-143">
           <td class="task-name-cell">Fundamente + Bodenplatte</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:378px;width:168px" title="KW32–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1134px;width:504px" title="KW32–35"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Nordseite — Fassade
             <span class="progress-pill">0/4 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="priorität" data-gewerk="Elektro" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-144" title="Besprechen / Planen">
           <td class="task-name-cell">Beleuchtung <span style="color:#94a3b8;font-size:10px">· Besprechen / Planen</span></td>
           <td><span class="status-badge status-prio">Priorität</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#b45309;border:1px solid #b4530940">Elektro</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-prio" style="left:420px;width:126px" title="KW33–35 · Besprechen / Planen"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-prio" style="left:1260px;width:378px" title="KW33–35 · Besprechen / Planen"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler/Gipser" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-145">
           <td class="task-name-cell">WDVS 4.OG</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#d1fae5;color:#059669;border:1px solid #05966940">Maler/Gipser</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:420px;width:126px" title="KW33–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1260px;width:378px" title="KW33–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-146">
           <td class="task-name-cell">Sandwich + UK</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:420px;width:126px" title="KW33–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1260px;width:378px" title="KW33–35"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-147">
           <td class="task-name-cell">Kantteile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:420px;width:126px" title="KW33–35"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1260px;width:378px" title="KW33–35"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Nordseite — TH Nord 4.OG W 5.3
             <span class="progress-pill">0/4 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-148">
           <td class="task-name-cell">Fenster 4.OG W 5.3</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:462px;width:126px" title="KW34–36"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1386px;width:378px" title="KW34–36"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-149">
           <td class="task-name-cell">Sandwich + UK</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:462px;width:126px" title="KW34–36"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1386px;width:378px" title="KW34–36"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-150">
           <td class="task-name-cell">Kantteile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:462px;width:126px" title="KW34–36"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1386px;width:378px" title="KW34–36"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-151">
           <td class="task-name-cell">P.R.-Fassade</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:462px;width:126px" title="KW34–36"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:1386px;width:378px" title="KW34–36"></div></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> Brückenbau — 1.OG untere Decke
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-152">
           <td class="task-name-cell">Sandwich + UK</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:84px" title="KW25–26"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:252px" title="KW25–26"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-153">
           <td class="task-name-cell">Dämmung 60 mm</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:84px" title="KW25–26"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:252px" title="KW25–26"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Dach/Fassade" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gh-154">
           <td class="task-name-cell">Kantteile</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#9a3412;border:1px solid #9a341240">Dach/Fassade</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" style="left:84px;width:84px" title="KW25–26"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:252px;width:252px" title="KW25–26"></div></div></td>
         </tr>
                         <tr class="kfw-header-row" style="background:#94a3b8">
           <td class="task-name-cell" colspan="4">
             🏗️ PHASE 1 — W 5.2 + W 5.1 + T 5.1 · 4.OG · 364.98 m²
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> W 5.2 — Penthouse (236.50 m²) Phase 1 — nur Kleinigkeiten
             <span class="progress-pill">0/3 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="haustechnik" data-unit="W_5_2" data-task-type="other" data-tid="W_5_2-kleinigkeiten-1">
           <td class="task-name-cell">W 5.2 · Kleinigkeiten / Restarbeiten</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="haustechnik" data-unit="W_5_2" data-task-type="other" data-tid="W_5_2-kleinigkeiten-2">
           <td class="task-name-cell">W 5.2 · Malerarbeiten Nachbesserung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#ea580c;border:1px solid #ea580c40">Maler</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Endmontage" data-phase="haustechnik" data-unit="W_5_2" data-task-type="other" data-tid="W_5_2-kleinigkeiten-3">
           <td class="task-name-cell">W 5.2 · Endmontage / Abnahme</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Endmontage</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
                 <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> W 5.1 — 2-Zimmer (74.44 m²) Phase 1 — nur Kleinigkeiten
             <span class="progress-pill">0/2 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="haustechnik" data-unit="W_5_1" data-task-type="other" data-tid="W_5_1-kleinigkeiten-1">
           <td class="task-name-cell">W 5.1 · Kleinigkeiten / Restarbeiten</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Endmontage" data-phase="haustechnik" data-unit="W_5_1" data-task-type="other" data-tid="W_5_1-kleinigkeiten-2">
           <td class="task-name-cell">W 5.1 · Endmontage / Abnahme</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Endmontage</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           <td class="section-name" colspan="4">
             <span class="section-arrow">▶</span> T 5.1 — Studio (54.04 m²) Phase 1 (Wellnessbereich)
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-abbruch">
           <td class="task-name-cell">T 5.1 · Abbrucharbeiten</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Abbruch</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="haustechnik" data-unit="T_5_1" data-task-type="innen" data-tid="T_5_1-trockenbau">
           <td class="task-name-cell">T 5.1 · Trockenbau / Innenwände</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="haustechnik" data-unit="T_5_1" data-task-type="elektro" data-tid="T_5_1-elektro">
           <td class="task-name-cell">T 5.1 · Elektroinstallation</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#d97706;border:1px solid #d9770640">Elektro</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="haustechnik" data-unit="T_5_1" data-task-type="fbhz" data-tid="T_5_1-fbhz">
           <td class="task-name-cell">T 5.1 · FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fecaca;color:#dc2626;border:1px solid #dc262640">Heizung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="haustechnik" data-unit="T_5_1" data-task-type="estrich" data-tid="T_5_1-estrich">
           <td class="task-name-cell">T 5.1 · Estrich</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e9d5ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="haustechnik" data-unit="T_5_1" data-task-type="brandschutz" data-tid="T_5_1-brandschutz">
           <td class="task-name-cell">T 5.1 · Brandschutz</td>
           <td><span class="status-badge status-done">✓</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fliesen" data-phase="haustechnik" data-unit="T_5_1" data-task-type="fliesen" data-tid="T_5_1-fliesen">
           <td class="task-name-cell">T 5.1 · Bad-Fliesen</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ccfbf1;color:#0f766e;border:1px solid #0f766e40">Fliesen</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär" data-phase="haustechnik" data-unit="T_5_1" data-task-type="sanitaer" data-tid="T_5_1-sanitaer-end">
           <td class="task-name-cell">T 5.1 · Sanitär Endmontage</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="haustechnik" data-unit="T_5_1" data-task-type="maler" data-tid="T_5_1-maler">
           <td class="task-name-cell">T 5.1 · Streichen / Malerarbeiten</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#ea580c;border:1px solid #ea580c40">Maler</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="haustechnik" data-unit="T_5_1" data-task-type="boden" data-tid="T_5_1-boden">
           <td class="task-name-cell">T 5.1 · Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fed7aa;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_5_1" data-task-type="kueche" data-tid="T_5_1-kueche">
           <td class="task-name-cell">T 5.1 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_5_1" data-task-type="moeblierung" data-tid="T_5_1-moebel">
           <td class="task-name-cell">T 5.1 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="kfw-header-row" style="background:#16a34a">
           <td class="task-name-cell" colspan="4">
             🏗️ PHASE 2 — T 4.01 – T 4.08 · 3.OG · 397.99 m² · Estrich KW28
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
 
@@ -2462,105 +2432,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.01 — 3-Zimmer (72.35 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_01" data-task-type="innen" data-tid="T_4_01-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_01" data-task-type="elektro" data-tid="T_4_01-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_01" data-task-type="sanitaer" data-tid="T_4_01-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_01" data-task-type="fbhz" data-tid="T_4_01-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_01" data-task-type="estrich" data-tid="T_4_01-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_01" data-task-type="brandschutz" data-tid="T_4_01-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_01" data-task-type="decke" data-tid="T_4_01-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="492" data-base-width="42" style="left:492px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="492" data-base-width="42" style="left:1476px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_01" data-task-type="maler" data-tid="T_4_01-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="534" data-base-width="84" style="left:534px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="534" data-base-width="84" style="left:1602px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_01" data-task-type="boden" data-tid="T_4_01-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="618" data-base-width="30" style="left:618px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="618" data-base-width="30" style="left:1854px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_01" data-task-type="tueren" data-tid="T_4_01-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="618" data-base-width="42" style="left:618px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="618" data-base-width="42" style="left:1854px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_01" data-task-type="endmontage" data-tid="T_4_01-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="660" data-base-width="42" style="left:660px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="660" data-base-width="42" style="left:1980px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_01" data-task-type="blowerdoor" data-tid="T_4_01-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="702" data-base-width="42" style="left:702px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="702" data-base-width="42" style="left:2106px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_01" data-task-type="kueche" data-tid="T_4_01-kueche">
           <td class="task-name-cell">T 4.01 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_01" data-task-type="moeblierung" data-tid="T_4_01-moebel">
           <td class="task-name-cell">T 4.01 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -2568,105 +2538,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.02 — 2-Zimmer (60.20 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_02" data-task-type="innen" data-tid="T_4_02-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_02" data-task-type="elektro" data-tid="T_4_02-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:6px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="6" style="left:0px;width:18px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_02" data-task-type="sanitaer" data-tid="T_4_02-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="9" style="left:0px;width:9px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="9" style="left:0px;width:27px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_02" data-task-type="fbhz" data-tid="T_4_02-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="30" style="left:0px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="30" style="left:0px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_02" data-task-type="estrich" data-tid="T_4_02-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_02" data-task-type="brandschutz" data-tid="T_4_02-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_02" data-task-type="decke" data-tid="T_4_02-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="507" data-base-width="42" style="left:507px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="507" data-base-width="42" style="left:1521px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_02" data-task-type="maler" data-tid="T_4_02-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="549" data-base-width="84" style="left:549px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="549" data-base-width="84" style="left:1647px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_02" data-task-type="boden" data-tid="T_4_02-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="633" data-base-width="30" style="left:633px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="633" data-base-width="30" style="left:1899px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_02" data-task-type="tueren" data-tid="T_4_02-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="633" data-base-width="42" style="left:633px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="633" data-base-width="42" style="left:1899px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_02" data-task-type="endmontage" data-tid="T_4_02-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="675" data-base-width="42" style="left:675px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="675" data-base-width="42" style="left:2025px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_02" data-task-type="blowerdoor" data-tid="T_4_02-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="717" data-base-width="42" style="left:717px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="717" data-base-width="42" style="left:2151px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_02" data-task-type="kueche" data-tid="T_4_02-kueche">
           <td class="task-name-cell">T 4.02 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_02" data-task-type="moeblierung" data-tid="T_4_02-moebel">
           <td class="task-name-cell">T 4.02 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -2674,105 +2644,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.03 — 2-Zimmer (54.79 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_03" data-task-type="innen" data-tid="T_4_03-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="18" style="left:0px;width:18px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="18" style="left:0px;width:54px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_03" data-task-type="elektro" data-tid="T_4_03-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="18" style="left:0px;width:18px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="0" data-base-width="18" style="left:0px;width:54px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_03" data-task-type="sanitaer" data-tid="T_4_03-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="39" style="left:0px;width:39px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="0" data-base-width="39" style="left:0px;width:117px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_03" data-task-type="fbhz" data-tid="T_4_03-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="18" data-base-width="42" style="left:18px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="18" data-base-width="42" style="left:54px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_03" data-task-type="estrich" data-tid="T_4_03-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_03" data-task-type="brandschutz" data-tid="T_4_03-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_03" data-task-type="decke" data-tid="T_4_03-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="522" data-base-width="42" style="left:522px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="522" data-base-width="42" style="left:1566px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_03" data-task-type="maler" data-tid="T_4_03-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="564" data-base-width="84" style="left:564px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="564" data-base-width="84" style="left:1692px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_03" data-task-type="boden" data-tid="T_4_03-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="648" data-base-width="30" style="left:648px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="648" data-base-width="30" style="left:1944px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_03" data-task-type="tueren" data-tid="T_4_03-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="648" data-base-width="42" style="left:648px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="648" data-base-width="42" style="left:1944px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_03" data-task-type="endmontage" data-tid="T_4_03-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="690" data-base-width="42" style="left:690px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="690" data-base-width="42" style="left:2070px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_03" data-task-type="blowerdoor" data-tid="T_4_03-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="732" data-base-width="42" style="left:732px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="732" data-base-width="42" style="left:2196px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_03" data-task-type="kueche" data-tid="T_4_03-kueche">
           <td class="task-name-cell">T 4.03 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_03" data-task-type="moeblierung" data-tid="T_4_03-moebel">
           <td class="task-name-cell">T 4.03 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -2780,105 +2750,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.04 — 2-Zimmer (54.79 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_04" data-task-type="innen" data-tid="T_4_04-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="6" data-base-width="42" style="left:6px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="6" data-base-width="42" style="left:18px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_04" data-task-type="elektro" data-tid="T_4_04-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="6" data-base-width="42" style="left:6px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="6" data-base-width="42" style="left:18px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_04" data-task-type="sanitaer" data-tid="T_4_04-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="27" data-base-width="42" style="left:27px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="27" data-base-width="42" style="left:81px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_04" data-task-type="fbhz" data-tid="T_4_04-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="48" data-base-width="42" style="left:48px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="48" data-base-width="42" style="left:144px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_04" data-task-type="estrich" data-tid="T_4_04-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_04" data-task-type="brandschutz" data-tid="T_4_04-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_04" data-task-type="decke" data-tid="T_4_04-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="537" data-base-width="42" style="left:537px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="537" data-base-width="42" style="left:1611px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_04" data-task-type="maler" data-tid="T_4_04-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="579" data-base-width="84" style="left:579px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="579" data-base-width="84" style="left:1737px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_04" data-task-type="boden" data-tid="T_4_04-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="663" data-base-width="30" style="left:663px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="663" data-base-width="30" style="left:1989px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_04" data-task-type="tueren" data-tid="T_4_04-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="663" data-base-width="42" style="left:663px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="663" data-base-width="42" style="left:1989px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_04" data-task-type="endmontage" data-tid="T_4_04-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="705" data-base-width="42" style="left:705px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="705" data-base-width="42" style="left:2115px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_04" data-task-type="blowerdoor" data-tid="T_4_04-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="747" data-base-width="42" style="left:747px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="747" data-base-width="42" style="left:2241px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_04" data-task-type="kueche" data-tid="T_4_04-kueche">
           <td class="task-name-cell">T 4.04 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_04" data-task-type="moeblierung" data-tid="T_4_04-moebel">
           <td class="task-name-cell">T 4.04 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -2886,105 +2856,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.05 — Studio (31.55 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_05" data-task-type="innen" data-tid="T_4_05-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="36" data-base-width="30" style="left:36px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="36" data-base-width="30" style="left:108px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_05" data-task-type="elektro" data-tid="T_4_05-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="36" data-base-width="42" style="left:36px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="36" data-base-width="42" style="left:108px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_05" data-task-type="sanitaer" data-tid="T_4_05-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="57" data-base-width="42" style="left:57px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="57" data-base-width="42" style="left:171px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_05" data-task-type="fbhz" data-tid="T_4_05-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="78" data-base-width="42" style="left:78px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="78" data-base-width="42" style="left:234px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_05" data-task-type="estrich" data-tid="T_4_05-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_05" data-task-type="brandschutz" data-tid="T_4_05-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_05" data-task-type="decke" data-tid="T_4_05-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="552" data-base-width="42" style="left:552px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="552" data-base-width="42" style="left:1656px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_05" data-task-type="maler" data-tid="T_4_05-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="594" data-base-width="42" style="left:594px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="594" data-base-width="42" style="left:1782px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_05" data-task-type="boden" data-tid="T_4_05-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="636" data-base-width="30" style="left:636px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="636" data-base-width="30" style="left:1908px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_05" data-task-type="tueren" data-tid="T_4_05-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="636" data-base-width="42" style="left:636px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="636" data-base-width="42" style="left:1908px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_05" data-task-type="endmontage" data-tid="T_4_05-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="678" data-base-width="42" style="left:678px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="678" data-base-width="42" style="left:2034px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_05" data-task-type="blowerdoor" data-tid="T_4_05-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="720" data-base-width="42" style="left:720px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="720" data-base-width="42" style="left:2160px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_05" data-task-type="kueche" data-tid="T_4_05-kueche">
           <td class="task-name-cell">T 4.05 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_05" data-task-type="moeblierung" data-tid="T_4_05-moebel">
           <td class="task-name-cell">T 4.05 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -2992,105 +2962,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.06 — Studio (31.62 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_06" data-task-type="innen" data-tid="T_4_06-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="66" data-base-width="30" style="left:66px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="66" data-base-width="30" style="left:198px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_06" data-task-type="elektro" data-tid="T_4_06-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="66" data-base-width="42" style="left:66px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="66" data-base-width="42" style="left:198px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_06" data-task-type="sanitaer" data-tid="T_4_06-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="87" data-base-width="42" style="left:87px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="87" data-base-width="42" style="left:261px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_06" data-task-type="fbhz" data-tid="T_4_06-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="108" data-base-width="42" style="left:108px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="108" data-base-width="42" style="left:324px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_06" data-task-type="estrich" data-tid="T_4_06-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_06" data-task-type="brandschutz" data-tid="T_4_06-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_06" data-task-type="decke" data-tid="T_4_06-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="567" data-base-width="42" style="left:567px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="567" data-base-width="42" style="left:1701px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_06" data-task-type="maler" data-tid="T_4_06-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="609" data-base-width="42" style="left:609px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="609" data-base-width="42" style="left:1827px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_06" data-task-type="boden" data-tid="T_4_06-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="651" data-base-width="30" style="left:651px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="651" data-base-width="30" style="left:1953px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_06" data-task-type="tueren" data-tid="T_4_06-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="651" data-base-width="42" style="left:651px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="651" data-base-width="42" style="left:1953px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_06" data-task-type="endmontage" data-tid="T_4_06-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="693" data-base-width="42" style="left:693px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="693" data-base-width="42" style="left:2079px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_06" data-task-type="blowerdoor" data-tid="T_4_06-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="735" data-base-width="42" style="left:735px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="735" data-base-width="42" style="left:2205px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_06" data-task-type="kueche" data-tid="T_4_06-kueche">
           <td class="task-name-cell">T 4.06 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_06" data-task-type="moeblierung" data-tid="T_4_06-moebel">
           <td class="task-name-cell">T 4.06 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3098,105 +3068,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.07 — Studio (31.67 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_07" data-task-type="innen" data-tid="T_4_07-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="96" data-base-width="30" style="left:96px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="96" data-base-width="30" style="left:288px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_07" data-task-type="elektro" data-tid="T_4_07-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="96" data-base-width="42" style="left:96px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="96" data-base-width="42" style="left:288px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_07" data-task-type="sanitaer" data-tid="T_4_07-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="117" data-base-width="42" style="left:117px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="117" data-base-width="42" style="left:351px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_07" data-task-type="fbhz" data-tid="T_4_07-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="138" data-base-width="42" style="left:138px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="138" data-base-width="42" style="left:414px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_07" data-task-type="estrich" data-tid="T_4_07-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_07" data-task-type="brandschutz" data-tid="T_4_07-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_07" data-task-type="decke" data-tid="T_4_07-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="582" data-base-width="42" style="left:582px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="582" data-base-width="42" style="left:1746px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_07" data-task-type="maler" data-tid="T_4_07-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="624" data-base-width="42" style="left:624px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="624" data-base-width="42" style="left:1872px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_07" data-task-type="boden" data-tid="T_4_07-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="666" data-base-width="30" style="left:666px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="666" data-base-width="30" style="left:1998px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_07" data-task-type="tueren" data-tid="T_4_07-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="666" data-base-width="42" style="left:666px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="666" data-base-width="42" style="left:1998px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_07" data-task-type="endmontage" data-tid="T_4_07-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="708" data-base-width="42" style="left:708px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="708" data-base-width="42" style="left:2124px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_07" data-task-type="blowerdoor" data-tid="T_4_07-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="750" data-base-width="42" style="left:750px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="750" data-base-width="42" style="left:2250px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_07" data-task-type="kueche" data-tid="T_4_07-kueche">
           <td class="task-name-cell">T 4.07 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_07" data-task-type="moeblierung" data-tid="T_4_07-moebel">
           <td class="task-name-cell">T 4.07 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3204,111 +3174,111 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.08 — 2-Zimmer (61.02 m²) Phase 2
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_08" data-task-type="innen" data-tid="T_4_08-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="126" data-base-width="42" style="left:126px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="126" data-base-width="42" style="left:378px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_08" data-task-type="elektro" data-tid="T_4_08-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="126" data-base-width="42" style="left:126px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="126" data-base-width="42" style="left:378px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_08" data-task-type="sanitaer" data-tid="T_4_08-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="147" data-base-width="42" style="left:147px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="147" data-base-width="42" style="left:441px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_08" data-task-type="fbhz" data-tid="T_4_08-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="42" style="left:168px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="42" style="left:504px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_08" data-task-type="estrich" data-tid="T_4_08-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_08" data-task-type="brandschutz" data-tid="T_4_08-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_08" data-task-type="decke" data-tid="T_4_08-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="597" data-base-width="42" style="left:597px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="597" data-base-width="42" style="left:1791px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_08" data-task-type="maler" data-tid="T_4_08-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="639" data-base-width="84" style="left:639px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="639" data-base-width="84" style="left:1917px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_08" data-task-type="boden" data-tid="T_4_08-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="723" data-base-width="30" style="left:723px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="723" data-base-width="30" style="left:2169px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_08" data-task-type="tueren" data-tid="T_4_08-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="723" data-base-width="42" style="left:723px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="723" data-base-width="42" style="left:2169px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_08" data-task-type="endmontage" data-tid="T_4_08-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="765" data-base-width="42" style="left:765px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="765" data-base-width="42" style="left:2295px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_08" data-task-type="blowerdoor" data-tid="T_4_08-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="807" data-base-width="42" style="left:807px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="807" data-base-width="42" style="left:2421px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_08" data-task-type="kueche" data-tid="T_4_08-kueche">
           <td class="task-name-cell">T 4.08 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_08" data-task-type="moeblierung" data-tid="T_4_08-moebel">
           <td class="task-name-cell">T 4.08 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
                 <tr class="kfw-header-row" style="background:#d97706">
           <td class="task-name-cell" colspan="4">
             🏗️ PHASE 3 — T 4.22 → T 4.09 (Maisonette) · 3.OG · 627.91 m² · Estrich KW33
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
 
@@ -3316,91 +3286,91 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.22 — Büro (102.73 m²) Phase 3 — Praxis-Einheit
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_22" data-task-type="innen" data-tid="T_4_22-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="324" data-base-width="42" style="left:324px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="324" data-base-width="42" style="left:972px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_22" data-task-type="elektro" data-tid="T_4_22-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="324" data-base-width="42" style="left:324px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="324" data-base-width="42" style="left:972px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_22" data-task-type="sanitaer" data-tid="T_4_22-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="345" data-base-width="42" style="left:345px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="345" data-base-width="42" style="left:1035px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_22" data-task-type="fbhz" data-tid="T_4_22-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="366" data-base-width="42" style="left:366px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="366" data-base-width="42" style="left:1098px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_22" data-task-type="estrich" data-tid="T_4_22-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_22" data-task-type="brandschutz" data-tid="T_4_22-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_22" data-task-type="decke" data-tid="T_4_22-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="780" data-base-width="42" style="left:780px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="780" data-base-width="42" style="left:2340px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_22" data-task-type="maler" data-tid="T_4_22-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="822" data-base-width="84" style="left:822px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="822" data-base-width="84" style="left:2466px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_22" data-task-type="boden" data-tid="T_4_22-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="906" data-base-width="30" style="left:906px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="906" data-base-width="30" style="left:2718px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_22" data-task-type="tueren" data-tid="T_4_22-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="906" data-base-width="42" style="left:906px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="906" data-base-width="42" style="left:2718px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_22" data-task-type="endmontage" data-tid="T_4_22-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="948" data-base-width="42" style="left:948px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="948" data-base-width="42" style="left:2844px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_22" data-task-type="blowerdoor" data-tid="T_4_22-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="990" data-base-width="42" style="left:990px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="990" data-base-width="42" style="left:2970px;width:126px"></div></div></td>
         </tr>
 
         
@@ -3410,105 +3380,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.20 — Studio (31.63 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_20" data-task-type="innen" data-tid="T_4_20-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="294" data-base-width="30" style="left:294px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="294" data-base-width="30" style="left:882px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_20" data-task-type="elektro" data-tid="T_4_20-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="294" data-base-width="42" style="left:294px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="294" data-base-width="42" style="left:882px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_20" data-task-type="sanitaer" data-tid="T_4_20-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="315" data-base-width="42" style="left:315px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="315" data-base-width="42" style="left:945px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_20" data-task-type="fbhz" data-tid="T_4_20-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="336" data-base-width="42" style="left:336px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="336" data-base-width="42" style="left:1008px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_20" data-task-type="estrich" data-tid="T_4_20-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_20" data-task-type="brandschutz" data-tid="T_4_20-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_20" data-task-type="decke" data-tid="T_4_20-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="765" data-base-width="42" style="left:765px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="765" data-base-width="42" style="left:2295px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_20" data-task-type="maler" data-tid="T_4_20-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="807" data-base-width="42" style="left:807px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="807" data-base-width="42" style="left:2421px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_20" data-task-type="boden" data-tid="T_4_20-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="849" data-base-width="30" style="left:849px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="849" data-base-width="30" style="left:2547px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_20" data-task-type="tueren" data-tid="T_4_20-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="849" data-base-width="42" style="left:849px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="849" data-base-width="42" style="left:2547px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_20" data-task-type="endmontage" data-tid="T_4_20-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="891" data-base-width="42" style="left:891px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="891" data-base-width="42" style="left:2673px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_20" data-task-type="blowerdoor" data-tid="T_4_20-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="933" data-base-width="42" style="left:933px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="933" data-base-width="42" style="left:2799px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_20" data-task-type="kueche" data-tid="T_4_20-kueche">
           <td class="task-name-cell">T 4.20 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_20" data-task-type="moeblierung" data-tid="T_4_20-moebel">
           <td class="task-name-cell">T 4.20 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3516,105 +3486,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.18 — Studio (31.55 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_18" data-task-type="innen" data-tid="T_4_18-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="264" data-base-width="30" style="left:264px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="264" data-base-width="30" style="left:792px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_18" data-task-type="elektro" data-tid="T_4_18-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="264" data-base-width="42" style="left:264px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="264" data-base-width="42" style="left:792px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_18" data-task-type="sanitaer" data-tid="T_4_18-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="285" data-base-width="42" style="left:285px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="285" data-base-width="42" style="left:855px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_18" data-task-type="fbhz" data-tid="T_4_18-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="306" data-base-width="42" style="left:306px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="306" data-base-width="42" style="left:918px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_18" data-task-type="estrich" data-tid="T_4_18-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_18" data-task-type="brandschutz" data-tid="T_4_18-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_18" data-task-type="decke" data-tid="T_4_18-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="750" data-base-width="42" style="left:750px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="750" data-base-width="42" style="left:2250px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_18" data-task-type="maler" data-tid="T_4_18-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="792" data-base-width="42" style="left:792px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="792" data-base-width="42" style="left:2376px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_18" data-task-type="boden" data-tid="T_4_18-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="834" data-base-width="30" style="left:834px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="834" data-base-width="30" style="left:2502px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_18" data-task-type="tueren" data-tid="T_4_18-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="834" data-base-width="42" style="left:834px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="834" data-base-width="42" style="left:2502px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_18" data-task-type="endmontage" data-tid="T_4_18-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="876" data-base-width="42" style="left:876px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="876" data-base-width="42" style="left:2628px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_18" data-task-type="blowerdoor" data-tid="T_4_18-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="918" data-base-width="42" style="left:918px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="918" data-base-width="42" style="left:2754px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_18" data-task-type="kueche" data-tid="T_4_18-kueche">
           <td class="task-name-cell">T 4.18 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_18" data-task-type="moeblierung" data-tid="T_4_18-moebel">
           <td class="task-name-cell">T 4.18 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3622,105 +3592,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.16 — Studio (31.60 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_16" data-task-type="innen" data-tid="T_4_16-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="234" data-base-width="30" style="left:234px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="234" data-base-width="30" style="left:702px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_16" data-task-type="elektro" data-tid="T_4_16-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="234" data-base-width="42" style="left:234px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="234" data-base-width="42" style="left:702px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_16" data-task-type="sanitaer" data-tid="T_4_16-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="255" data-base-width="42" style="left:255px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="255" data-base-width="42" style="left:765px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_16" data-task-type="fbhz" data-tid="T_4_16-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="276" data-base-width="42" style="left:276px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="276" data-base-width="42" style="left:828px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_16" data-task-type="estrich" data-tid="T_4_16-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_16" data-task-type="brandschutz" data-tid="T_4_16-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_16" data-task-type="decke" data-tid="T_4_16-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="735" data-base-width="42" style="left:735px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="735" data-base-width="42" style="left:2205px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_16" data-task-type="maler" data-tid="T_4_16-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="777" data-base-width="42" style="left:777px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="777" data-base-width="42" style="left:2331px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_16" data-task-type="boden" data-tid="T_4_16-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="819" data-base-width="30" style="left:819px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="819" data-base-width="30" style="left:2457px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_16" data-task-type="tueren" data-tid="T_4_16-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="819" data-base-width="42" style="left:819px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="819" data-base-width="42" style="left:2457px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_16" data-task-type="endmontage" data-tid="T_4_16-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="861" data-base-width="42" style="left:861px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="861" data-base-width="42" style="left:2583px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_16" data-task-type="blowerdoor" data-tid="T_4_16-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="903" data-base-width="42" style="left:903px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="903" data-base-width="42" style="left:2709px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_16" data-task-type="kueche" data-tid="T_4_16-kueche">
           <td class="task-name-cell">T 4.16 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_16" data-task-type="moeblierung" data-tid="T_4_16-moebel">
           <td class="task-name-cell">T 4.16 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3728,105 +3698,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.14 — Studio (31.57 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_14" data-task-type="innen" data-tid="T_4_14-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="204" data-base-width="30" style="left:204px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="204" data-base-width="30" style="left:612px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_14" data-task-type="elektro" data-tid="T_4_14-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="204" data-base-width="42" style="left:204px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="204" data-base-width="42" style="left:612px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_14" data-task-type="sanitaer" data-tid="T_4_14-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="225" data-base-width="42" style="left:225px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="225" data-base-width="42" style="left:675px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_14" data-task-type="fbhz" data-tid="T_4_14-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="246" data-base-width="42" style="left:246px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="246" data-base-width="42" style="left:738px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_14" data-task-type="estrich" data-tid="T_4_14-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_14" data-task-type="brandschutz" data-tid="T_4_14-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_14" data-task-type="decke" data-tid="T_4_14-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="720" data-base-width="42" style="left:720px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="720" data-base-width="42" style="left:2160px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_14" data-task-type="maler" data-tid="T_4_14-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="762" data-base-width="42" style="left:762px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="762" data-base-width="42" style="left:2286px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_14" data-task-type="boden" data-tid="T_4_14-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="804" data-base-width="30" style="left:804px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="804" data-base-width="30" style="left:2412px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_14" data-task-type="tueren" data-tid="T_4_14-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="804" data-base-width="42" style="left:804px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="804" data-base-width="42" style="left:2412px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_14" data-task-type="endmontage" data-tid="T_4_14-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="846" data-base-width="42" style="left:846px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="846" data-base-width="42" style="left:2538px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_14" data-task-type="blowerdoor" data-tid="T_4_14-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="888" data-base-width="42" style="left:888px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="888" data-base-width="42" style="left:2664px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_14" data-task-type="kueche" data-tid="T_4_14-kueche">
           <td class="task-name-cell">T 4.14 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_14" data-task-type="moeblierung" data-tid="T_4_14-moebel">
           <td class="task-name-cell">T 4.14 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3834,105 +3804,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.13 — Studio (32.73 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_13" data-task-type="innen" data-tid="T_4_13-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="174" data-base-width="30" style="left:174px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="174" data-base-width="30" style="left:522px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_13" data-task-type="elektro" data-tid="T_4_13-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="174" data-base-width="42" style="left:174px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="174" data-base-width="42" style="left:522px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_13" data-task-type="sanitaer" data-tid="T_4_13-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="195" data-base-width="42" style="left:195px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="195" data-base-width="42" style="left:585px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_13" data-task-type="fbhz" data-tid="T_4_13-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="216" data-base-width="42" style="left:216px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="216" data-base-width="42" style="left:648px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_13" data-task-type="estrich" data-tid="T_4_13-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_13" data-task-type="brandschutz" data-tid="T_4_13-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_13" data-task-type="decke" data-tid="T_4_13-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="705" data-base-width="42" style="left:705px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="705" data-base-width="42" style="left:2115px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_13" data-task-type="maler" data-tid="T_4_13-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="747" data-base-width="42" style="left:747px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="747" data-base-width="42" style="left:2241px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_13" data-task-type="boden" data-tid="T_4_13-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="789" data-base-width="30" style="left:789px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="789" data-base-width="30" style="left:2367px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_13" data-task-type="tueren" data-tid="T_4_13-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="789" data-base-width="42" style="left:789px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="789" data-base-width="42" style="left:2367px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_13" data-task-type="endmontage" data-tid="T_4_13-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="831" data-base-width="42" style="left:831px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="831" data-base-width="42" style="left:2493px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_13" data-task-type="blowerdoor" data-tid="T_4_13-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="873" data-base-width="42" style="left:873px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="873" data-base-width="42" style="left:2619px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_13" data-task-type="kueche" data-tid="T_4_13-kueche">
           <td class="task-name-cell">T 4.13 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_13" data-task-type="moeblierung" data-tid="T_4_13-moebel">
           <td class="task-name-cell">T 4.13 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -3940,105 +3910,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.12 — Studio (31.18 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_12" data-task-type="innen" data-tid="T_4_12-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="144" data-base-width="30" style="left:144px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="144" data-base-width="30" style="left:432px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_12" data-task-type="elektro" data-tid="T_4_12-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="144" data-base-width="42" style="left:144px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="144" data-base-width="42" style="left:432px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_12" data-task-type="sanitaer" data-tid="T_4_12-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="165" data-base-width="42" style="left:165px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="165" data-base-width="42" style="left:495px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_12" data-task-type="fbhz" data-tid="T_4_12-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="186" data-base-width="42" style="left:186px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="186" data-base-width="42" style="left:558px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_12" data-task-type="estrich" data-tid="T_4_12-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_12" data-task-type="brandschutz" data-tid="T_4_12-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_12" data-task-type="decke" data-tid="T_4_12-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="690" data-base-width="42" style="left:690px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="690" data-base-width="42" style="left:2070px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_12" data-task-type="maler" data-tid="T_4_12-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="732" data-base-width="42" style="left:732px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="732" data-base-width="42" style="left:2196px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_12" data-task-type="boden" data-tid="T_4_12-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="774" data-base-width="30" style="left:774px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="774" data-base-width="30" style="left:2322px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_12" data-task-type="tueren" data-tid="T_4_12-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="774" data-base-width="42" style="left:774px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="774" data-base-width="42" style="left:2322px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_12" data-task-type="endmontage" data-tid="T_4_12-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="816" data-base-width="42" style="left:816px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="816" data-base-width="42" style="left:2448px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_12" data-task-type="blowerdoor" data-tid="T_4_12-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="858" data-base-width="42" style="left:858px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="858" data-base-width="42" style="left:2574px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_12" data-task-type="kueche" data-tid="T_4_12-kueche">
           <td class="task-name-cell">T 4.12 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_12" data-task-type="moeblierung" data-tid="T_4_12-moebel">
           <td class="task-name-cell">T 4.12 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -4046,105 +4016,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.11 — 2-Zimmer (61.01 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_11" data-task-type="innen" data-tid="T_4_11-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="114" data-base-width="42" style="left:114px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="114" data-base-width="42" style="left:342px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_11" data-task-type="elektro" data-tid="T_4_11-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="114" data-base-width="42" style="left:114px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="114" data-base-width="42" style="left:342px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_11" data-task-type="sanitaer" data-tid="T_4_11-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="135" data-base-width="42" style="left:135px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="135" data-base-width="42" style="left:405px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_11" data-task-type="fbhz" data-tid="T_4_11-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="156" data-base-width="42" style="left:156px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="156" data-base-width="42" style="left:468px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_11" data-task-type="estrich" data-tid="T_4_11-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_11" data-task-type="brandschutz" data-tid="T_4_11-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_11" data-task-type="decke" data-tid="T_4_11-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="675" data-base-width="42" style="left:675px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="675" data-base-width="42" style="left:2025px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_11" data-task-type="maler" data-tid="T_4_11-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="717" data-base-width="84" style="left:717px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="717" data-base-width="84" style="left:2151px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_11" data-task-type="boden" data-tid="T_4_11-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="801" data-base-width="30" style="left:801px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="801" data-base-width="30" style="left:2403px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_11" data-task-type="tueren" data-tid="T_4_11-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="801" data-base-width="42" style="left:801px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="801" data-base-width="42" style="left:2403px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_11" data-task-type="endmontage" data-tid="T_4_11-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="843" data-base-width="42" style="left:843px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="843" data-base-width="42" style="left:2529px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_11" data-task-type="blowerdoor" data-tid="T_4_11-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="885" data-base-width="42" style="left:885px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="885" data-base-width="42" style="left:2655px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_11" data-task-type="kueche" data-tid="T_4_11-kueche">
           <td class="task-name-cell">T 4.11 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_11" data-task-type="moeblierung" data-tid="T_4_11-moebel">
           <td class="task-name-cell">T 4.11 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -4152,105 +4122,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.10 — Studio (31.98 m²) Phase 3
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_10" data-task-type="innen" data-tid="T_4_10-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="30" style="left:84px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="30" style="left:252px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="T_4_10" data-task-type="elektro" data-tid="T_4_10-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:84px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:252px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_4_10" data-task-type="sanitaer" data-tid="T_4_10-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="105" data-base-width="42" style="left:105px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="105" data-base-width="42" style="left:315px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_4_10" data-task-type="fbhz" data-tid="T_4_10-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="126" data-base-width="42" style="left:126px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="126" data-base-width="42" style="left:378px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_4_10" data-task-type="estrich" data-tid="T_4_10-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:408px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="252" style="left:1224px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="T_4_10" data-task-type="brandschutz" data-tid="T_4_10-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:408px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="408" data-base-width="30" style="left:1224px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_4_10" data-task-type="decke" data-tid="T_4_10-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="660" data-base-width="42" style="left:660px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="660" data-base-width="42" style="left:1980px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_4_10" data-task-type="maler" data-tid="T_4_10-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="702" data-base-width="42" style="left:702px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="702" data-base-width="42" style="left:2106px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="T_4_10" data-task-type="boden" data-tid="T_4_10-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="744" data-base-width="30" style="left:744px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="744" data-base-width="30" style="left:2232px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_4_10" data-task-type="tueren" data-tid="T_4_10-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="744" data-base-width="42" style="left:744px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="744" data-base-width="42" style="left:2232px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="T_4_10" data-task-type="endmontage" data-tid="T_4_10-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="786" data-base-width="42" style="left:786px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="786" data-base-width="42" style="left:2358px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="T_4_10" data-task-type="blowerdoor" data-tid="T_4_10-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="828" data-base-width="42" style="left:828px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="828" data-base-width="42" style="left:2484px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_10" data-task-type="kueche" data-tid="T_4_10-kueche">
           <td class="task-name-cell">T 4.10 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_10" data-task-type="moeblierung" data-tid="T_4_10-moebel">
           <td class="task-name-cell">T 4.10 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
 
@@ -4258,105 +4228,105 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> T 4.09 — Maisonette (177.01 m²) Phase 3/4 — +196.45 m² 4.OG
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_09" data-task-type="innen" data-tid="T_4_09-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="156" data-base-width="42" style="left:156px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="156" data-base-width="42" style="left:468px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph1b" data-unit="T_4_09" data-task-type="elektro" data-tid="T_4_09-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="156" data-base-width="42" style="left:156px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="156" data-base-width="42" style="left:468px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph1b" data-unit="T_4_09" data-task-type="sanitaer" data-tid="T_4_09-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="177" data-base-width="42" style="left:177px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="177" data-base-width="42" style="left:531px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph1b" data-unit="T_4_09" data-task-type="fbhz" data-tid="T_4_09-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="198" data-base-width="42" style="left:198px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="198" data-base-width="42" style="left:594px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph1b" data-unit="T_4_09" data-task-type="estrich" data-tid="T_4_09-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:240px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="252" style="left:720px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph1b" data-unit="T_4_09" data-task-type="brandschutz" data-tid="T_4_09-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:240px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="240" data-base-width="30" style="left:720px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph1b" data-unit="T_4_09" data-task-type="decke" data-tid="T_4_09-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="612" data-base-width="42" style="left:612px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="612" data-base-width="42" style="left:1836px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph1b" data-unit="T_4_09" data-task-type="maler" data-tid="T_4_09-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="654" data-base-width="84" style="left:654px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="654" data-base-width="84" style="left:1962px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph1b" data-unit="T_4_09" data-task-type="boden" data-tid="T_4_09-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="738" data-base-width="30" style="left:738px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="738" data-base-width="30" style="left:2214px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph1b" data-unit="T_4_09" data-task-type="tueren" data-tid="T_4_09-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="738" data-base-width="42" style="left:738px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="738" data-base-width="42" style="left:2214px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph1b" data-unit="T_4_09" data-task-type="endmontage" data-tid="T_4_09-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="780" data-base-width="42" style="left:780px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="780" data-base-width="42" style="left:2340px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph1b" data-unit="T_4_09" data-task-type="blowerdoor" data-tid="T_4_09-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="822" data-base-width="42" style="left:822px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="822" data-base-width="42" style="left:2466px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="T_4_09" data-task-type="kueche" data-tid="T_4_09-kueche">
           <td class="task-name-cell">T 4.09 · Kücheneinbau</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Möblierung" data-phase="haustechnik" data-unit="T_4_09" data-task-type="moeblierung" data-tid="T_4_09-moebel">
           <td class="task-name-cell">T 4.09 · Möblierung</td>
           <td><span class="status-badge status-planned">—</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Möblierung</span></td>
           <td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 
         
@@ -4364,7 +4334,7 @@ function scrollToCard(id) {
           <td class="task-name-cell" colspan="4">
             🏗️ PHASE 4 — W 5.3 · 4.OG · 288.14 m² (Penthouse)
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 <tr class="section-row">
 
@@ -4372,91 +4342,91 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> W 5.3 — Penthouse (288.14 m²) Phase 4 — 4.OG (Penthouse)
             <span class="progress-pill">0/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="W_5_3" data-task-type="innen" data-tid="W_5_3-innen-1">
 
           <td class="task-name-cell">Innenwände 2. Beplankung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:84px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:252px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Elektro" data-phase="ph2" data-unit="W_5_3" data-task-type="elektro" data-tid="W_5_3-elektro-1">
 
           <td class="task-name-cell">Elektroinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#d97706;border:1px solid #d9770640">Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:84px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" data-base-left="84" data-base-width="42" style="left:252px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="W_5_3" data-task-type="sanitaer" data-tid="W_5_3-sanitaer-1">
 
           <td class="task-name-cell">Sanitärinstallation 1. Fix</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="105" data-base-width="42" style="left:105px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="105" data-base-width="42" style="left:315px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="W_5_3" data-task-type="fbhz" data-tid="W_5_3-fbhz-1">
 
           <td class="task-name-cell">FBHZ Rohrleitungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="126" data-base-width="42" style="left:126px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="126" data-base-width="42" style="left:378px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="W_5_3" data-task-type="estrich" data-tid="W_5_3-estrich-1">
 
           <td class="task-name-cell">Estrich (inkl. Trocknung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">Chini</td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="252" style="left:168px;width:252px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="252" style="left:504px;width:756px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Brandschutz" data-phase="ph2" data-unit="W_5_3" data-task-type="brandschutz" data-tid="W_5_3-brandschutz-1">
 
           <td class="task-name-cell">Brandschutz / Abschottungen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="30" style="left:168px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="168" data-base-width="30" style="left:504px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="W_5_3" data-task-type="decke" data-tid="W_5_3-decke-1">
 
           <td class="task-name-cell">Abhangdecken / Unterdecken</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="336" data-base-width="42" style="left:336px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="336" data-base-width="42" style="left:1008px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="W_5_3" data-task-type="maler" data-tid="W_5_3-maler-1">
 
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="378" data-base-width="84" style="left:378px;width:84px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="378" data-base-width="84" style="left:1134px;width:252px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Bodenbelag" data-phase="ph2" data-unit="W_5_3" data-task-type="boden" data-tid="W_5_3-boden-1">
 
           <td class="task-name-cell">Bodenbelag Vinyl</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fef3c7;color:#92400e;border:1px solid #92400e40">Bodenbelag</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="462" data-base-width="30" style="left:462px;width:30px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="462" data-base-width="30" style="left:1386px;width:90px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="W_5_3" data-task-type="tueren" data-tid="W_5_3-tueren-1">
 
           <td class="task-name-cell">Türen montieren</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="462" data-base-width="42" style="left:462px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="462" data-base-width="42" style="left:1386px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Sanitär / Elektro" data-phase="ph2" data-unit="W_5_3" data-task-type="endmontage" data-tid="W_5_3-endmontage-1">
 
           <td class="task-name-cell">Sanitär/Elektro Endmontage</td>
           <td><span class="status-badge status-planned">in Planung</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#7c3aed;border:1px solid #7c3aed40">Sanitär / Elektro</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="504" data-base-width="42" style="left:504px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="504" data-base-width="42" style="left:1512px;width:126px"></div></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Gutachter" data-phase="ph2" data-unit="W_5_3" data-task-type="blowerdoor" data-tid="W_5_3-blowerdoor-1">
 
           <td class="task-name-cell">Blowerdoor-Test + Abnahme</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed840">Gutachter</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar status-planned" data-base-left="546" data-base-width="42" style="left:546px;width:42px"></div></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" data-base-left="546" data-base-width="42" style="left:1638px;width:126px"></div></div></td>
         </tr>
         <tr class="section-row">
           
@@ -4464,77 +4434,77 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> WELLNESSBEREICH
             <span class="progress-pill">1/11 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Abbruch" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-1">
           
           <td class="task-name-cell">Abbruch</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-2">
           
           <td class="task-name-cell">Trockenbau</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Heizung" data-phase="ph2" data-unit="T_5_1" data-task-type="fbhz" data-tid="T_5_1-fbhz-2">
           
           <td class="task-name-cell">FBHZ</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#dc2626;border:1px solid #dc262640">Heizung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Estrich" data-phase="ph2" data-unit="T_5_1" data-task-type="estrich" data-tid="T_5_1-estrich-2">
           
           <td class="task-name-cell">Estrich</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3e8ff;color:#7c3aed;border:1px solid #7c3aed40">Estrich</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Abdichtung" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-3">
           
           <td class="task-name-cell">Abdichtung</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">Abdichtung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Fliesen" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-4">
           
           <td class="task-name-cell">Fliesen</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ccfbf1;color:#0f766e;border:1px solid #0f766e40">Fliesen</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Schreiner" data-phase="ph2" data-unit="T_5_1" data-task-type="tueren" data-tid="T_5_1-tueren-2">
           
           <td class="task-name-cell">Türen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Glas / Metall" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-5">
           
           <td class="task-name-cell">Glaswände</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0284c7;border:1px solid #0284c740">Glas / Metall</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="Maler" data-phase="ph2" data-unit="T_5_1" data-task-type="maler" data-tid="T_5_1-maler-2">
           
           <td class="task-name-cell">Malerarbeiten</td>
           <td><span class="status-badge status-planned">—</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ffedd5;color:#ea580c;border:1px solid #ea580c40">Maler</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-6">
           
           <td class="task-name-cell">…</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="section-row">
           
@@ -4542,77 +4512,77 @@ function scrollToCard(id) {
             <span class="section-arrow">▶</span> HAUPTWERK
             <span class="progress-pill">2/12 ✓</span>
           </td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Abdichtung" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-7">
           
           <td class="task-name-cell">Abdichtung Heizmittelraum</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">Abdichtung</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Fenster" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-8">
           
           <td class="task-name-cell">Lamellenfenster / RWA (Treppenhaus)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#e0f2fe;color:#0369a1;border:1px solid #0369a140">Fenster</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-9">
           
           <td class="task-name-cell">Büroumzug (Planung)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-10">
           
           <td class="task-name-cell">Büroumzug</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-11">
           
           <td class="task-name-cell">Ausbau alter Bürostandort (Höhenrestaurant, Physio, o.ä.?)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Trockenbau" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-12">
           
           <td class="task-name-cell">ICF-Kidsräume fertigstellen (inkl. Heizung, Trockenbau,…)</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#ede9fe;color:#6366f1;border:1px solid #6366f140">Trockenbau</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-13">
           
           <td class="task-name-cell">Sanitärbereiche 2. OG</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="Sanitär" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-14">
           
           <td class="task-name-cell">Sanitärbereiche 3. OG</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#dbeafe;color:#2563eb;border:1px solid #2563eb40">Sanitär</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-15">
           
           <td class="task-name-cell">Lager Susi / Upjoy fertigstellen</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
         <tr class="task-row" data-status="abgeschlossen" data-gewerk="" data-phase="ph2" data-unit="T_5_1" data-task-type="other" data-tid="T_5_1-other-16">
           
           <td class="task-name-cell">28.12</td>
           <td><span class="status-badge status-done">✓</span>
               </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
-          <td><div class="gantt-row-inner" style="width:3600px"></div></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
         </tr>
 </tbody>
 </table>
@@ -5465,7 +5435,7 @@ function filterWohnNew(mode, btn) {
 <script id="kapazitaet-engine">
 (function(){
   var ORIGIN_KW = 23;
-  var PX_PER_WEEK = 42;
+  var PX_PER_WEEK = 126;
 
   // KW-Anzeige mit Jahres-Trennung (KW23/2026 = KW23, KW53 = KW1/2027 ...)
   function kwToDisplay(contKw) {
@@ -8125,7 +8095,7 @@ window.addEventListener('DOMContentLoaded', function(){
 (function(){
   // Plan-Koordinaten: left:0 = KW23 = 1. Juni 2026
   var ORIGIN_KW = 23;
-  var PX_PER_WEEK = 42;
+  var PX_PER_WEEK = 126;
   var PX_PER_DAY = PX_PER_WEEK / 7;             // 6 px = 1 Tag (tag-genaue Planung)
   var ORIGIN_DATE = new Date(2026, 5, 1, 12);   // 1. Juni 2026 (KW23 Mo) = left:0
 
@@ -8336,11 +8306,11 @@ window.addEventListener('DOMContentLoaded', function(){
 <script id="gantt-drag-resize-engine">
 (function(){
   var ORIGIN_KW = 23;
-  var PX_PER_WEEK = 42;
+  var PX_PER_WEEK = 126;
 
   function pxToKw(px) { return ORIGIN_KW + Math.round(px / PX_PER_WEEK); }
   // In Tagesansicht auf Tage (6px) rasten, sonst auf Wochen (42px)
-  function snapUnit() { return (window.GANTT_Z > 1) ? (PX_PER_WEEK / 7) : PX_PER_WEEK; }
+  function snapUnit() { return PX_PER_WEEK / 7; }   // tag-genau (18px), fester Tages-Maßstab
   function snapToWeek(px) { var u = snapUnit(); return Math.round(px / u) * u; }
 
   var dragState = null; // {mode: 'drag'|'resize-l'|'resize-r', bar, startX, startLeft, startWidth, planLeft, planWidth}
@@ -8438,7 +8408,7 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     // Info-Tooltip: in Tagesansicht datums-/tag-genau, sonst KW/Wochen
     var infoHtml;
-    if (window.GANTT_Z > 1 && typeof window.ganttDayLabel === 'function') {
+    if (typeof window.ganttDayLabel === 'function') {
       var pd = PX_PER_WEEK / 7;
       var days = Math.max(1, Math.round(newWidth / pd));
       infoHtml = '<b>' + window.ganttDayLabel(newLeft) + ' – ' + window.ganttDayLabel(newLeft + newWidth - pd) + '</b><br>Dauer: ' + days + ' Tag' + (days === 1 ? '' : 'e');
@@ -9192,7 +9162,7 @@ window.addEventListener('DOMContentLoaded', function(){
       '<td><span class="status-badge '+statCls+'">'+statTxt+'</span></td>' +
       '<td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">'+gwSpan+'</td>' +
       '<td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">'+firma+'</td>' +
-      '<td><div class="gantt-row-inner" style="width:3600px"><div class="gantt-bar '+barCls+'" style="left:'+left+'px;width:'+width+'px" title="'+name+'"></div></div></td>' +
+      '<td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar '+barCls+'" style="left:'+left+'px;width:'+width+'px" title="'+name+'"></div></div></td>' +
       '</tr>';
 
     // Einfügen
@@ -9308,7 +9278,7 @@ window.togglePanel = function() {
   // bei left = (X-Offset der ersten task-row gantt-row-inner) + today_px gesetzt.
   // Beim Horizontal-Scroll wandert sie mit dem Table-Content mit (richtige Bewegung).
 
-  var PX_PER_WEEK = 42;
+  var PX_PER_WEEK = 126;
   var ORIGIN = new Date(2026, 5, 1); // 1. Juni 2026 = KW23 Mo (Projektstart)
   ORIGIN.setHours(0,0,0,0);
 
@@ -9434,7 +9404,7 @@ window.togglePanel = function() {
 <script>
 /* ===== Kapa-Heatmap-Strip im Hauptzeitplan: zeigt Auslastung pro KW für aktiven Gewerk-Filter ===== */
 (function () {
-  var PX_PER_WEEK = 42;
+  var PX_PER_WEEK = 126;
   var ORIGIN_KW   = 23;
   function getEmployees() {
     try { return JSON.parse(localStorage.getItem('kap-mitarbeiter-v10') || '[]') || []; } catch (e) { return []; }
@@ -9521,7 +9491,7 @@ window.togglePanel = function() {
     sel.forEach(function (gName) {
       rows += '<tr class="kapa-heat-row">'
         + '<td colspan="4" style="padding:3px 10px;font-size:9px;font-weight:800;letter-spacing:.4px;color:#0f172a;background:#eef2f7;border-bottom:1px solid #e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📊 ' + gName.toUpperCase() + ' · Auslastung</td>'
-        + '<td style="padding:0;background:#eef2f7;border-bottom:1px solid #e2e8f0"><div style="position:relative;width:' + Math.round(3600 * (window.GANTT_Z || 1)) + 'px;height:18px">' + buildHeatCells(gName, demandG, supplyG) + '</div></td>'
+        + '<td style="padding:0;background:#eef2f7;border-bottom:1px solid #e2e8f0"><div style="position:relative;width:10800px;height:18px">' + buildHeatCells(gName, demandG, supplyG) + '</div></td>'
         + '</tr>';
     });
     tbody.insertAdjacentHTML('afterbegin', rows);

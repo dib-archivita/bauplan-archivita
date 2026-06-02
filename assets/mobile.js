@@ -128,7 +128,7 @@
   // ── 3. "Heute"-FAB ────────────────────────────────────────────────
   function setupTodayFAB() {
     const ORIGIN_KW = 23;
-    const PX_PER_WEEK = 42;
+    const PX_PER_WEEK = 126;
     const origin = new Date(2026, 5, 1); // 1. Juni 2026 = KW23 Montag
 
     const fab = document.createElement('button');
