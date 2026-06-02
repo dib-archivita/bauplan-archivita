@@ -135,7 +135,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 .gantt-timeline-header{position:relative;height:36px;overflow:hidden}
 .gantt-kw-header{position:relative;height:28px;overflow:hidden;border-bottom:1px solid #e2e8f0}
 .month-label{position:absolute;top:0;height:18px;font-size:10px;font-weight:700;text-align:center;color:#334155;background:#f8fafc;border-right:1px solid #e2e8f0;border-bottom:2px solid #cbd5e1;display:flex;align-items:center;justify-content:center}
-.kw-label{position:absolute;top:0;height:28px;font-size:10px;color:#475569;border-right:1px solid #e2e8f0;padding:4px 3px;overflow:hidden;width:42px;font-weight:600}
+.kw-label{position:absolute;top:0;height:28px;font-size:10px;color:#475569;border-right:1px solid #e2e8f0;padding:4px 3px;overflow:hidden;width:126px;font-weight:600}
 .gantt-row-inner{position:relative;height:var(--row-h);overflow:hidden}
 /* Tages-Grid (fester Tages-Maßstab, echte Pixel): Tageslinie 18px, kräftigere Wochenlinie 126px, Wochenend-Schattierung (Sa/So = letzte 36px der Woche). left:0 = KW23-Montag → Tag-/Wochengrenzen exakt ausgerichtet (7×18 = 126). */
 .gantt-row-inner{
