@@ -9400,7 +9400,7 @@ window.togglePanel = function() {
     if (!strip) {
       strip = document.createElement('div');
       strip.id = 'kapa-heat-strip';
-      strip.style.cssText = 'position:relative;height:18px;width:3768px;margin-left:-168px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
+      strip.style.cssText = 'position:relative;height:18px;width:3768px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
       head.parentNode.insertBefore(strip, head);
     }
     var targetG = (typeof window.activeGewerk !== 'undefined' && window.activeGewerk && window.activeGewerk !== 'all') ? window.activeGewerk : 'all';
