@@ -127,9 +127,9 @@
 
   // ── 3. "Heute"-FAB ────────────────────────────────────────────────
   function setupTodayFAB() {
-    const ORIGIN_KW = 19;
+    const ORIGIN_KW = 23;
     const PX_PER_WEEK = 42;
-    const origin = new Date(2026, 4, 4); // 4. Mai 2026 = KW19 Montag
+    const origin = new Date(2026, 5, 1); // 1. Juni 2026 = KW23 Montag
 
     const fab = document.createElement('button');
     fab.id = 'today-fab';

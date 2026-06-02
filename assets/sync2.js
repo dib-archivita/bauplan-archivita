@@ -255,7 +255,7 @@
       '<td><span class="status-badge ' + (STATUS_CSS[st]||'status-planned') + '">' + (STATUS_LABELS[st]||'—') + '</span></td>' +
       '<td style="padding:2px 5px;font-size:10px"><span class="gewerk-badge" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;background:#f1f5f9;color:#64748b;border:1px solid #64748b40">' + esc(sanitizeText(d.gewerk) || '+ Gewerk') + '</span></td>' +
       '<td style="padding:2px 5px;font-size:10px;color:#64748b">' + esc(sanitizeText(d.firma) || '—') + '</td>' +
-      '<td><div class="gantt-row-inner" style="width:3768px">' +
+      '<td><div class="gantt-row-inner" style="width:3600px">' +
         (d.bar_width ? '<div class="gantt-bar ' + (STATUS_CSS[st]||'status-planned') + '" style="left:' + (d.bar_left||0) + 'px;width:' + d.bar_width + 'px"></div>' : '') +
       '</div></td>';
     return row;
@@ -300,7 +300,7 @@
     row.innerHTML =
       '<td class="section-name" colspan="4"><span class="section-arrow">▶</span> ' + esc(d.name || 'Neuer Bereich') +
       ' <span class="progress-pill">0/0 ✓</span></td>' +
-      '<td><div class="gantt-row-inner" style="width:3768px"></div></td>';
+      '<td><div class="gantt-row-inner" style="width:3600px"></div></td>';
     return row;
   }
   function insertCustomSection(row, item) {

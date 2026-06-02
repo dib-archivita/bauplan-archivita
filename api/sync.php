@@ -41,6 +41,72 @@ $db->exec(
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
 );
 
+// ── Einmal-Migration: Plan-Ursprung KW19 → KW23 (bar_left −168 px) ────
+// v81: Der Hauptzeitplan beginnt jetzt visuell bei KW23 (left:0). Bereits
+// gespeicherte (gedraggte) Balken haben bar_left noch im alten KW19-System
+// und müssen einmalig um 168 px (= 4 Wochen) nach links gezogen werden,
+// sonst springen sie 4 Wochen zu weit rechts. Läuft genau EINMAL: wer zuerst
+// pollt (egal welche Rolle), triggert es serverseitig BEVOR overrides
+// ausgeliefert werden → kein Fenster mit falsch positionierten Balken.
+// Claim + Shift + Flag liegen in EINER Transaktion → kein Doppel-Shift bei
+// gleichzeitigen Requests, kein hängender Zwischenzustand bei Abbruch.
+if ($method === 'GET' && ($_GET['migrate'] ?? '') === 'status') {
+    if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
+    $flag = $db->query("SELECT v FROM kv_state WHERE k = 'origin_kw23_migrated'")->fetchColumn();
+    json_response(['origin_kw23_migrated' => ($flag === false ? null : $flag)]);
+}
+$kw23Done = $db->query("SELECT v FROM kv_state WHERE k = 'origin_kw23_migrated'")->fetchColumn();
+if ($kw23Done === false) {
+    try {
+        $db->beginTransaction();
+        // Atomar beanspruchen: bei gleichzeitigem Request verliert der zweite
+        // (INSERT IGNORE → rowCount 0) und überspringt den Shift.
+        $claim = $db->prepare("INSERT IGNORE INTO kv_state (k, v, updated_by) VALUES ('origin_kw23_migrated', 'running', :uid)");
+        $claim->execute([':uid' => (int)$u['id']]);
+        if ($claim->rowCount() === 1) {
+            $SHIFT = 168;
+            $ovFixed = 0; $ciFixed = 0;
+            // overrides: field='bar_left' → max(0, value − 168)
+            $rows = $db->query("SELECT id, value FROM overrides WHERE field = 'bar_left'")->fetchAll();
+            $upd  = $db->prepare('UPDATE overrides SET value = :v WHERE id = :id');
+            foreach ($rows as $r) {
+                if (!is_numeric($r['value'])) continue;
+                $nv = max(0, (int)round((float)$r['value']) - $SHIFT);
+                $upd->execute([':v' => (string)$nv, ':id' => $r['id']]);
+                $ovFixed++;
+            }
+            // custom_items.data (JSON): bar_left → max(0, −168); bei Clamp bar_width um Überhang kürzen
+            $rows = $db->query("SELECT id, data FROM custom_items WHERE data LIKE '%bar_left%'")->fetchAll();
+            $upd  = $db->prepare('UPDATE custom_items SET data = :d WHERE id = :id');
+            foreach ($rows as $r) {
+                $d = json_decode($r['data'] ?? '{}', true);
+                if (!is_array($d) || !array_key_exists('bar_left', $d) || !is_numeric($d['bar_left'])) continue;
+                $nl = (int)round((float)$d['bar_left']) - $SHIFT;
+                if ($nl < 0) {
+                    if (isset($d['bar_width']) && is_numeric($d['bar_width'])) {
+                        $d['bar_width'] = max(0, (int)round((float)$d['bar_width']) + $nl);
+                    }
+                    $nl = 0;
+                }
+                $d['bar_left'] = $nl;
+                $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':id' => $r['id']]);
+                $ciFixed++;
+            }
+            $db->prepare("UPDATE kv_state SET v = :v, updated_by = :uid WHERE k = 'origin_kw23_migrated'")
+               ->execute([':v' => json_encode(['shift' => $SHIFT, 'overrides' => $ovFixed, 'custom' => $ciFixed], JSON_UNESCAPED_UNICODE), ':uid' => (int)$u['id']]);
+            $db->commit();
+            audit_log((int)$u['id'], 'sync.migrate_origin_kw23', 'maintenance', null, ['overrides' => $ovFixed, 'custom' => $ciFixed]);
+        } else {
+            // Jemand anderes migriert gerade → nichts tun.
+            $db->commit();
+        }
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        // Claim ist mit der Transaktion zurückgerollt → nächster Request versucht es erneut.
+        error_log('migrate_origin_kw23 failed: ' . $e->getMessage());
+    }
+}
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);

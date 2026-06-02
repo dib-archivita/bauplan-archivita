@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v80** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v81** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -91,9 +91,11 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 
 ## ⚠️ Aktuelle Tradeoffs / offene Punkte
 
-1. **KW 19–22 auf wide screens sichtbar**: Scroll-Lock funktioniert nur, wenn der Plan horizontalen Scroll braucht. Auf Wide-Screens fitten alle KWs → KW 19–22 bleiben sichtbar.
-   - **Saubere Lösung wäre**: echte Datenmigration (ORIGIN_KW=19 → 23, alle `bar_left` minus 168, statische KW-Labels neu generieren). Riskant aber sauber. User hat das mehrfach reklamiert, ist aber bisher nicht angegangen worden.
-   - Margin-Shift-Versuche (v69, v79) sind gescheitert, weil `gantt-kw-header` (außerhalb table) und `gantt-row-inner` (in td hinter Sticky-Spalten) unterschiedliche X-Origins haben.
+1. ✅ **KW 19–22 endgültig weg (v81)** — gelöst per echter Quell-Migration statt Runtime-Shift:
+   - `ORIGIN_KW` 19→23 überall, `left:0` = KW23 = 1. Juni 2026. Header (KW + Monat) neu generiert ab KW23, alle ~292 Balken `left −168` (3 KW22-Tasks auf KW23 geklemmt), Grid-Breite 3768→3600, CSS-Hack + Scroll-Lock raus.
+   - Today-Line `ORIGIN` = 1. Juni 2026, `todayKW` Basis 23. mobile.js Heute-FAB-Origin angepasst. section-edit.js / sync2.js Breiten + ORIGIN_KW mit.
+   - **DB-Migration** (`api/sync.php`): gespeicherte `bar_left` in `overrides` + `custom_items` einmalig −168 (atomar, Flag `origin_kw23_migrated` in `kv_state`, läuft beim ersten Poll, kein Doppel-Shift). Status: `GET /api/sync.php?migrate=status` (Admin).
+   - Lehre: Runtime-Margin-Shift (v69/v79) scheiterte an X-Origin-Mismatch + Today-Line-Doppel-Shift + dynamischen Zeilen. Quell-Migration ist robust.
 
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 
@@ -105,9 +107,9 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 
 ## 🔧 Wichtige Konstanten
 
-- `ORIGIN_KW = 19` (Projektstart-Referenz im JS)
+- `ORIGIN_KW = 23` (Projektstart-Referenz im JS; **seit v81**, davor 19) → `left:0` = KW23
 - `PX_PER_WEEK = 42` (eine Woche = 42 px in der Gantt)
-- KW 23 = 1. Juni 2026 (Projektstart visuell)
+- KW 23 = 1. Juni 2026 (Projektstart, jetzt linker Rand `left:0`)
 - Heute (Stand v80): real KW von aktuellem Datum, dynamisch
 - Status-Werte siehe `STATUS_OPTIONS` Array
 - Default-Mannstunden pro Task: 40 (in localStorage `task-mh-<tid>`)
@@ -151,4 +153,4 @@ PREFIX = ['task-mh-', 'todo-kw-', 'cost-name-']
 
 ---
 
-**Letzte Hand-Off**: User wollte KW 19–22 endgültig weg, aber unsere Layout-Shifts haben Today-Line + Spalten zerschossen. Sind zurück auf Scroll-Lock-only (v80). Mögliche nächste Schritte: echte Datenmigration ODER mit dem Tradeoff leben + an User-Accounts / Excel-Import weitergehen.
+**Letzte Hand-Off (v81)**: KW 19–22 endgültig entfernt per Quell-Migration (ORIGIN_KW 19→23, alle Koordinaten −168, Header neu generiert, DB-`bar_left`-Migration). Lokal verifiziert (Header-Div-Balance, Konstanten, geklemmte KW22-Balken). **Noch live zu prüfen**: User-Screenshot Hauptzeitplan auf Wide-Screen — KW23 muss linker Rand sein, Today-Line + Sticky-Spalten korrekt, gedraggte Balken nicht verschoben. Danach offen: User-Accounts / Excel-Import / Gastromatic / Mail.
