@@ -1072,7 +1072,9 @@ window.updateTabSummary = function (tabName) {
   }
 };
 
-var activeGewerk = 'all';
+var activeGewerk = 'all';            // Rückwärtskompat (Einzel-Anzeige)
+var selectedGewerke = [];            // Mehrfachauswahl Gewerke (leer = alle). Referenz NIE neu zuweisen (nur push/splice/length=0).
+window.selectedGewerke = selectedGewerke;
 var activeStatus = null;
 
 // Mapping: alte einzelne Gewerk-Namen → neue konsolidierte
@@ -1090,12 +1092,33 @@ function mapGewerk(g) {
 window.mapGewerk = mapGewerk;
 
 function filterGewerk(gw) {
-  activeGewerk = gw;
+  if (gw === 'all') {
+    selectedGewerke.length = 0;                         // alles leeren
+  } else {
+    var idx = selectedGewerke.indexOf(gw);
+    if (idx >= 0) selectedGewerke.splice(idx, 1);       // abwählen
+    else selectedGewerke.push(gw);                      // hinzufügen (Mehrfach)
+  }
+  activeGewerk = selectedGewerke.length === 1 ? selectedGewerke[0]
+              : (selectedGewerke.length === 0 ? 'all' : '__multi__');
+  window.activeGewerk = activeGewerk;
   applyFilters();
-  document.querySelectorAll('.filter-btn').forEach(b => {
-    b.classList.toggle('active', b.textContent.includes(gw) || gw==='all' && b.textContent.includes('Alle'));
+  updateGewerkPills();
+}
+
+// Pills entsprechend selectedGewerke hervorheben
+function updateGewerkPills() {
+  document.querySelectorAll('#tab-hauptwerk .filter-btn').forEach(function (b) {
+    var oc = b.getAttribute('onclick') || '';
+    if (b.classList.contains('gw-filter-btn')) {
+      var t = (b.textContent || '').trim();
+      b.classList.toggle('active', selectedGewerke.indexOf(t) >= 0);
+    } else if (oc.indexOf("filterGewerk('all')") >= 0) {
+      b.classList.toggle('active', selectedGewerke.length === 0);
+    }
   });
 }
+window.updateGewerkPills = updateGewerkPills;
 
 function filterStatus(st, btn) {
   activeStatus = (st === null) ? null : (activeStatus === st ? null : st);
@@ -1116,20 +1139,21 @@ function filterStatus(st, btn) {
 
 function applyFilters() {
   var norm = (typeof window.mapGewerk === 'function') ? window.mapGewerk : function(x){return x;};
-  var activeG = activeGewerk;
-  var targetG = (activeG !== 'all') ? norm(activeG) : null;
+  var sel = selectedGewerke;                       // Mehrfachauswahl (leer = alle)
 
   document.querySelectorAll('#main-gantt .task-row').forEach(row => {
     var gw = row.dataset.gewerk || '';
     var st = row.dataset.status || '';
     var gwN = norm(gw);
-    var gwOk = !targetG || gwN === targetG || gw === activeG || gw.includes(activeG);
+    var gwOk = sel.length === 0 || sel.some(function (g) {
+      return gwN === norm(g) || gw === g || gw.includes(g);
+    });
     var stOk = !activeStatus || st === activeStatus || (activeStatus==='laufend' && st.startsWith('fortschritt'));
     row.style.display = (gwOk && stOk) ? '' : 'none';
   });
 
   // Leere Sections (keine sichtbaren task-rows zwischen Section und nächster Section/KfW) ausblenden
-  var anyFilter = (activeG !== 'all') || !!activeStatus;
+  var anyFilter = (selectedGewerke.length > 0) || !!activeStatus;
   var tbody = document.querySelector('#main-gantt tbody');
   if (!tbody) return;
   var sections = [], kfws = [];
@@ -1174,11 +1198,12 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  activeGewerk = 'all'; activeStatus = null;
+  selectedGewerke.length = 0; activeGewerk = 'all'; window.activeGewerk = 'all'; activeStatus = null;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.filter-btn').classList.add('active');
   document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('#main-gantt .task-row').forEach(r => r.style.display = '');
+  if (typeof window.renderKapaHeatStrip === 'function') setTimeout(window.renderKapaHeatStrip, 30);
 }
 
 // Abschnitte zusammenklappen
@@ -9394,28 +9419,12 @@ window.togglePanel = function() {
     });
     return map;
   }
-  function renderHeatStrip() {
-    var head = document.querySelector('#tab-hauptwerk .gantt-kw-header');
-    if (!head) return;
-    var strip = document.getElementById('kapa-heat-strip');
-    if (!strip) {
-      strip = document.createElement('div');
-      strip.id = 'kapa-heat-strip';
-      strip.style.cssText = 'position:relative;height:18px;width:3600px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
-      head.parentNode.insertBefore(strip, head);
-    }
-    var targetG = (typeof window.activeGewerk !== 'undefined' && window.activeGewerk && window.activeGewerk !== 'all') ? window.activeGewerk : 'all';
-    // Bei "Alle Gewerke" Streifen ausblenden — sinnlos ohne Gewerk-Fokus
-    if (targetG === 'all') { strip.innerHTML = ''; strip.style.display = 'none'; return; }
-    strip.style.display = '';
-    var demandG = demandByGewerkKw();
-    var supplyG = supplyByGewerkKw();
-    var lblText = '📊 ' + targetG.toUpperCase();
-    var html = '<div style="position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;padding:0 8px;background:#1e293b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;z-index:2;border-right:1px solid #334155">' + lblText + '</div>';
-
+  // Eine Zellen-Reihe (KW23..104) für EIN Gewerk bauen
+  function buildHeatCells(gName, demandG, supplyG) {
+    var cells = '';
     for (var kw = 23; kw <= 104; kw++) {
-      var d = (demandG[targetG]||{})[kw] || 0;
-      var s = (supplyG[targetG]||{})[kw] || 0;
+      var d = (demandG[gName]||{})[kw] || 0;
+      var s = (supplyG[gName]||{})[kw] || 0;
       var pct = s > 0 ? (d/s*100) : 0;
       var col = '#f8fafc', fg = '#94a3b8', txt = '';
       if (s === 0 && d === 0) { col = '#f8fafc'; }
@@ -9425,10 +9434,37 @@ window.togglePanel = function() {
       else if (pct > 80) { col = '#f59e0b'; fg = '#7c2d12'; txt = Math.round(pct) + '%'; }
       else { col = '#86efac'; fg = '#14532d'; txt = Math.round(pct) + '%'; }
       var left = (kw - ORIGIN_KW) * PX_PER_WEEK;
-      var title = 'KW ' + kw + ' · ' + targetG + '\n' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + Math.round(pct) + '%)';
-      html += '<div title="' + title + '" '
+      var title = 'KW ' + kw + ' · ' + gName + '\n' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + Math.round(pct) + '%)';
+      cells += '<div title="' + title + '" '
         + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff;cursor:default">' + txt + '</div>';
     }
+    return cells;
+  }
+  function renderHeatStrip() {
+    var head = document.querySelector('#tab-hauptwerk .gantt-kw-header');
+    if (!head) return;
+    var strip = document.getElementById('kapa-heat-strip');
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.id = 'kapa-heat-strip';
+      strip.style.cssText = 'position:relative;width:3600px;margin-bottom:3px;pointer-events:auto;font-family:Inter,sans-serif';
+      head.parentNode.insertBefore(strip, head);
+    }
+    var sel = (typeof window.selectedGewerke !== 'undefined' && window.selectedGewerke) ? window.selectedGewerke : [];
+    // Ohne Gewerk-Auswahl Streifen ausblenden — sinnlos ohne Fokus
+    if (!sel.length) { strip.innerHTML = ''; strip.style.display = 'none'; return; }
+    strip.style.display = '';
+    var demandG = demandByGewerkKw();
+    var supplyG = supplyByGewerkKw();
+    // Ein Streifen pro gewähltem Gewerk, gestapelt. Label in EIGENER Zeile ÜBER den
+    // Zellen → überdeckt die ersten KWs nicht mehr (Auslastung KW23+ sichtbar).
+    var html = '';
+    sel.forEach(function (gName) {
+      html += '<div style="position:relative;width:3600px;margin-bottom:2px">'
+        + '<div style="height:13px;display:flex;align-items:center;font-size:9px;font-weight:800;letter-spacing:.4px;color:#1e293b">📊 ' + gName.toUpperCase() + '</div>'
+        + '<div style="position:relative;height:16px;width:3600px">' + buildHeatCells(gName, demandG, supplyG) + '</div>'
+        + '</div>';
+    });
     strip.innerHTML = html;
   }
   window.renderKapaHeatStrip = renderHeatStrip;

@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v84** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v85** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -78,6 +78,7 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
   - **Gastromatic-Stub** für künftigen Urlaubs-Import
   - `cascadeRenameKapEmployees` + `cascadeClearKapEmployees`
 - ✅ TODs: Inline-Status-Dot + „▶ begonnen" / „✓ erledigt" Buttons + Gewerke-Filter (Zeitstempel-Anzeige aktuell deaktiviert, Erfassung läuft im Hintergrund)
+- ✅ **Mehrfach-Gewerk-Filter (v85)**: Gewerk-Pills sind Mehrfachauswahl (`selectedGewerke`-Array, `filterGewerk` toggelt rein/raus, „Alle Gewerke" leert). `applyFilters` zeigt Zeilen als Vereinigung. **Auslastungs-Streifen gestapelt** — ein Streifen pro gewähltem Gewerk, Label in eigener Zeile ÜBER den Zellen (überdeckt KW23+ nicht mehr). `renderHeatStrip`/`buildHeatCells` in der Heat-Strip-IIFE, liest `window.selectedGewerke`.
 - ✅ Gewerke-Verwaltung im Hauptzeitplan-Filter (🔧-Modal): Name + Farb-Picker + 🗑 löschen + neu, alphabetisch sortiert, **Cascade-Rename** durch alle Verweise (Aufgaben, Bestellungen, Mitarbeiter), **Cascade-Clear** bei Löschung
 - ✅ Mannstunden im Bar-Editor verknüpft mit Kapa
 - ✅ Tab-Auswahl persistent über Reload (localStorage `active-tab`)
