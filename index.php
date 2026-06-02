@@ -492,6 +492,8 @@ body[data-active-tab="hauptwerk"] #header-summary .card:active { transform: tran
 #header-summary .card.wip.card-filter-active     { color: #b45309; background: #fffbeb !important; }
 #header-summary .card.planned.card-filter-active { color: #1e40af; background: #eff6ff !important; }
 #header-summary .card.delayed.card-filter-active { color: #b91c1c; background: #fef2f2 !important; }
+.status-clear-chip { align-self: center; padding: 7px 14px; border-radius: 999px; border: 1.5px solid #cbd5e1; background: #fff; color: #475569; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.status-clear-chip:hover { background: #f1f5f9; border-color: #94a3b8; }
 
 /* Progress-Bar */
 .progress-bar-wrap { gap: 10px !important; }
@@ -876,6 +878,7 @@ tr.task-row[data-status="priorität"] .gantt-bar {
   <div class="card wip" data-cat="wip" role="button" tabindex="0" onclick="filterStatusCard('wip',this)" title="Nur Aufgaben in Arbeit (inkl. Priorität) zeigen — nochmal klicken: alle"><div class="num" id="hdr-wip">—</div><div class="lbl">In Arbeit</div></div>
   <div class="card planned" data-cat="planned" role="button" tabindex="0" onclick="filterStatusCard('planned',this)" title="Nur geplante Aufgaben zeigen — nochmal klicken: alle"><div class="num" id="hdr-plan">—</div><div class="lbl">Geplant</div></div>
   <div class="card delayed" data-cat="delayed" role="button" tabindex="0" onclick="filterStatusCard('delayed',this)" title="Nur verzögerte Aufgaben zeigen — nochmal klicken: alle"><div class="num" id="hdr-delay">—</div><div class="lbl">Verzögert</div></div>
+  <button type="button" id="status-clear-btn" class="status-clear-chip" onclick="clearStatusFilter()" style="display:none" title="Status-Filter aufheben — alle Aufgaben zeigen">✕ Alle anzeigen</button>
   <div class="progress-bar-wrap">
     <div class="progress-bar">
       <div id="hdr-prog-fill" class="progress-fill" style="width:0%"></div>
@@ -1172,8 +1175,19 @@ function syncStatusCardHighlight() {
   document.querySelectorAll('#header-summary .card').forEach(function (c) {
     c.classList.toggle('card-filter-active', onMain && c.dataset.cat === activeStatusCat);
   });
+  // "✕ Alle anzeigen"-Button nur zeigen, wenn im Hauptzeitplan ein Status-Filter aktiv ist
+  var clr = document.getElementById('status-clear-btn');
+  if (clr) clr.style.display = (onMain && activeStatusCat) ? '' : 'none';
 }
 window.syncStatusCardHighlight = syncStatusCardHighlight;
+
+// Status-Filter komplett aufheben (alle Aufgaben zeigen) — vom "✕ Alle anzeigen"-Button.
+function clearStatusFilter() {
+  activeStatusCat = null;
+  syncStatusCardHighlight();
+  applyFilters();
+}
+window.clearStatusFilter = clearStatusFilter;
 
 // Tastatur-Bedienung der Counter-Cards (Enter/Leertaste), da role="button".
 document.addEventListener('keydown', function (e) {

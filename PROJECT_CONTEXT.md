@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v94** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v95** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -63,7 +63,7 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
 - Magic-Link-Auth, Rollen, Audit-Log; **Multi-User-Realtime-Sync** aller Tabs.
 - **Hauptzeitplan**: editierbare Sections/KFW/Tasks (+/✕, Undo inkl. **Balken-Drag/Resize/Editor** via ⌘Z/↺-FAB), 12-Stufen-Status-Dropdown.
 - **Tag-genaues Planen**: Balken klicken → **Bar-Editor mit Von/Bis-Datum**; Drag/Resize rasten auf **Tage** (18px, min 1 Tag); Mo–So-Kopf; alles **scharf**.
-- **Status-Filter über die Counter-Cards** (v94): keine separate Status-Leiste mehr. Die 4 Summary-Cards (Abgeschlossen/In Arbeit/Geplant/Verzögert) sind klickbar → `filterStatusCard(cat)` setzt `activeStatusCat`, nochmal klicken = alle, immer nur eine aktiv (farbiger Ring). `applyFilters` matcht per `classifyStatus(st)===activeStatusCat` (identisch zur Zähl-Logik → Klick zeigt genau die gezählten Zeilen; „priorität" zählt/filtert als *In Arbeit*). Cards filtern nur im Hauptzeitplan (Guard auf `body[data-active-tab=hauptwerk]`; `syncStatusCardHighlight` blendet Markierung in anderen Tabs aus).
+- **Status-Filter über die Counter-Cards** (v94): keine separate Status-Leiste mehr. Die 4 Summary-Cards (Abgeschlossen/In Arbeit/Geplant/Verzögert) sind klickbar → `filterStatusCard(cat)` setzt `activeStatusCat`, nochmal klicken = alle, immer nur eine aktiv (farbiger Ring). **„✕ Alle anzeigen"-Button** (`#status-clear-btn` / `clearStatusFilter`) erscheint in der Summary-Leiste, sobald ein Filter aktiv ist (expliziter Reset, v95). `applyFilters` matcht per `classifyStatus(st)===activeStatusCat` (identisch zur Zähl-Logik → Klick zeigt genau die gezählten Zeilen; „priorität" zählt/filtert als *In Arbeit*). Cards filtern nur im Hauptzeitplan (Guard auf `body[data-active-tab=hauptwerk]`; `syncStatusCardHighlight` blendet Markierung in anderen Tabs aus).
 - **Mehrfach-Gewerk-Filter** (`selectedGewerke`-Array; Pills toggeln; „Alle Gewerke" leert; `applyFilters` = Vereinigung). **Auslastungs-Streifen gestapelt** als `tr.kapa-heat-row` oben in tbody (Label `colspan=4` im festen Bereich, Zellen in Gantt-Spalte; `renderHeatStrip`/`buildHeatCells` lesen `window.selectedGewerke`).
 - **Alle Bereichs-/Phasen-Header einheitlich Navy** (`.kfw-header-row`, Farbvarianten entfernt).
 - Bestellungen (Inline-Edit, Status-Pills, „⚠ verzögert"-Filter), Budget (verbindlich/Schätzung + Custom-Positionen), Kapazität (Cockpit, Gewerke-Übersicht, Mitarbeiter-Karten, Kalender, Gastromatic-**Stub**), TODs.
@@ -111,4 +111,4 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
-**Letzte Hand-Off (v94):** Status-Filter umgebaut — separate Status-Leiste raus, stattdessen die 4 Counter-Cards oben klickbar (kategoriebasiert via `classifyStatus`, nur eine aktiv, farbiger Ring, nur im Hauptzeitplan). Davor (v93): Tagesansicht fertig (fester 126px-Maßstab, scharf, Mo–So, tag-genaues Drag/Editor/Undo, KW-Raster fluchtet), Header einheitlich Navy, Blower-Door nur in T 5.1, Cron-Fehlermail behoben + `cleanup.php` CLI-abgesichert. **Nächste sinnvolle Schritte:** User-Accounts, Excel/Raumbuch-Import, Mail-Benachrichtigungen, Gastromatic.
+**Letzte Hand-Off (v95):** Status-Filter umgebaut — separate Status-Leiste raus, stattdessen die 4 Counter-Cards oben klickbar (kategoriebasiert via `classifyStatus`, nur eine aktiv, farbiger Ring, nur im Hauptzeitplan) + „✕ Alle anzeigen"-Button als expliziter Reset (v95). Davor (v93): Tagesansicht fertig (fester 126px-Maßstab, scharf, Mo–So, tag-genaues Drag/Editor/Undo, KW-Raster fluchtet), Header einheitlich Navy, Blower-Door nur in T 5.1, Cron-Fehlermail behoben + `cleanup.php` CLI-abgesichert. **Nächste sinnvolle Schritte:** User-Accounts, Excel/Raumbuch-Import, Mail-Benachrichtigungen, Gastromatic.
