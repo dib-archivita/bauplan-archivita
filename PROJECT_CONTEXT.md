@@ -12,7 +12,7 @@
 - Repo: https://github.com/dib-archivita/bauplan-archivita.git
 - Auto-Deploy: GitHub Actions (lftp/FTPS) → `git push` = live ~2 Min
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
-- Aktuelle Version: **bauplan-v83** (Stand: SW-Cache in `sw.js`)
+- Aktuelle Version: **bauplan-v84** (Stand: SW-Cache in `sw.js`)
 
 ## 🔐 Auth & Rollen
 
@@ -99,6 +99,8 @@ Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
    - Lehre: Runtime-Margin-Shift (v69/v79) scheiterte an X-Origin-Mismatch + Today-Line-Doppel-Shift + dynamischen Zeilen. Quell-Migration ist robust.
 
 1b. ✅ **Gantt-Spaltenbug behoben (v83)**: `#main-gantt` hatte 6 `<col>` aber nur 5 Zellen/Zeile — KFW-Header nutzten `colspan="5"` + Gantt-`td` (= 6 Spalten), während Task-/Header-/Section-Zeilen 5 Spalten hatten. → verwaiste Phantom-Spalte (~3600px), Gantt landete je Zeilentyp in col5/col6, Tabelle ~7950px statt ~4300, Spalten zu breit / Sticky-Header misaligned. **Fix**: orphan `<col 80px>` raus → colgroup `[auto,60,100,100,3600]` (5 Spalten), alle 6 KFW-`colspan="5"`→`colspan="4"`. Lokal mit voller Tabelle + sticky.js im Preview-Harness vorher/nachher verifiziert (7953→4326px, Header=Body). **`table-layout` bleibt `auto`** — `fixed` würde adaptive Status-Spalte (lange Status-Texte) klemmen.
+
+1c. ✅ **Sticky-Header-Spaltenbug behoben (v84)**: `assets/sticky.js` `measureOriginalColumns()` maß die **erste** `tr.task-row` im DOM. Ist die versteckt (eingeklappte Section / Filter), liefert `getBoundingClientRect()` **0-Breiten** → der Clone-Header (`table-layout:fixed`) verteilt mit 0-Spalten **gleichmäßig** → riesige gleich breite Kopfspalten, die nicht zum Body passen (genau das vom User gemeldete Symptom, NACH dem v83-Body-Fix). **Fix**: erste **sichtbare** Zeile messen (`offsetParent!==null && width>0`), bei nur-0-Breiten `null` zurück (Original-colgroup-Fallback). End-to-End im Preview-Harness verifiziert: mit versteckter erster Zeile Clone=Body `[366,161,100,62,3628]`, ALIGNED. Zusammen mit v83 (Body) ist das Spaltenlayout vollständig gefixt.
 
 2. **Gastromatic-Integration** fehlt — Stub ist drin, aber noch keine API-Anbindung. Brauche API-Key + Mitarbeiter-Mapping.
 

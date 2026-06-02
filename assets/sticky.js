@@ -106,15 +106,26 @@
   }
 
   function measureOriginalColumns(table) {
-    // Hole eine Referenz-Zeile aus dem tbody zum Messen
-    // (thead hat zusammengefasste cells, tbody hat alle Spalten)
-    const refRow = table.querySelector('tbody tr.task-row');
+    // Erste SICHTBARE task-row zum Messen wählen.
+    // WICHTIG: eine versteckte Zeile (eingeklappte Section / Filter) liefert
+    // 0-Breiten → der Clone (table-layout:fixed) verteilt dann gleichmäßig
+    // → riesige gleich breite Kopfspalten. Daher nur sichtbare Zeile messen.
+    let refRow = null;
+    const rows = table.querySelectorAll('tbody tr.task-row');
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.offsetParent !== null && r.getBoundingClientRect().width > 0) { refRow = r; break; }
+    }
     if (!refRow) return null;
     const widths = [];
+    let anyValid = false;
     refRow.querySelectorAll('td').forEach(td => {
-      widths.push(td.getBoundingClientRect().width);
+      const w = td.getBoundingClientRect().width;
+      widths.push(w);
+      if (w > 0) anyValid = true;
     });
-    return widths;
+    // Keine validen Breiten (alles 0) → nicht messen, vorherige/Original-Breiten behalten
+    return anyValid ? widths : null;
   }
 
   function buildCloneHeader() {
