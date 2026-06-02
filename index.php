@@ -80,15 +80,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 .filter-bar label{font-size:11px;font-weight:600;color:#64748b;margin-right:4px}
 .filter-btn{padding:4px 10px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:11px;font-weight:500;transition:all .15s}
 .filter-btn:hover,.filter-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
-.status-filter-btn{padding:4px 10px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:11px;font-weight:500}
-.status-filter-btn.s-done{border-color:var(--c-done);color:var(--c-done)}
-.status-filter-btn.s-done.active{background:var(--c-done);color:#fff}
-.status-filter-btn.s-wip{border-color:var(--c-wip);color:#92400e}
-.status-filter-btn.s-wip.active{background:var(--c-wip);color:#fff}
-.status-filter-btn.s-planned{border-color:var(--c-planned);color:var(--c-planned)}
-.status-filter-btn.s-planned.active{background:var(--c-planned);color:#fff}
-.status-filter-btn.s-delayed{border-color:var(--c-delayed);color:var(--c-delayed)}
-.status-filter-btn.s-delayed.active{background:var(--c-delayed);color:#fff}
 
 /* ── Gantt-Container ── */
 .tab-content{display:none} .tab-content.active{display:block}
@@ -491,6 +482,17 @@ input[type=number]:focus, input[type=text]:focus, select:focus {
   margin-top: 2px !important;
 }
 
+/* Counter-Cards als Status-Filter (nur im Hauptzeitplan klickbar) */
+body[data-active-tab="hauptwerk"] #header-summary .card { cursor: pointer !important; }
+body[data-active-tab="hauptwerk"] #header-summary .card:active { transform: translateY(0) scale(0.98); }
+#header-summary .card.card-filter-active {
+  box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px currentColor, 0 4px 14px rgba(15,23,42,0.18) !important;
+}
+#header-summary .card.done.card-filter-active    { color: #047857; background: #ecfdf5 !important; }
+#header-summary .card.wip.card-filter-active     { color: #b45309; background: #fffbeb !important; }
+#header-summary .card.planned.card-filter-active { color: #1e40af; background: #eff6ff !important; }
+#header-summary .card.delayed.card-filter-active { color: #b91c1c; background: #fef2f2 !important; }
+
 /* Progress-Bar */
 .progress-bar-wrap { gap: 10px !important; }
 .progress-bar {
@@ -592,7 +594,6 @@ button.btn-apply:hover, button[onclick*="save"]:hover, button[onclick*="Create"]
 /* Card-Hover für Einheiten-Cards */
 .wohn-main:hover td { background: #eff6ff !important; }
 
-/* Status-Filter aktive Buttons (per data-attr farbe) — leider noch generisch */
 /* Tabellen Border-Radius außen */
 .table, table.gantt-table {
   border-radius: 12px;
@@ -871,10 +872,10 @@ tr.task-row[data-status="priorität"] .gantt-bar {
 </div>
 
 <div class="summary" id="header-summary">
-  <div class="card done"><div class="num" id="hdr-done">—</div><div class="lbl">Abgeschlossen</div></div>
-  <div class="card wip"><div class="num" id="hdr-wip">—</div><div class="lbl">In Arbeit</div></div>
-  <div class="card planned"><div class="num" id="hdr-plan">—</div><div class="lbl">Geplant</div></div>
-  <div class="card delayed"><div class="num" id="hdr-delay">—</div><div class="lbl">Verzögert</div></div>
+  <div class="card done" data-cat="done" role="button" tabindex="0" onclick="filterStatusCard('done',this)" title="Nur abgeschlossene Aufgaben zeigen — nochmal klicken: alle"><div class="num" id="hdr-done">—</div><div class="lbl">Abgeschlossen</div></div>
+  <div class="card wip" data-cat="wip" role="button" tabindex="0" onclick="filterStatusCard('wip',this)" title="Nur Aufgaben in Arbeit (inkl. Priorität) zeigen — nochmal klicken: alle"><div class="num" id="hdr-wip">—</div><div class="lbl">In Arbeit</div></div>
+  <div class="card planned" data-cat="planned" role="button" tabindex="0" onclick="filterStatusCard('planned',this)" title="Nur geplante Aufgaben zeigen — nochmal klicken: alle"><div class="num" id="hdr-plan">—</div><div class="lbl">Geplant</div></div>
+  <div class="card delayed" data-cat="delayed" role="button" tabindex="0" onclick="filterStatusCard('delayed',this)" title="Nur verzögerte Aufgaben zeigen — nochmal klicken: alle"><div class="num" id="hdr-delay">—</div><div class="lbl">Verzögert</div></div>
   <div class="progress-bar-wrap">
     <div class="progress-bar">
       <div id="hdr-prog-fill" class="progress-fill" style="width:0%"></div>
@@ -1070,12 +1071,14 @@ window.updateTabSummary = function (tabName) {
     if (cards2[3]) setLbl(cards2[3], 'Verzögert');
     if (typeof window.__recountStats === 'function') window.__recountStats();
   }
+  // Aktive Status-Card-Hervorhebung mit dem aktuellen Tab synchronisieren (nur im Hauptzeitplan sichtbar)
+  if (typeof syncStatusCardHighlight === 'function') syncStatusCardHighlight();
 };
 
 var activeGewerk = 'all';            // Rückwärtskompat (Einzel-Anzeige)
 var selectedGewerke = [];            // Mehrfachauswahl Gewerke (leer = alle). Referenz NIE neu zuweisen (nur push/splice/length=0).
 window.selectedGewerke = selectedGewerke;
-var activeStatus = null;
+var activeStatusCat = null;   // Status-Kategorie-Filter (done|wip|planned|delayed) oder null = alle; gesteuert über die Counter-Cards oben
 
 // Mapping: alte einzelne Gewerk-Namen → neue konsolidierte
 function mapGewerk(g) {
@@ -1152,22 +1155,34 @@ window.ensureDayHeader = ensureDayHeader;
   setTimeout(t, 1200);
 })();
 
-function filterStatus(st, btn) {
-  activeStatus = (st === null) ? null : (activeStatus === st ? null : st);
-  document.querySelectorAll('.filter-bar [onclick*="filterStatus"]').forEach(function(b){
-    b.classList.remove('active');
-    b.style.background = '#fff';
-    // Restore original border-color
-  });
-  if (btn) {
-    btn.classList.add('active');
-    // Highlight active button
-    btn.style.background = btn.style.color || '#2563eb';
-    var origColor = btn.style.color;
-    if (origColor) btn.style.color = '#fff';
-  }
+// Counter-Card oben klicken = nach Status-Kategorie filtern (toggelt; nochmal klicken = alle).
+// Kategorien identisch zu classifyStatus(), damit ein Klick genau die gezählten Zeilen zeigt.
+function filterStatusCard(cat, cardEl) {
+  // Cards sind global sichtbar (auch im Bestellungen-Tab) – der Filter wirkt nur auf den Hauptzeitplan.
+  if (document.body.dataset.activeTab !== 'hauptwerk') showTab('hauptwerk', null);
+  activeStatusCat = (activeStatusCat === cat) ? null : cat;
+  syncStatusCardHighlight();
   applyFilters();
 }
+window.filterStatusCard = filterStatusCard;
+
+// Aktive Counter-Card hervorheben (nur im Hauptzeitplan; in anderen Tabs nichts markieren).
+function syncStatusCardHighlight() {
+  var onMain = document.body.dataset.activeTab === 'hauptwerk';
+  document.querySelectorAll('#header-summary .card').forEach(function (c) {
+    c.classList.toggle('card-filter-active', onMain && c.dataset.cat === activeStatusCat);
+  });
+}
+window.syncStatusCardHighlight = syncStatusCardHighlight;
+
+// Tastatur-Bedienung der Counter-Cards (Enter/Leertaste), da role="button".
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  var card = e.target.closest && e.target.closest('#header-summary .card[data-cat]');
+  if (!card) return;
+  e.preventDefault();
+  filterStatusCard(card.dataset.cat, card);
+});
 
 function applyFilters() {
   var norm = (typeof window.mapGewerk === 'function') ? window.mapGewerk : function(x){return x;};
@@ -1180,12 +1195,12 @@ function applyFilters() {
     var gwOk = sel.length === 0 || sel.some(function (g) {
       return gwN === norm(g) || gw === g || gw.includes(g);
     });
-    var stOk = !activeStatus || st === activeStatus || (activeStatus==='laufend' && st.startsWith('fortschritt'));
+    var stOk = !activeStatusCat || classifyStatus(st) === activeStatusCat;
     row.style.display = (gwOk && stOk) ? '' : 'none';
   });
 
   // Leere Sections (keine sichtbaren task-rows zwischen Section und nächster Section/KfW) ausblenden
-  var anyFilter = (selectedGewerke.length > 0) || !!activeStatus;
+  var anyFilter = (selectedGewerke.length > 0) || !!activeStatusCat;
   var tbody = document.querySelector('#main-gantt tbody');
   if (!tbody) return;
   var sections = [], kfws = [];
@@ -1230,10 +1245,10 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  selectedGewerke.length = 0; activeGewerk = 'all'; window.activeGewerk = 'all'; activeStatus = null;
+  selectedGewerke.length = 0; activeGewerk = 'all'; window.activeGewerk = 'all'; activeStatusCat = null;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.filter-btn').classList.add('active');
-  document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
+  syncStatusCardHighlight();
   document.querySelectorAll('#main-gantt .task-row').forEach(r => r.style.display = '');
   if (typeof window.renderKapaHeatStrip === 'function') setTimeout(window.renderKapaHeatStrip, 30);
 }
@@ -1331,15 +1346,8 @@ function scrollToCard(id) {
   <span id="gewerk-filter-pills" style="display:contents"></span>
   <button class="filter-btn" id="gewerk-filter-manage" onclick="window.openGewerkeManager()" title="Gewerke verwalten — anlegen, umbenennen, Farbe, löschen" style="margin-left:auto;padding:4px 11px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer">🔧 Gewerke verwalten</button>
 </div>
-<div class="filter-bar" style="padding:8px 24px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-  <label style="font-size:11px;font-weight:600;color:#64748b;margin-right:4px">Status:</label>
-  <button class="filter-btn active" onclick="filterStatus(null,this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #2563eb;background:#2563eb;color:#fff;font-size:11px;font-weight:600;cursor:pointer">Alle Status</button>
-  <button class="filter-btn" onclick="filterStatus('geplant',this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #94a3b840;background:#fff;color:#64748b;font-size:11px;font-weight:600;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;margin-right:4px;vertical-align:middle"></span>geplant</button>
-  <button class="filter-btn" onclick="filterStatus('laufend',this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #f59e0b40;background:#fff;color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;vertical-align:middle"></span>laufend / in Arbeit</button>
-  <button class="filter-btn" onclick="filterStatus('abgeschlossen',this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #16a34a40;background:#fff;color:#16a34a;font-size:11px;font-weight:600;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:4px;vertical-align:middle"></span>fertig</button>
-  <button class="filter-btn" onclick="filterStatus('verzögert',this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #ef444440;background:#fff;color:#ef4444;font-size:11px;font-weight:600;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:4px;vertical-align:middle"></span>verzögert</button>
-  <button class="filter-btn" onclick="filterStatus('priorität',this)" style="padding:4px 11px;border-radius:14px;border:1.5px solid #f9731640;background:#fff;color:#f97316;font-size:11px;font-weight:600;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;margin-right:4px;vertical-align:middle"></span>priorität</button>
-</div>
+<!-- Status-Filter jetzt über die Counter-Cards oben (filterStatusCard) — separate Leiste entfernt -->
+
 
 <div class="gantt-wrap">
 <table class="gantt-table" id="main-gantt">
