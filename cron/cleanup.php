@@ -16,6 +16,15 @@
  *     /usr/bin/php /home/www/bauplan/cron/cleanup.php
  */
 declare(strict_types=1);
+
+// Nur per Cron/CLI ausführbar — Aufruf über Browser/HTTP wird abgewiesen
+// (verhindert, dass jemand das Aufräum-Skript öffentlich per URL triggern kann).
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit("Forbidden — dieses Skript läuft ausschließlich per Cron (CLI).\n");
+}
+
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/helpers.php';
 require_once __DIR__ . '/../inc/mailer.php';
