@@ -1113,13 +1113,61 @@ function filterStatus(st, btn) {
 }
 
 function applyFilters() {
+  var norm = (typeof window.mapGewerk === 'function') ? window.mapGewerk : function(x){return x;};
+  var activeG = activeGewerk;
+  var targetG = (activeG !== 'all') ? norm(activeG) : null;
+
   document.querySelectorAll('#main-gantt .task-row').forEach(row => {
     var gw = row.dataset.gewerk || '';
     var st = row.dataset.status || '';
-    var gwOk = activeGewerk === 'all' || gw === activeGewerk || gw.includes(activeGewerk);
+    var gwN = norm(gw);
+    var gwOk = !targetG || gwN === targetG || gw === activeG || gw.includes(activeG);
     var stOk = !activeStatus || st === activeStatus || (activeStatus==='laufend' && st.startsWith('fortschritt'));
     row.style.display = (gwOk && stOk) ? '' : 'none';
   });
+
+  // Leere Sections (keine sichtbaren task-rows zwischen Section und nächster Section/KfW) ausblenden
+  var anyFilter = (activeG !== 'all') || !!activeStatus;
+  var tbody = document.querySelector('#main-gantt tbody');
+  if (!tbody) return;
+  var sections = [], kfws = [];
+  Array.from(tbody.children).forEach(function (tr, i) {
+    if (tr.classList.contains('section-row')) sections.push({ row: tr, i: i });
+    if (tr.classList.contains('kfw-header-row')) kfws.push({ row: tr, i: i });
+  });
+  function hasVisibleTaskAfter(idx, stopIdx) {
+    var children = tbody.children;
+    for (var j = idx + 1; j < stopIdx && j < children.length; j++) {
+      var n = children[j];
+      if (n.classList && (n.classList.contains('section-row') || n.classList.contains('kfw-header-row'))) break;
+      if (n.classList && n.classList.contains('task-row') && n.style.display !== 'none') return true;
+    }
+    return false;
+  }
+  // Section-Sichtbarkeit
+  sections.forEach(function (s, k) {
+    if (!anyFilter) { s.row.style.display = ''; return; }
+    var nextIdx = (sections[k+1] ? sections[k+1].i : 1e9);
+    var nextKfw = kfws.find(function(x){ return x.i > s.i; });
+    var stop = Math.min(nextIdx, nextKfw ? nextKfw.i : 1e9);
+    s.row.style.display = hasVisibleTaskAfter(s.i, stop) ? '' : 'none';
+  });
+  // KfW-Sichtbarkeit (zeigen, wenn mindestens eine Section darunter sichtbar bleibt)
+  kfws.forEach(function (k, idx) {
+    if (!anyFilter) { k.row.style.display = ''; return; }
+    var nextKfw = kfws[idx+1];
+    var stop = nextKfw ? nextKfw.i : 1e9;
+    var anyVisible = false;
+    for (var j = k.i + 1; j < stop && j < tbody.children.length; j++) {
+      var n = tbody.children[j];
+      if (!n) break;
+      if (n.classList && n.classList.contains('section-row') && n.style.display !== 'none') { anyVisible = true; break; }
+      if (n.classList && n.classList.contains('task-row') && n.style.display !== 'none') { anyVisible = true; break; }
+    }
+    k.row.style.display = anyVisible ? '' : 'none';
+  });
+  // Heat-Strip synchron halten
+  if (typeof window.renderKapaHeatStrip === 'function') setTimeout(window.renderKapaHeatStrip, 30);
 }
 
 function clearFilters() {
