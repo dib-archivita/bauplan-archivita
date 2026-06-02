@@ -1166,8 +1166,9 @@ function applyFilters() {
     }
     k.row.style.display = anyVisible ? '' : 'none';
   });
-  // Heat-Strip synchron halten
+  // Heat-Strip + Today-Line synchron halten
   if (typeof window.renderKapaHeatStrip === 'function') setTimeout(window.renderKapaHeatStrip, 30);
+  if (typeof window.updateTodayLine === 'function') setTimeout(window.updateTodayLine, 50);
 }
 
 function clearFilters() {
@@ -9257,8 +9258,15 @@ window.togglePanel = function() {
 
     var table = document.getElementById('main-gantt');
     if (!table) return;
-    // Referenz: erste echte task-row (haben 5 cells: 4 fix + gantt-row-inner)
-    var refRow = table.querySelector('tbody tr.task-row');
+    // Referenz: erste SICHTBARE task-row (Filter könnte vorhergehende verstecken)
+    var refRow = null;
+    var allRows = table.querySelectorAll('tbody tr.task-row');
+    for (var i = 0; i < allRows.length; i++) {
+      var r = allRows[i];
+      var hidden = r.style.display === 'none' || r.offsetParent === null;
+      if (!hidden) { refRow = r; break; }
+    }
+    if (!refRow) refRow = allRows[0];
     if (!refRow) return;
     var refInner = refRow.querySelector('.gantt-row-inner');
     if (!refInner) return;
@@ -9314,6 +9322,9 @@ window.togglePanel = function() {
   // Resize / Tab-Wechsel: neu zeichnen
   window.addEventListener('resize', function(){ setTimeout(updateTodayLine, 100); });
   document.addEventListener('click', function(){ setTimeout(updateTodayLine, 200); }, true);
+
+  // Für externen Aufruf (z.B. nach Filterwechsel) exportieren
+  window.updateTodayLine = updateTodayLine;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(updateTodayLine, 200); });
