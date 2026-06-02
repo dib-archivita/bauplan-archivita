@@ -1237,29 +1237,23 @@ function scrollToCard(id) {
 })();
 
 
-// Projektstart = Anfang Juni 2026 = KW23. KW 19–22 werden physisch nach links geschoben (out-of-view).
-// Sowohl auf engen (Scroll) als auch auf breiten Bildschirmen unsichtbar.
+// Projektstart = Anfang Juni 2026 = KW23. Auf engen Bildschirmen: Scroll-Lock auf 168 px (KW19–22 nicht erreichbar).
+// Auf breiten Bildschirmen passt der ganze Plan rein → KW19–22 bleiben sichtbar (kein Layout-Schaden).
 (function () {
-  var SHIFT = 168;  // 4 Wochen × 42 px Wochenbreite
-  function applyShift() {
-    // Header + Bar-Inner-Container verschieben — Bar-Positionen relativ bleiben gleich
-    document.querySelectorAll('.gantt-kw-header, .gantt-monat-header, .gantt-row-inner').forEach(function(el){
-      if (el.dataset.kw23Shifted === '1') return;
-      el.dataset.kw23Shifted = '1';
-      el.style.marginLeft = '-' + SHIFT + 'px';
-    });
-    // Wrap initial scrollen + sperren (für schmale Bildschirme)
-    document.querySelectorAll('.gantt-wrap').forEach(function(wrap){
-      if (wrap.dataset.kw23Locked) return;
-      wrap.dataset.kw23Locked = '1';
-      wrap.scrollLeft = 0;  // Da der Inhalt jetzt um 168 px nach links verschoben ist, ist 0 = KW23
-    });
+  var KW23_PX = 168;
+  function lockScroll(wrap) {
+    if (!wrap || wrap.dataset.kw23Locked) return;
+    wrap.dataset.kw23Locked = '1';
+    wrap.scrollLeft = KW23_PX;
+    wrap.addEventListener('scroll', function () {
+      if (wrap.scrollLeft < KW23_PX) wrap.scrollLeft = KW23_PX;
+    }, { passive: true });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyShift);
-  else applyShift();
-  window.addEventListener('load', applyShift);
-  setTimeout(applyShift, 300);
-  setTimeout(applyShift, 1000);
+  function init() { document.querySelectorAll('.gantt-wrap').forEach(lockScroll); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+  window.addEventListener('load', init);
+  setTimeout(init, 600);
 })();
 
 
