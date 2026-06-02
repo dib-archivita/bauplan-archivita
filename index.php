@@ -9305,11 +9305,12 @@ window.togglePanel = function() {
     if (!g) return '';
     return (typeof window.mapGewerk === 'function') ? window.mapGewerk(g) : g;
   }
-  function tasksByKwForGewerk(targetG) {
+  // Pro Gewerk → KW → Mannstunden-Bedarf
+  function demandByGewerkKw() {
     var map = {};
     document.querySelectorAll('#tab-hauptwerk tr.task-row').forEach(function (tr) {
       var g = gnormHP(tr.getAttribute('data-gewerk') || '');
-      if (targetG !== 'all' && g !== targetG) return;
+      if (!g) return;
       var bar = tr.querySelector('.gantt-bar');
       if (!bar || !bar.style.width) return;
       var left = parseInt(bar.style.left, 10) || 0;
@@ -9320,19 +9321,21 @@ window.togglePanel = function() {
       var tid = tr.getAttribute('data-tid');
       var mh = parseInt(localStorage.getItem('task-mh-' + tid) || '40', 10);
       var perWeek = mh / weeks;
-      for (var k = 0; k < weeks; k++) map[startKw + k] = (map[startKw + k] || 0) + perWeek;
+      if (!map[g]) map[g] = {};
+      for (var k = 0; k < weeks; k++) map[g][startKw + k] = (map[g][startKw + k] || 0) + perWeek;
     });
     return map;
   }
-  function capacityByKwForGewerk(targetG) {
+  // Pro Gewerk → KW → Kapazität
+  function supplyByGewerkKw() {
     var map = {};
-    var emps = getEmployees();
-    emps.forEach(function (emp) {
+    getEmployees().forEach(function (emp) {
       (emp.gewerke || []).forEach(function (gw0) {
         var gw = gnormHP(gw0);
-        if (targetG !== 'all' && gw !== targetG) return;
+        if (!gw) return;
+        if (!map[gw]) map[gw] = {};
         var per = (emp.std || 0) / Math.max(1, (emp.gewerke || []).length);
-        for (var kw = emp.von || 23; kw <= (emp.bis || 52); kw++) map[kw] = (map[kw] || 0) + per;
+        for (var kw = emp.von || 23; kw <= (emp.bis || 52); kw++) map[gw][kw] = (map[gw][kw] || 0) + per;
       });
     });
     return map;
@@ -9348,23 +9351,59 @@ window.togglePanel = function() {
       head.parentNode.insertBefore(strip, head);
     }
     var targetG = (typeof window.activeGewerk !== 'undefined' && window.activeGewerk && window.activeGewerk !== 'all') ? window.activeGewerk : 'all';
-    var demand = tasksByKwForGewerk(targetG);
-    var supply = capacityByKwForGewerk(targetG);
-    var lblText = (targetG === 'all') ? 'ALLE GEWERKE' : targetG.toUpperCase();
-    // Mini-Label links (sticky-haft im Header-Wrapper)
+    var demandG = demandByGewerkKw();
+    var supplyG = supplyByGewerkKw();
+    var lblText = (targetG === 'all') ? 'WORST GEWERK / KW' : targetG.toUpperCase();
     var html = '<div style="position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;padding:0 8px;background:#1e293b;color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;z-index:2;border-right:1px solid #334155">📊 ' + lblText + '</div>';
+
+    // Vorab alle Gewerke ermitteln (für "ALLE" → Bottleneck-Gewerk pro KW)
+    var allG = {};
+    Object.keys(demandG).forEach(function(g){ allG[g] = true; });
+    Object.keys(supplyG).forEach(function(g){ allG[g] = true; });
+    var gewerkeList = Object.keys(allG);
+
     for (var kw = 23; kw <= 104; kw++) {
-      var d = demand[kw] || 0, s = supply[kw] || 0;
+      var pct = 0, d = 0, s = 0, worstG = '', breakdown = '';
+      if (targetG !== 'all') {
+        d = (demandG[targetG]||{})[kw] || 0;
+        s = (supplyG[targetG]||{})[kw] || 0;
+        pct = s > 0 ? (d/s*100) : (d > 0 ? 999 : 0);
+      } else {
+        // Bottleneck-Gewerk: max % über alle Gewerke
+        var worstPct = -1;
+        gewerkeList.forEach(function(g){
+          var dg = (demandG[g]||{})[kw] || 0;
+          var sg = (supplyG[g]||{})[kw] || 0;
+          if (dg <= 0 && sg <= 0) return;
+          var p = sg > 0 ? (dg/sg*100) : (dg > 0 ? 999 : 0);
+          if (p > worstPct) { worstPct = p; worstG = g; d = dg; s = sg; }
+        });
+        pct = worstPct < 0 ? 0 : worstPct;
+        // Top-3 Belastung als Hover
+        var arr = [];
+        gewerkeList.forEach(function(g){
+          var dg = (demandG[g]||{})[kw] || 0;
+          var sg = (supplyG[g]||{})[kw] || 0;
+          if (dg === 0 && sg === 0) return;
+          var p = sg > 0 ? Math.round(dg/sg*100) : 0;
+          arr.push({ g: g, p: p, d: dg, s: sg });
+        });
+        arr.sort(function(a,b){ return b.p - a.p; });
+        breakdown = arr.slice(0,3).map(function(x){ return x.g + ' ' + x.p + '%'; }).join(' · ');
+      }
       var col = '#f8fafc', fg = '#94a3b8', txt = '';
-      if (s > 0 && d > s) { col = '#dc2626'; fg = '#fff'; txt = Math.round(d/s*100) + '%'; }
-      else if (s > 0 && d / s > 0.8) { col = '#f59e0b'; fg = '#7c2d12'; txt = Math.round(d/s*100) + '%'; }
-      else if (d > 0 && s > 0) { col = '#86efac'; fg = '#14532d'; txt = Math.round(d/s*100) + '%'; }
-      else if (d === 0 && s > 0) { col = '#f0fdf4'; }       // Kapa frei
-      else { col = '#f8fafc'; }
+      if (s === 0 && d === 0) { col = '#f8fafc'; }
+      else if (s === 0 && d > 0) { col = '#fecaca'; fg = '#991b1b'; txt = 'Bedarf'; }
+      else if (d === 0) { col = '#f0fdf4'; }
+      else if (pct > 100) { col = '#dc2626'; fg = '#fff'; txt = Math.round(pct) + '%'; }
+      else if (pct > 80) { col = '#f59e0b'; fg = '#7c2d12'; txt = Math.round(pct) + '%'; }
+      else { col = '#86efac'; fg = '#14532d'; txt = Math.round(pct) + '%'; }
       var left = (kw - ORIGIN_KW) * PX_PER_WEEK;
-      var pct = s > 0 ? Math.round(d / s * 100) : 0;
-      html += '<div title="KW ' + kw + ' · ' + targetG + ' · ' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + pct + '%)" '
-        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff">' + txt + '</div>';
+      var title = 'KW ' + kw + (targetG === 'all'
+        ? (worstG ? ' · Engpass: ' + worstG + '\n' + breakdown : ' · keine Auslastung')
+        : (' · ' + targetG + '\n' + Math.round(d) + 'h / ' + Math.round(s) + 'h (' + Math.round(pct) + '%)'));
+      html += '<div title="' + title + '" '
+        + 'style="position:absolute;left:' + left + 'px;top:0;width:' + (PX_PER_WEEK - 1) + 'px;height:100%;background:' + col + ';color:' + fg + ';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border-right:1px solid #fff;cursor:default">' + txt + '</div>';
     }
     strip.innerHTML = html;
   }
