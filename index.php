@@ -159,16 +159,16 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 
 /* ── Tagesansicht-Zoom: Koordinaten bleiben 42px/Woche, nur visuell horizontal skaliert (scaleX).
    Gilt per CSS-Klasse → wirkt automatisch auch auf dynamisch erzeugte Zeilen. ── */
+/* Tagesansicht-Zoom (scaleX). will-change:transform zwingt Rasterung in voller
+   Auflösung → gegen-skalierter Text bleibt scharf statt unscharf. */
 body.day-view #tab-hauptwerk .gantt-timeline-header,
 body.day-view #tab-hauptwerk .gantt-kw-header,
-body.day-view #tab-hauptwerk .gantt-day-header,
+body.day-view #tab-hauptwerk .gantt-day-header { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; will-change: transform; }
 body.day-view #main-gantt .gantt-row-inner { transform: scaleX(var(--gantt-z,1)); transform-origin: 0 0; }
-/* Texte/Labels gegen-skalieren, damit sie nicht gestreckt werden */
 body.day-view #tab-hauptwerk .kw-label,
 body.day-view #tab-hauptwerk .month-label,
-body.day-view #tab-hauptwerk .gantt-day-header > span { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
-/* Balken-Text: gegen-skalieren UND auf volle (gestreckte) Balkenbreite bringen, sonst nur ein Drittel sichtbar */
-body.day-view #main-gantt .gantt-bar .bar-label { right: auto; width: calc(100% * var(--gantt-z,1)); transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
+body.day-view #tab-hauptwerk .gantt-day-header > span,
+body.day-view #main-gantt .gantt-bar .bar-label { transform: scaleX(calc(1 / var(--gantt-z,1))); transform-origin: 0 0; }
 /* Wochentag-Header (Mo–So) nur in der Tagesansicht zeigen */
 .gantt-day-header { display: none; }
 body.day-view #tab-hauptwerk .gantt-day-header { display: block; }
@@ -1140,10 +1140,13 @@ window.updateGewerkPills = updateGewerkPills;
 // Tagesansicht = horizontaler scaleX-Zoom per CSS-Klasse. Das Koordinatensystem
 // bleibt bei 42px/Woche (Balken, Drag, Editor, Today-Line rechnen unverändert);
 // nur die Darstellung wird gestreckt + die Gantt-Spalte verbreitert (für Scroll).
+// Tagesansicht = horizontaler scaleX-Zoom per CSS-Klasse. Koordinaten bleiben 42px/Woche
+// (Balken, Drag, Editor rechnen unverändert); will-change sorgt für scharfe Schrift.
 window.GANTT_Z = 1;
 function toggleDayView() { setDayView(!document.body.classList.contains('day-view')); }
+
 // Wochentag-Kopf (Mo–So) einmalig erzeugen; nur in Tagesansicht sichtbar (CSS).
-// Tag 0 = KW23-Montag (1. Juni 2026). 82 Wochen × 7 Tage.
+// Tag 0 = KW23-Montag (1. Juni 2026), Basis-Koordinaten (scaleX skaliert die Anzeige).
 function ensureDayHeader() {
   var kwh = document.querySelector('#tab-hauptwerk .gantt-kw-header');
   if (!kwh || kwh.parentNode.querySelector('.gantt-day-header')) return;
@@ -1155,15 +1158,14 @@ function ensureDayHeader() {
   dh.innerHTML = html;
   kwh.parentNode.insertBefore(dh, kwh.nextSibling);
 }
+
 function setDayView(on) {
   var Z = 3;  // 42*3 = 126px/Woche = 18px/Tag
   ensureDayHeader();
   document.body.classList.toggle('day-view', on);
   window.GANTT_Z = on ? Z : 1;
   document.body.style.setProperty('--gantt-z', window.GANTT_Z);
-  // Gantt-Spalte über einen 0-Höhe-Layout-Spacer auf 3600·Z verbreitern, damit man
-  // durch alle (gestreckten) Tage scrollen kann. (Reine <col>-Breite reicht im
-  // Auto-Layout nicht zuverlässig; ein Content-Spacer erzwingt die Spaltenbreite.)
+  // Gantt-Spalte über 0-Höhe-Layout-Spacer auf 3600·Z verbreitern (für Scroll).
   var th = document.querySelector('#main-gantt thead th:last-child');
   if (th) {
     var sp = th.querySelector('.gantt-zoom-spacer');
