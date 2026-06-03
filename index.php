@@ -1510,7 +1510,7 @@ function scrollToCard(id) {
         <tr class="section-row">
           
           <td class="section-name" colspan="4">
-            <span class="section-arrow">▶</span> Aufzüge
+            <span class="section-arrow">▶</span> Aufzug klein
             <span class="progress-pill">3/25 ✓</span>
           </td>
           <td><div class="gantt-row-inner" style="width:10800px"></div></td>
@@ -1663,6 +1663,169 @@ function scrollToCard(id) {
           <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:1098px;width:4914px" title="18.24 - Lieferung | läuft | Haushahn"></div></div></td>
         </tr>
         <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-other-31">
+          
+          <td class="task-name-cell">- Installation</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:6012px;width:522px" title="18.25 - Installation | — | Haushahn"></div></div></td>
+        </tr>
+            
+        <tr class="section-row">
+          
+          <td class="section-name" colspan="4">
+            <span class="section-arrow">▶</span> Aufzug groß
+            <span class="progress-pill">3/25 ✓</span>
+          </td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Brandschutz" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-12">
+          
+          <td class="task-name-cell">- Schachtentrauchung</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-13">
+          
+          <td class="task-name-cell">- Demontage Sockel</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-14">
+          
+          <td class="task-name-cell">- Demontage Kabinen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-15">
+          
+          <td class="task-name-cell">- Sockel wegspitzen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="" data-task-type="tueren" data-tid="haustechnik-gross-tueren-1">
+          
+          <td class="task-name-cell">- Demontage Türen und Installation Absturzsicherung</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Gerüst" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-16">
+          
+          <td class="task-name-cell">- Gerüst in 4. OG einsetzen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f9fafb;color:#9ca3af;border:1px solid #9ca3af40">Gerüst</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-17">
+          
+          <td class="task-name-cell">- Lieferung</td>
+          <td><span class="status-badge status-wip">läuft</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:1098px;width:4410px" title="18.10 - Lieferung | läuft | Haushahn"></div></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-18">
+          
+          <td class="task-name-cell">- Installation</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-planned" style="left:5508px;width:1026px" title="18.11 - Installation | — | Haushahn"></div></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-19">
+          
+          <td class="task-name-cell">- Demontage Aufzugsraum</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Brandschutz" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-20">
+          
+          <td class="task-name-cell">- Schachtentrauchung</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fee2e2;color:#991b1b;border:1px solid #991b1b40">Brandschutz</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-21">
+          
+          <td class="task-name-cell">- Demontage Sockel</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-22">
+          
+          <td class="task-name-cell">- Demontage Kabinen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Abbruch" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-23">
+          
+          <td class="task-name-cell">- Sockel wegspitzen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f3f4f6;color:#6b7280;border:1px solid #6b728040">Abbruch</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Schreiner" data-phase="haustechnik" data-unit="" data-task-type="tueren" data-tid="haustechnik-gross-tueren-2">
+          
+          <td class="task-name-cell">- Demontage Türen und Installation Absturzsicherung</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#fde68a;color:#78350f;border:1px solid #78350f40">Schreiner</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="Gerüst" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-24">
+          
+          <td class="task-name-cell">- Gerüst in 4. OG einsetzen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"><span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;white-space:nowrap;background:#f9fafb;color:#9ca3af;border:1px solid #9ca3af40">Gerüst</span></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-25">
+          
+          <td class="task-name-cell">- Decken Schlitzen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-26">
+          
+          <td class="task-name-cell">- Schachtverkleinerung mit CBS</td>
+          <td><span class="status-badge status-wip">Auftrag? (ZOM)</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:3240px;width:126px" title="18.20 - Schachtverkleinerung mit CBS | Auftrag? (ZOM) | CBS"></div></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-27">
+          
+          <td class="task-name-cell">- Traversen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-28">
+          
+          <td class="task-name-cell">- Deckenschlitze zumachen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-29">
+          
+          <td class="task-name-cell">- Rahmen / Verkleinerung EG bauen</td>
+          <td><span class="status-badge status-planned">—</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">—</td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"></div></td>
+        </tr>
+        <tr class="task-row" data-status="laufend" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-30">
+          
+          <td class="task-name-cell">- Lieferung</td>
+          <td><span class="status-badge status-wip">läuft</span>
+              </td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td><td style="padding:2px 5px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px"></td>
+          <td><div class="gantt-row-inner" style="width:10800px"><div class="gantt-bar status-wip" style="left:1098px;width:4914px" title="18.24 - Lieferung | läuft | Haushahn"></div></div></td>
+        </tr>
+        <tr class="task-row" data-status="geplant" data-gewerk="" data-phase="haustechnik" data-unit="" data-task-type="other" data-tid="haustechnik-gross-other-31">
           
           <td class="task-name-cell">- Installation</td>
           <td><span class="status-badge status-planned">—</span>

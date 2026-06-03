@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v95** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v96** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,4 +111,6 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v96:** Haustechnik-Bereich „Aufzüge" dupliziert → „Aufzug klein" (Original-tids, behält Live-Overrides) + „Aufzug groß" (22 kopierte statische Rows, neue tids `haustechnik-gross-*`). Statisch in `index.php` dupliziert (NICHT als custom_item — sync2.js-Reconstruction für Sektionen ist positions-fragil). Bei künftigem Bereich-Duplizieren: statischer Weg via Python-Skript (Muster: tids per Präfix eindeutig machen, Tag-Balance prüfen).
+
 **Letzte Hand-Off (v95):** Status-Filter umgebaut — separate Status-Leiste raus, stattdessen die 4 Counter-Cards oben klickbar (kategoriebasiert via `classifyStatus`, nur eine aktiv, farbiger Ring, nur im Hauptzeitplan) + „✕ Alle anzeigen"-Button als expliziter Reset (v95). Davor (v93): Tagesansicht fertig (fester 126px-Maßstab, scharf, Mo–So, tag-genaues Drag/Editor/Undo, KW-Raster fluchtet), Header einheitlich Navy, Blower-Door nur in T 5.1, Cron-Fehlermail behoben + `cleanup.php` CLI-abgesichert. **Nächste sinnvolle Schritte:** User-Accounts, Excel/Raumbuch-Import, Mail-Benachrichtigungen, Gastromatic.
