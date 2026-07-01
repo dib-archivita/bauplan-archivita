@@ -230,6 +230,10 @@
       if (existing) {
         // Update vorhandenes
         if (item.item_type === 'task') updateCustomTaskRow(existing, item.data);
+        else if (item.item_type === 'section' && item.data && item.data.name != null) {
+          const span = existing.querySelector('.editable-text');
+          if (span) span.textContent = item.data.name;
+        }
         return;
       }
       if (item.item_type === 'task') {

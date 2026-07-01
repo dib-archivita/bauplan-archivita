@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v99** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v100** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,8 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v100:** **Custom-Bereiche (per „+ Bereich" angelegte Sections) endlich voll funktionsfähig.** 3 Bugs behoben: (1) Nach Reload baut `sync2.js buildCustomSectionRow` sie neu auf, aber der `rowObs`-Beobachter in `section-edit.js` band nur `tr.task-row` → Custom-Bereiche hatten **keine ✕/+Aufgabe-Knöpfe & keinen editierbaren Namen**. Jetzt behandelt `rowObs` auch `tr.section-row` (makeEditableText + addAddTaskButton). (2) `makeEditableText`-Umbenennen rief **gar kein PlanSync** → Umbenennungen von Custom-Bereichen syncen jetzt via `pushCustomUpdate(client_id,{name})` (stabil, kein Positions-Drift), und `applyCustom` wendet Section-Namens-Updates an. (3) `deleteSection` nutzte bei Custom-Bereichen `pushOverride('section',section-idx-N,...)` statt `pushCustomDelete(client_id)` → Löschung griff nach Reload nicht. Jetzt: Custom → `pushCustomDelete`. **Offen:** Umbenennen STATISCHER Sections/KfW synct weiterhin nicht bzw. positions-fragil (separate Baustelle; echte Kur = stabile data-row-keys).
+
 **v99 + WICHTIGE Lehre (Positions-Anker):** Bereichs-/KfW-**Umbenennungen** werden als Overrides mit **positions-basiertem Key** gespeichert: `section-idx-N` / `kfw-idx-N` (= `tbody.children[N]` in `sectionByKey`/`kfwByKey`, sync2.js). **Verschiebt sich die Zeilenstruktur** (mein v96-Insert, Custom-Bereiche, gelöschte Tasks…), zeigt `N` auf die **falsche Zeile** → Umbenennung „driftet". Symptom hier: `section-idx-38`=„Windkraftanlage" landete auf einem **KfW-Überpunkt** (weil `applyOverride` den Namen typ-blind via `tbody.children[38]` setzte). **v99-Fix:** `applyOverride` ist jetzt **typ-sicher** (section-Rename nur auf `.section-row`, kfw-Rename nur auf `.kfw-header-row`) → Cross-Typ-Drift ausgeschlossen. **Rest-Problem (offen):** Drift innerhalb desselben Typs bleibt möglich. **Echte Kur** = stabile, positions-unabhängige Keys (z. B. `data-row-key` an statische Rows + `activate()`/`sectionByKey` darauf umstellen) — setzt aber bestehende positionelle Overrides zurück (Renames neu eintippen). DB-Stand einsehbar über `GET /api/sync.php` (eingeloggt). Aktuelle Renames in DB: `section-idx-6`=Kaltwassersatz, `section-idx-38`=Windkraftanlage, `section-idx-39`=Batteriespeicher 400KW, `kfw-idx-40`=HBO Gebäudehülle.
 
 **v98:** **Zuklappen repariert** — Klick auf den ▶/▼-Pfeil einer `section-row` klappt deren Aufgaben zu/auf. Alter Code (index.php ~1270) lief VOR dem Tabellen-HTML → band an nichts (Pfeile blieben ▶, klicken tat nichts). Neu: **Event-Delegation auf `document`** (`window.toggleSectionCollapse`), nur der `.section-arrow` ist Auslöser (außerhalb `.editable-text` → Umbenennen bleibt), `data-collapsed`-Attribut, Pfeile initial ▼. CSS: `.section-arrow` cursor+hover.

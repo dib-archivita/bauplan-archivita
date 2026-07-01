@@ -194,18 +194,23 @@
     span.addEventListener('focus', () => {
       preEditValue = span.textContent;
     });
+    // Custom-Bereich? Dann Umbenennung stabil über client_id syncen (kein Positions-Drift).
+    const ownerTr = host.closest('tr');
+    const customCid = (type === 'section' && ownerTr) ? ownerTr.getAttribute('data-client-id') : null;
     span.addEventListener('blur', () => {
       const newVal = span.textContent.trim();
       if (newVal && newVal !== preEditValue) {
         const oldValForUndo = preEditValue;
         overrides[key] = newVal;
         saveOverrides(overrides);
+        if (customCid && window.PlanSync) window.PlanSync.pushCustomUpdate(customCid, { name: newVal });
         pushUndo({
           label: 'Text geändert',
           undo: () => {
             span.textContent = oldValForUndo;
             overrides[key] = oldValForUndo;
             saveOverrides(overrides);
+            if (customCid && window.PlanSync) window.PlanSync.pushCustomUpdate(customCid, { name: oldValForUndo });
           },
         });
       }
@@ -603,8 +608,14 @@
     }
     // Backend-Sync: Section-Löschung melden (Section + alle Tasks darin)
     if (window.PlanSync) {
-      const secIdx = Array.from(sectionRow.parentNode.children).indexOf(sectionRow);
-      window.PlanSync.pushOverride('section', 'section-idx-' + secIdx, 'deleted', '1');
+      const secCid = sectionRow.getAttribute('data-client-id');
+      if (secCid) {
+        // Custom-Bereich: sauber als custom_item löschen (bleibt nach Reload weg)
+        window.PlanSync.pushCustomDelete(secCid);
+      } else {
+        const secIdx = Array.from(sectionRow.parentNode.children).indexOf(sectionRow);
+        window.PlanSync.pushOverride('section', 'section-idx-' + secIdx, 'deleted', '1');
+      }
       toRemoveNodes.forEach(n => {
         if (n.classList.contains('task-row')) {
           const t = n.getAttribute('data-tid');
@@ -878,6 +889,21 @@
             addTaskRowEditing(r);
             mo.observe(r, { attributes: true, attributeFilter: ['data-status'] });
             added = true;
+          });
+          // Gesyncte BEREICHS-Zeilen (custom sections) brauchen ebenfalls Editier-/Löschen-Knöpfe,
+          // sonst kann man sie nach einem Reload weder umbenennen noch löschen.
+          const secs = n.matches && n.matches('tr.section-row') ? [n]
+                     : (n.querySelectorAll ? Array.from(n.querySelectorAll('tr.section-row')) : []);
+          secs.forEach((sr) => {
+            const shost = sr.querySelector('.section-name');
+            if (shost && !shost.querySelector(':scope > .editable-text')) {
+              const cid = sr.getAttribute('data-client-id');
+              const skey = cid ? ('seccustom-' + cid)
+                               : ('section-idx-' + Array.from(sr.parentNode.children).indexOf(sr));
+              makeEditableText(shost, skey, 'section');
+              addAddTaskButton(sr);
+              added = true;
+            }
           });
         });
       }
