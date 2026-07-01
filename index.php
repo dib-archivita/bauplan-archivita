@@ -397,8 +397,9 @@ input[type=number]:focus, input[type=text]:focus, select:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
 }
 
-/* Section-arrow Buttons (Aufgaben aufklappen) */
-.section-arrow { transition: transform 0.15s; }
+/* Section-arrow Buttons (Aufgaben auf-/zuklappen) */
+.section-arrow { transition: transform 0.15s; cursor: pointer; padding: 2px 6px; margin: -2px -2px -2px -4px; border-radius: 4px; user-select: none; }
+.section-arrow:hover { background: #e2e8f0; }
 
 /* Stat-Karten im Header */
 .summary { gap: 10px; }
@@ -1267,21 +1268,43 @@ function clearFilters() {
   if (typeof window.renderKapaHeatStrip === 'function') setTimeout(window.renderKapaHeatStrip, 30);
 }
 
-// Abschnitte zusammenklappen
-document.querySelectorAll('.section-row .section-name').forEach(el => {
-  el.addEventListener('click', function() {
-    var tr = this.closest('tr');
-    var next = tr.nextElementSibling;
-    var collapsed = false;
+// Abschnitte zusammenklappen — Klick auf den ▶/▼-Pfeil.
+// Event-Delegation auf document: funktioniert auch für per Sync nachträglich eingefügte
+// Bereiche und läuft unabhängig davon, ob die Tabelle beim Skript-Start schon geparst ist.
+// Nur der Pfeil ist Auslöser (liegt außerhalb des editierbaren Namens) → Umbenennen bleibt möglich.
+(function () {
+  function setCollapsed(sectionRow, collapse) {
+    if (!sectionRow) return;
+    var next = sectionRow.nextElementSibling;
     while (next && !next.classList.contains('section-row') && !next.classList.contains('kfw-header-row')) {
-      next.style.display = next.style.display === 'none' ? '' : 'none';
-      if (next.style.display === 'none') collapsed = true;
+      next.style.display = collapse ? 'none' : '';
       next = next.nextElementSibling;
     }
-    this.querySelector('.section-arrow').textContent = collapsed ? '▶' : '▼';
+    sectionRow.setAttribute('data-collapsed', collapse ? '1' : '0');
+    var arrow = sectionRow.querySelector('.section-arrow');
+    if (arrow) arrow.textContent = collapse ? '▶' : '▼';
+  }
+  window.toggleSectionCollapse = function (sectionRow) {
+    setCollapsed(sectionRow, sectionRow.getAttribute('data-collapsed') !== '1');
+  };
+  document.addEventListener('click', function (e) {
+    var arrow = e.target.closest && e.target.closest('tr.section-row .section-arrow');
+    if (!arrow) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.toggleSectionCollapse(arrow.closest('tr.section-row'));
   });
-  el.querySelector('.section-arrow').textContent = '▼';
-});
+  // Pfeile initial auf ▼ (aufgeklappt) setzen, sobald die Tabelle da ist
+  function initArrows() {
+    document.querySelectorAll('tr.section-row .section-arrow').forEach(function (a) {
+      var tr = a.closest('tr.section-row');
+      if (tr && tr.getAttribute('data-collapsed') !== '1') a.textContent = '▼';
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initArrows);
+  else initArrows();
+  setTimeout(initArrows, 1000);
+})();
 
 
 function filterWohn(val, btn) {
