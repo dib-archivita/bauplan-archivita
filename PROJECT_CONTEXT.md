@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v96** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v97** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,6 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
-**v96:** Haustechnik-Bereich „Aufzüge" dupliziert → „Aufzug klein" (Original-tids, behält Live-Overrides) + „Aufzug groß" (22 kopierte statische Rows, neue tids `haustechnik-gross-*`). Statisch in `index.php` dupliziert (NICHT als custom_item — sync2.js-Reconstruction für Sektionen ist positions-fragil). Bei künftigem Bereich-Duplizieren: statischer Weg via Python-Skript (Muster: tids per Präfix eindeutig machen, Tag-Balance prüfen).
+**v96→v97 (REVERT):** Versuch, den Haustechnik-Bereich „Aufzüge" **statisch im Code** zu duplizieren („Aufzug klein/groß"), wurde **zurückgenommen**. Grund: Der Nutzer hat eigene Bereiche in der App angelegt (custom_items, z. B. „Windkraftanlage"). Deren Einsortierung nutzt **absolute `tbody.children[idx]`-Anker** (`sectionByKey`/`kfwByKey` in `sync2.js`) — das statische Einfügen von 23 Zeilen **verschiebt diese Indizes** und platziert die App-Bereiche falsch. **Lehre:** Bereiche/Aufgaben, die zur bestehenden (DB-)Struktur passen sollen, NICHT statisch in `index.php` einfügen → als **custom_item** über `PlanSync.pushCustomAdd` anlegen (wie „+ Bereich"/„+ Aufgabe"). Ideal wäre eine echte **„Bereich duplizieren"-Funktion** in `section-edit.js` (Section-custom_add + je Task ein task-custom_add, Tasks per `after_key`=vorherige tid verketten — das ist tid-basiert & robust; nur Section-Anker bleibt positions-fragil).
 
 **Letzte Hand-Off (v95):** Status-Filter umgebaut — separate Status-Leiste raus, stattdessen die 4 Counter-Cards oben klickbar (kategoriebasiert via `classifyStatus`, nur eine aktiv, farbiger Ring, nur im Hauptzeitplan) + „✕ Alle anzeigen"-Button als expliziter Reset (v95). Davor (v93): Tagesansicht fertig (fester 126px-Maßstab, scharf, Mo–So, tag-genaues Drag/Editor/Undo, KW-Raster fluchtet), Header einheitlich Navy, Blower-Door nur in T 5.1, Cron-Fehlermail behoben + `cleanup.php` CLI-abgesichert. **Nächste sinnvolle Schritte:** User-Accounts, Excel/Raumbuch-Import, Mail-Benachrichtigungen, Gastromatic.
