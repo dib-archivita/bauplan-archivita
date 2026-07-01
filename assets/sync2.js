@@ -166,7 +166,10 @@
         }
       } else if (ov.entity_type === 'section') {
         const sec = sectionByKey(ov.entity_key);
-        if (!sec) return;
+        // Typ-sicher: eine Bereichs-Umbenennung/-Löschung darf NUR auf eine echte
+        // section-row wirken. Durch Zeilen-Verschiebungen kann der positions-basierte
+        // Key (section-idx-N) sonst auf einen KfW-Überpunkt/Task zeigen → falscher Treffer.
+        if (!sec || !sec.classList.contains('section-row')) return;
         if (ov.field === 'name') {
           const et = sec.querySelector('.editable-text');
           if (et) et.textContent = ov.value;
@@ -180,7 +183,8 @@
         }
       } else if (ov.entity_type === 'kfw') {
         const kfw = kfwByKey(ov.entity_key);
-        if (!kfw) return;
+        // Typ-sicher: KfW-Umbenennung darf NUR auf einen echten KfW-Überpunkt wirken.
+        if (!kfw || !kfw.classList.contains('kfw-header-row')) return;
         if (ov.field === 'name') {
           const et = kfw.querySelector('.editable-text');
           if (et) et.textContent = ov.value;
