@@ -89,7 +89,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 
 /* ── Fixed columns ── */
 .task-id{width:44px;min-width:44px;max-width:44px;padding:0 4px;font-size:10px;color:#94a3b8;font-family:monospace;text-align:right;white-space:nowrap}
-.task-name-cell{min-width:80px;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-name-cell{min-width:80px;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative}
 .section-name{font-weight:600;font-size:11.5px;padding:0 6px;cursor:pointer;user-select:none}
 
 /* ── KfW header row ── */

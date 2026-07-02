@@ -102,7 +102,11 @@
 
       /* History-Trigger-Button im task-row — NUR für Admins sichtbar */
       .se-history-btn {
-        margin-left: 6px;
+        position: absolute;       /* am rechten Rand verankert, links neben dem ✕ (Zelle ist position:relative) */
+        right: 26px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 6;
         padding: 2px 6px;
         border: none;
         background: transparent;
@@ -115,7 +119,7 @@
         line-height: 1;
         display: none;        /* default versteckt */
       }
-      body.role-admin .se-history-btn { display: inline-block; }
+      body.role-admin .se-history-btn { display: block; }
       body.role-admin tr.task-row:hover .se-history-btn { opacity: 1; }
       .se-history-btn:hover {
         background: #dbeafe;

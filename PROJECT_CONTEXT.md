@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v101** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v102** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,8 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v102:** Löschen-✕ (und 🕐-Verlauf) bei **langen Aufgaben-Namen** nicht erreichbar. Ursache: `.task-name-cell` ist `overflow:hidden; white-space:nowrap`; das ✕ war `float:right`, das 🕐 `inline-block` → bei langem Namen schob der nicht-umbrechende Text die Buttons aus dem sichtbaren Bereich (kurze Namen ok → „nicht alle löschbar"). Fix: `.task-name-cell{position:relative}`; `.se-row-del` (✕) → `position:absolute;right:2px` (section-edit.js); `.se-history-btn` (🕐) → `position:absolute;right:26px` (history-modal.js). Beide `z-index:6`, mittig, immer am rechten Rand. Per Screenshot verifiziert (kurz + lang).
+
 **v101:** Letzte Tabellenzeile war unlesbar (schwebende `position:fixed`-Overlays lagen drüber). Fix: `.gantt-wrap` `padding-bottom` 24→**120px** (letzte Zeile scrollt über die Overlays frei); `#sync-indicator` tiefer (`bottom:10px`, `left:16px`, `opacity:.92`). Schwebende FABs (`.btn-new-task`+, `.btn-toggle-panel`🕐, `#se-undo-fab`↶, `#today-fab`) unten rechts unverändert — durch das Bottom-Padding decken sie die letzte Zeile nicht mehr ab.
 
 **v100:** **Custom-Bereiche (per „+ Bereich" angelegte Sections) endlich voll funktionsfähig.** 3 Bugs behoben: (1) Nach Reload baut `sync2.js buildCustomSectionRow` sie neu auf, aber der `rowObs`-Beobachter in `section-edit.js` band nur `tr.task-row` → Custom-Bereiche hatten **keine ✕/+Aufgabe-Knöpfe & keinen editierbaren Namen**. Jetzt behandelt `rowObs` auch `tr.section-row` (makeEditableText + addAddTaskButton). (2) `makeEditableText`-Umbenennen rief **gar kein PlanSync** → Umbenennungen von Custom-Bereichen syncen jetzt via `pushCustomUpdate(client_id,{name})` (stabil, kein Positions-Drift), und `applyCustom` wendet Section-Namens-Updates an. (3) `deleteSection` nutzte bei Custom-Bereichen `pushOverride('section',section-idx-N,...)` statt `pushCustomDelete(client_id)` → Löschung griff nach Reload nicht. Jetzt: Custom → `pushCustomDelete`. **Offen:** Umbenennen STATISCHER Sections/KfW synct weiterhin nicht bzw. positions-fragil (separate Baustelle; echte Kur = stabile data-row-keys).

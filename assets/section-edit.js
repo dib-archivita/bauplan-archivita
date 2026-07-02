@@ -467,9 +467,14 @@
         delBtn.title = 'Aufgabe löschen';
         // KRITISCH: contenteditable=false → Symbol landet nie im editierbaren Text
         delBtn.setAttribute('contenteditable', 'false');
+        // Absolut am rechten Rand der Zelle verankert (statt float:right) — sonst wird das ✕
+        // bei langen Aufgaben-Namen (white-space:nowrap + overflow:hidden) weggeschoben/abgeschnitten.
         delBtn.style.cssText = [
-          'float:right',
-          'margin-left:8px',
+          'position:absolute',
+          'right:2px',
+          'top:50%',
+          'transform:translateY(-50%)',
+          'z-index:6',
           'background:transparent',
           'border:none',
           'color:#cbd5e1',
