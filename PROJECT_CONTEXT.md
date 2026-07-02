@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v102** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v103** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,8 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v103 (DB-Cleanup-Migration):** Aufräumen des „Windkraftanlage/Batteriespeicher"-Wildwuchses (Positions-Anker-Drift + viele manuelle Versuche). Einmal-Migration in `api/sync.php` (Flag `cleanup_wka_bat_v1`, Struktur wie origin_kw23/scale_day): (1) löscht verirrte Bereichs-Umbenennungen `section-idx-32/33/38/39` (name-Overrides, die „Windkraftanlage/Batteriespeicher" fälschlich auf statische Sektionen legten → „nicht löschbar"), (2) verschiebt Custom-Aufgabe „Windkraftanlage" (`client_id custom-1782933319122-1000`) via `after_key='T_5_1-other-14'` in **HAUPTWERK** (dort schon „Batteriespeicher 400 KW", custom id 8). HAUPTWERK = statische Section (index.php ~4426, Tasks `T_5_1-other-7…16`). **Lehre:** gezielte serverseitige DB-Fixes als Migration in `api/sync.php` (try/catch → Fehler bricht Sync nicht); lokal kein PHP → Syntax/Spalten gegen bestehende Migrationen prüfen. DB-Stand via `GET /api/sync.php` (eingeloggt).
+
 **v102:** Löschen-✕ (und 🕐-Verlauf) bei **langen Aufgaben-Namen** nicht erreichbar. Ursache: `.task-name-cell` ist `overflow:hidden; white-space:nowrap`; das ✕ war `float:right`, das 🕐 `inline-block` → bei langem Namen schob der nicht-umbrechende Text die Buttons aus dem sichtbaren Bereich (kurze Namen ok → „nicht alle löschbar"). Fix: `.task-name-cell{position:relative}`; `.se-row-del` (✕) → `position:absolute;right:2px` (section-edit.js); `.se-history-btn` (🕐) → `position:absolute;right:26px` (history-modal.js). Beide `z-index:6`, mittig, immer am rechten Rand. Per Screenshot verifiziert (kurz + lang).
 
 **v101:** Letzte Tabellenzeile war unlesbar (schwebende `position:fixed`-Overlays lagen drüber). Fix: `.gantt-wrap` `padding-bottom` 24→**120px** (letzte Zeile scrollt über die Overlays frei); `#sync-indicator` tiefer (`bottom:10px`, `left:16px`, `opacity:.92`). Schwebende FABs (`.btn-new-task`+, `.btn-toggle-panel`🕐, `#se-undo-fab`↶, `#today-fab`) unten rechts unverändert — durch das Bottom-Padding decken sie die letzte Zeile nicht mehr ab.

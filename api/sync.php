@@ -151,6 +151,38 @@ if ($x3Done === false) {
     }
 }
 
+// ── Einmal-Cleanup v103: "Windkraftanlage"/"Batteriespeicher" aufräumen ──
+// 1) Verirrte Bereichs-Umbenennungen entfernen (positions-basierte Overrides, die auf statische
+//    Sektionen gedriftet sind und dort fälschlich "Windkraftanlage"/"Batteriespeicher" anzeigen).
+// 2) Custom-Aufgabe "Windkraftanlage" (id 7) in den HAUPTWERK-Bereich verschieben — Anker
+//    T_5_1-other-14 (dort sitzt bereits "Batteriespeicher 400 KW", custom id 8).
+// Atomar, per kv_state-Flag genau einmal, try/catch → Fehler bricht den Sync NICHT.
+$wkaDone = $db->query("SELECT v FROM kv_state WHERE k = 'cleanup_wka_bat_v1'")->fetchColumn();
+if ($wkaDone === false) {
+    try {
+        $db->beginTransaction();
+        $claim = $db->prepare("INSERT IGNORE INTO kv_state (k, v, updated_by) VALUES ('cleanup_wka_bat_v1', 'running', :uid)");
+        $claim->execute([':uid' => (int)$u['id']]);
+        if ($claim->rowCount() === 1) {
+            $delOv = $db->prepare("DELETE FROM overrides WHERE entity_type = 'section' AND field = 'name' AND entity_key IN ('section-idx-32','section-idx-33','section-idx-38','section-idx-39')");
+            $delOv->execute();
+            $ovDeleted = $delOv->rowCount();
+            $mv = $db->prepare("UPDATE custom_items SET parent_key = :pk, after_key = :ak WHERE client_id = :cid AND deleted = 0");
+            $mv->execute([':pk' => 'section-idx-404', ':ak' => 'T_5_1-other-14', ':cid' => 'custom-1782933319122-1000']);
+            $ciMoved = $mv->rowCount();
+            $db->prepare("UPDATE kv_state SET v = :v, updated_by = :uid WHERE k = 'cleanup_wka_bat_v1'")
+               ->execute([':v' => json_encode(['ov_deleted' => $ovDeleted, 'ci_moved' => $ciMoved], JSON_UNESCAPED_UNICODE), ':uid' => (int)$u['id']]);
+            $db->commit();
+            audit_log((int)$u['id'], 'sync.cleanup_wka_bat', 'maintenance', null, ['ov_deleted' => $ovDeleted, 'ci_moved' => $ciMoved]);
+        } else {
+            $db->commit();
+        }
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('cleanup_wka_bat_v1 failed: ' . $e->getMessage());
+    }
+}
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
