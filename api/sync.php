@@ -211,6 +211,41 @@ if ($batStromDone === false) {
     }
 }
 
+// ── Einmal-Cleanup: verlorene Namen der 2 HAUPTWERK-Custom-Aufgaben wiederherstellen ──
+// (Namen gingen durch den custom_update-Overwrite-Bug verloren → hier zurücksetzen, gemergt mit data.)
+$restoreNamesDone = $db->query("SELECT v FROM kv_state WHERE k = 'restore_wka_bat_names_v1'")->fetchColumn();
+if ($restoreNamesDone === false) {
+    try {
+        $db->beginTransaction();
+        $claim = $db->prepare("INSERT IGNORE INTO kv_state (k, v, updated_by) VALUES ('restore_wka_bat_names_v1', 'running', :uid)");
+        $claim->execute([':uid' => (int)$u['id']]);
+        if ($claim->rowCount() === 1) {
+            $names = [
+                'custom-1782933319122-1000' => 'Windkraftanlage',
+                'custom-1782993014919-1001' => 'Batteriespeicher 400 KW',
+            ];
+            $sel = $db->prepare('SELECT data FROM custom_items WHERE client_id = :c');
+            $upd = $db->prepare('UPDATE custom_items SET data = :d WHERE client_id = :c');
+            foreach ($names as $cid => $nm) {
+                $sel->execute([':c' => $cid]);
+                $d = json_decode($sel->fetchColumn() ?: '{}', true);
+                if (!is_array($d)) $d = [];
+                $d['name'] = $nm;
+                $upd->execute([':d' => json_encode($d, JSON_UNESCAPED_UNICODE), ':c' => $cid]);
+            }
+            $db->prepare("UPDATE kv_state SET v = 'done', updated_by = :uid WHERE k = 'restore_wka_bat_names_v1'")
+               ->execute([':uid' => (int)$u['id']]);
+            $db->commit();
+            audit_log((int)$u['id'], 'sync.restore_wka_bat_names', 'maintenance', null, array_values($names));
+        } else {
+            $db->commit();
+        }
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('restore_wka_bat_names_v1 failed: ' . $e->getMessage());
+    }
+}
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
@@ -360,12 +395,15 @@ if ($method === 'POST') {
         if ($role === ROLE_WORKER) {
             $data = array_intersect_key($data, array_flip($workerFields));
             if (!$data) json_error('Worker darf nur Status/Notiz ändern', 403);
-            // Merge mit bestehenden data
-            $cur = $db->prepare('SELECT data FROM custom_items WHERE client_id = :c');
-            $cur->execute([':c' => $clientId]);
-            $existing = json_decode($cur->fetchColumn() ?: '{}', true);
-            $data = array_merge($existing, $data);
         }
+        // IMMER mit bestehenden data mergen (für ALLE Rollen) — partielle Updates
+        // (z.B. nur {gewerk} oder {bar_left,bar_width}) dürfen andere Felder wie 'name'
+        // NICHT löschen. (Früher: nur Worker mergte, Admin/Architekt überschrieb komplett.)
+        $cur = $db->prepare('SELECT data FROM custom_items WHERE client_id = :c');
+        $cur->execute([':c' => $clientId]);
+        $existing = json_decode($cur->fetchColumn() ?: '{}', true);
+        if (!is_array($existing)) $existing = [];
+        $data = array_merge($existing, $data);
         $stmt = $db->prepare('UPDATE custom_items SET data = :data WHERE client_id = :c');
         $stmt->execute([':data' => json_encode($data, JSON_UNESCAPED_UNICODE), ':c' => $clientId]);
         audit_log((int)$u['id'], 'sync.custom_update', 'task', $clientId, $data);

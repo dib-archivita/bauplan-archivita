@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v105** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v106** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,8 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v106 (WICHTIGER Bug):** Custom-Aufgaben verloren ihren **Namen** bei jeder Feld-Änderung. Ursache: `pushCustomUpdate(cid, {einzelfeld})` (Gewerk/Balken/Status via changes.js + index.php:8040/8370/8465/9015) schickt nur EIN Feld, und `api/sync.php` `custom_update` machte für Admin/Architekt `UPDATE ... SET data = :data` → **komplettes Überschreiben** (nur Worker mergte). Name/andere Felder weg → „Neue Aufgabe". **Fix:** custom_update mergt jetzt IMMER (alle Rollen) mit bestehendem `data`. Zusätzlich Migration `restore_wka_bat_names_v1` setzt die verlorenen Namen von „Windkraftanlage"/„Batteriespeicher 400 KW" (custom-id 7/8) zurück (gemergt).
+
 **v105:** Löschen-✕ an Aufgaben **dauerhaft sichtbar** (dezenter grauer Chip rechts, bei Hover rot) statt nur bei Maus-Hover — Grund: auf Touch/Tablet (Baustelle) gibt's kein Hover → ✕ war unsichtbar → „nicht löschbar". `.se-row-del` opacity 0.6 (Basis) statt 0, `background:#eef2f6` + box-shadow-Chip; row-mouseleave setzt opacity 0.6 (nicht 0). Zusätzlich **Absicherung** in `activate()`: 2 setTimeout-Sweeps (1,5s + 4s) rufen `addTaskRowEditing` erneut auf ALLE task-rows (idempotent via seInit) → auch gesyncte custom-Aufgaben bekommen sicher das ✕.
 
 **v104:** Zweite kleine Cleanup-Migration (`cleanup_bat_strom_v1`): markiert die doppelte Aufgabe „Batteriespeicher 400 KW" in Stromversorgung (`haustechnik-other-3`) als gelöscht (override deleted=1, wie normales Task-Delete).
