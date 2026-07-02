@@ -183,6 +183,34 @@ if ($wkaDone === false) {
     }
 }
 
+// ── Einmal-Cleanup: doppelte Aufgabe "Batteriespeicher 400 KW" in Stromversorgung entfernen ──
+// haustechnik-other-3 als gelöscht markieren (wie ein normales Task-Delete). Atomar, einmalig.
+$batStromDone = $db->query("SELECT v FROM kv_state WHERE k = 'cleanup_bat_strom_v1'")->fetchColumn();
+if ($batStromDone === false) {
+    try {
+        $db->beginTransaction();
+        $claim = $db->prepare("INSERT IGNORE INTO kv_state (k, v, updated_by) VALUES ('cleanup_bat_strom_v1', 'running', :uid)");
+        $claim->execute([':uid' => (int)$u['id']]);
+        if ($claim->rowCount() === 1) {
+            $del = $db->prepare(
+                "INSERT INTO overrides (entity_type, entity_key, field, value, updated_by)
+                 VALUES ('task', 'haustechnik-other-3', 'deleted', '1', :uid)
+                 ON DUPLICATE KEY UPDATE value = VALUES(value), updated_by = VALUES(updated_by)"
+            );
+            $del->execute([':uid' => (int)$u['id']]);
+            $db->prepare("UPDATE kv_state SET v = 'done', updated_by = :uid WHERE k = 'cleanup_bat_strom_v1'")
+               ->execute([':uid' => (int)$u['id']]);
+            $db->commit();
+            audit_log((int)$u['id'], 'sync.cleanup_bat_strom', 'maintenance', 'haustechnik-other-3', []);
+        } else {
+            $db->commit();
+        }
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('cleanup_bat_strom_v1 failed: ' . $e->getMessage());
+    }
+}
+
 // ── GET ?cleanup=glyphs : Einmal-Bereinigung per URL (nur Admin) ──────
 if ($method === 'GET' && ($_GET['cleanup'] ?? '') === 'glyphs') {
     if ($role !== ROLE_ADMIN) json_error('Nur Admin', 403);
