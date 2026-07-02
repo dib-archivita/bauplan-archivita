@@ -83,7 +83,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;background:#f8fafc;c
 
 /* ── Gantt-Container ── */
 .tab-content{display:none} .tab-content.active{display:block}
-.gantt-wrap{overflow:auto;padding:0 24px 24px}
+.gantt-wrap{overflow:auto;padding:0 24px 120px}   /* 120px unten: letzte Zeile bleibt frei von den schwebenden Buttons/Sync-Pille */
 .gantt-table{border-collapse:collapse;min-width:100%;table-layout:auto}
 .gantt-table td,.gantt-table th{border:none;padding:1px 0;vertical-align:middle}
 

@@ -331,7 +331,7 @@
     if (!el) {
       el = document.createElement('div');
       el.id = 'sync-indicator';
-      el.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:9997;font-family:Inter,sans-serif;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2e8f0;padding:5px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(15,23,42,.08);color:#64748b';
+      el.style.cssText = 'position:fixed;bottom:10px;left:16px;z-index:9997;font-family:Inter,sans-serif;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2e8f0;padding:5px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(15,23,42,.08);color:#64748b;opacity:.92';
       el.innerHTML = '<span class="si-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span><span class="si-text">Sync</span>';
       document.body.appendChild(el);
     }
