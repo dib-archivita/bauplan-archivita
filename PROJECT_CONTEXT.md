@@ -10,7 +10,7 @@
 - Repo: `https://github.com/dib-archivita/bauplan-archivita.git` (Branch **main**)
 - Lokaler Pfad: `/Users/upjoy/Code/bauzeitenplan/bauplan_backend/`
 - **Auto-Deploy**: `git push` auf `main` → GitHub Actions (lftp/FTPS) → live in ~2 Min
-- Aktuelle Version: **bauplan-v104** (Stand: `CACHE_NAME` in `sw.js`)
+- Aktuelle Version: **bauplan-v105** (Stand: `CACHE_NAME` in `sw.js`)
 
 ## 🔐 Auth & Rollen
 Magic-Link-Login, 15-Min-Token, 30-Tage-Session, max. 12 User.
@@ -111,6 +111,8 @@ git add <dateien> && git commit -m "..." && git push        # Co-Authored-By Cla
 - PDO ist im **Exception-Modus** (`inc/db.php`) → try/catch + Transaktion für Migrationen.
 
 ---
+**v105:** Löschen-✕ an Aufgaben **dauerhaft sichtbar** (dezenter grauer Chip rechts, bei Hover rot) statt nur bei Maus-Hover — Grund: auf Touch/Tablet (Baustelle) gibt's kein Hover → ✕ war unsichtbar → „nicht löschbar". `.se-row-del` opacity 0.6 (Basis) statt 0, `background:#eef2f6` + box-shadow-Chip; row-mouseleave setzt opacity 0.6 (nicht 0). Zusätzlich **Absicherung** in `activate()`: 2 setTimeout-Sweeps (1,5s + 4s) rufen `addTaskRowEditing` erneut auf ALLE task-rows (idempotent via seInit) → auch gesyncte custom-Aufgaben bekommen sicher das ✕.
+
 **v104:** Zweite kleine Cleanup-Migration (`cleanup_bat_strom_v1`): markiert die doppelte Aufgabe „Batteriespeicher 400 KW" in Stromversorgung (`haustechnik-other-3`) als gelöscht (override deleted=1, wie normales Task-Delete).
 
 **v103 (DB-Cleanup-Migration):** Aufräumen des „Windkraftanlage/Batteriespeicher"-Wildwuchses (Positions-Anker-Drift + viele manuelle Versuche). Einmal-Migration in `api/sync.php` (Flag `cleanup_wka_bat_v1`, Struktur wie origin_kw23/scale_day): (1) löscht verirrte Bereichs-Umbenennungen `section-idx-32/33/38/39` (name-Overrides, die „Windkraftanlage/Batteriespeicher" fälschlich auf statische Sektionen legten → „nicht löschbar"), (2) verschiebt Custom-Aufgabe „Windkraftanlage" (`client_id custom-1782933319122-1000`) via `after_key='T_5_1-other-14'` in **HAUPTWERK** (dort schon „Batteriespeicher 400 KW", custom id 8). HAUPTWERK = statische Section (index.php ~4426, Tasks `T_5_1-other-7…16`). **Lehre:** gezielte serverseitige DB-Fixes als Migration in `api/sync.php` (try/catch → Fehler bricht Sync nicht); lokal kein PHP → Syntax/Spalten gegen bestehende Migrationen prüfen. DB-Stand via `GET /api/sync.php` (eingeloggt).

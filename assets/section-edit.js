@@ -469,30 +469,35 @@
         delBtn.setAttribute('contenteditable', 'false');
         // Absolut am rechten Rand der Zelle verankert (statt float:right) — sonst wird das ✕
         // bei langen Aufgaben-Namen (white-space:nowrap + overflow:hidden) weggeschoben/abgeschnitten.
+        // DAUERHAFT sichtbar (dezenter Chip) — nicht nur bei Hover, damit Löschen auch auf
+        // Touch-Geräten (kein Hover) und bei jeder Aufgabe zuverlässig erreichbar ist.
         delBtn.style.cssText = [
           'position:absolute',
           'right:2px',
           'top:50%',
           'transform:translateY(-50%)',
           'z-index:6',
-          'background:transparent',
+          'background:#eef2f6',
           'border:none',
-          'color:#cbd5e1',
+          'box-shadow:0 0 0 1px rgba(148,163,184,0.35)',
+          'color:#94a3b8',
           'cursor:pointer',
           'padding:2px 6px',
           'border-radius:4px',
           'font-size:11px',
-          'opacity:0',
+          'opacity:0.6',
           'transition:opacity 0.15s,background 0.12s,color 0.12s',
           'line-height:1'
         ].join(';');
         delBtn.addEventListener('mouseenter', () => {
           delBtn.style.background = '#fee2e2';
           delBtn.style.color = '#b91c1c';
+          delBtn.style.opacity = '1';
         });
         delBtn.addEventListener('mouseleave', () => {
-          delBtn.style.background = 'transparent';
-          delBtn.style.color = '#cbd5e1';
+          delBtn.style.background = '#eef2f6';
+          delBtn.style.color = '#94a3b8';
+          delBtn.style.opacity = '0.6';
         });
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -500,9 +505,9 @@
           deleteTaskRow(row);
         });
         nameCell.appendChild(delBtn);
-        // Show on row hover
+        // ✕ bleibt dauerhaft sichtbar; bei Zeilen-Hover nur etwas kräftiger.
         row.addEventListener('mouseenter', () => { delBtn.style.opacity = '1'; });
-        row.addEventListener('mouseleave', () => { delBtn.style.opacity = '0'; });
+        row.addEventListener('mouseleave', () => { delBtn.style.opacity = '0.6'; });
       }
     }
 
@@ -916,6 +921,15 @@
     });
     const tbody = document.querySelector('#main-gantt tbody');
     if (tbody) rowObs.observe(tbody, { childList: true });
+
+    // Absicherung: kurz nach dem ersten Sync jede task-row (auch gesyncte custom-Aufgaben)
+    // erneut mit Löschen-✕ ausstatten — addTaskRowEditing ist idempotent (seInit-Guard).
+    setTimeout(function () {
+      document.querySelectorAll('#main-gantt tr.task-row').forEach(addTaskRowEditing);
+    }, 1500);
+    setTimeout(function () {
+      document.querySelectorAll('#main-gantt tr.task-row').forEach(addTaskRowEditing);
+    }, 4000);
   }
 
   if (document.readyState === 'loading') {
